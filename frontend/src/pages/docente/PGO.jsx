@@ -6,7 +6,7 @@ import Modal from '../../components/Modal';
 const ESTADOS = {
   borrador: { cls: 'chip-ink', txt: 'Borrador' },
   enviado: { cls: 'chip-gold', txt: 'Enviado' },
-  revision: { cls: 'chip-gold', txt: 'En revisión' },
+  revision: { cls: 'chip-gold', txt: 'En revision' },
   aprobado: { cls: 'chip-forest', txt: 'Aprobado' },
   rechazado: { cls: 'chip-crimson', txt: 'Rechazado' }
 };
@@ -23,17 +23,20 @@ export default function DocentePGO() {
       api.get('/docente/pgo'),
       api.get('/docente/materias')
     ]);
-    setPgoList(p.data); setMaterias(m.data);
+    setPgoList(p.data);
+    setMaterias(m.data);
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    cargar();
+  }, []);
 
   const guardar = async (e) => {
     e.preventDefault();
     const fd = new FormData();
     Object.entries(form).forEach(([k, v]) => fd.append(k, v));
     if (archivo) fd.append('archivo', archivo);
-    await api.post('/docente/pgo', fd, { headers: { 'Content-Type': 'multipart/form-data' }});
+    await api.post('/docente/pgo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     setOpen(false);
     setForm({ materia_id: '', titulo: '', descripcion: '', periodo: '2026-I' });
     setArchivo(null);
@@ -46,7 +49,7 @@ export default function DocentePGO() {
         num="02"
         eyebrow="Plan global operativo"
         title={<>Documento <span className="display-italic">PGO</span></>}
-        lead="Envíe el Plan Global Operativo de cada materia a la jefatura para revisión y aprobación."
+        lead="Envíe el Plan Global Operativo de cada materia a la jefatura para revision y aprobacion."
         actions={<button className="btn btn-primary" onClick={() => setOpen(true)}>＋ Nuevo PGO</button>}
       />
 
@@ -64,16 +67,24 @@ export default function DocentePGO() {
                 <div className="pgo-num">{String(i + 1).padStart(2, '0')}</div>
                 <div>
                   <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--gold-dark)', letterSpacing: '.1em' }}>
-                    {p.materia_codigo} · {p.periodo}
+                    {p.materia_codigo} - Grupo {p.materia_grupo || '-'} - {p.periodo}
                   </div>
                   <h3 style={{ marginTop: '.25rem' }}>{p.titulo}</h3>
-                  <div className="text-muted" style={{ fontSize: '.85rem', marginTop: '.25rem' }}>{p.materia_nombre}</div>
+                  <div className="text-muted" style={{ fontSize: '.85rem', marginTop: '.25rem' }}>
+                    {p.materia_nombre} - Grupo {p.materia_grupo || '-'}
+                  </div>
                   {p.observaciones && (
-                    <div style={{
-                      marginTop: '.75rem', padding: '.75rem', background: 'var(--paper-dark)',
-                      borderLeft: '3px solid var(--crimson)', fontSize: '.85rem', fontStyle: 'italic'
-                    }}>
-                      Observación: {p.observaciones}
+                    <div
+                      style={{
+                        marginTop: '.75rem',
+                        padding: '.75rem',
+                        background: 'var(--paper-dark)',
+                        borderLeft: '3px solid var(--crimson)',
+                        fontSize: '.85rem',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      Observacion: {p.observaciones}
                     </div>
                   )}
                 </div>
@@ -98,26 +109,30 @@ export default function DocentePGO() {
         <form onSubmit={guardar}>
           <div className="form-field">
             <label>Materia *</label>
-            <select value={form.materia_id} onChange={e => setForm({...form, materia_id: e.target.value})} required>
+            <select value={form.materia_id} onChange={(e) => setForm({ ...form, materia_id: e.target.value })} required>
               <option value="">Seleccione una materia</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.codigo} — {m.nombre}</option>)}
+              {materias.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.codigo} - {m.nombre} - Grupo {m.grupo}
+                </option>
+              ))}
             </select>
           </div>
           <div className="form-field">
-            <label>Título del PGO *</label>
-            <input value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required/>
+            <label>Titulo del PGO *</label>
+            <input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} required />
           </div>
           <div className="form-field">
-            <label>Período *</label>
-            <input value={form.periodo} onChange={e => setForm({...form, periodo: e.target.value})} placeholder="2026-I" required/>
+            <label>Periodo *</label>
+            <input value={form.periodo} onChange={(e) => setForm({ ...form, periodo: e.target.value })} placeholder="2026-I" required />
           </div>
           <div className="form-field">
-            <label>Descripción</label>
-            <textarea value={form.descripcion} onChange={e => setForm({...form, descripcion: e.target.value})}/>
+            <label>Descripcion</label>
+            <textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
           </div>
           <div className="form-field">
             <label>Archivo PDF/DOC</label>
-            <input type="file" accept=".pdf,.doc,.docx" onChange={e => setArchivo(e.target.files[0])}/>
+            <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setArchivo(e.target.files[0])} />
           </div>
           <div className="flex gap-2" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
             <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancelar</button>

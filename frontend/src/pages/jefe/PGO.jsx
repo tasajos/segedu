@@ -6,10 +6,42 @@ import Modal from '../../components/Modal';
 const ESTADOS = {
   borrador: { cls: 'chip-ink', txt: 'Borrador' },
   enviado: { cls: 'chip-gold', txt: 'Enviado' },
-  revision: { cls: 'chip-gold', txt: 'En revisión' },
+  revision: { cls: 'chip-gold', txt: 'En revision' },
   aprobado: { cls: 'chip-forest', txt: 'Aprobado' },
   rechazado: { cls: 'chip-crimson', txt: 'Rechazado' }
 };
+
+const DECISIONES = [
+  {
+    val: 'aprobado',
+    label: 'Aprobar',
+    hint: 'Confirma el documento y deja la planificacion aprobada.',
+    color: 'var(--forest)',
+    soft: 'rgba(24, 160, 88, 0.10)',
+    shadow: 'rgba(24, 160, 88, 0.22)',
+    tag: 'OK'
+  },
+  {
+    val: 'revision',
+    label: 'Solicitar cambios',
+    hint: 'Devuelve el PGO con observaciones para correccion.',
+    color: 'var(--gold-dark)',
+    soft: 'rgba(212, 145, 16, 0.10)',
+    shadow: 'rgba(212, 145, 16, 0.24)',
+    tag: 'RC'
+  },
+  {
+    val: 'rechazado',
+    label: 'Rechazar',
+    hint: 'Marca el documento como no aprobado en esta revision.',
+    color: 'var(--crimson)',
+    soft: 'rgba(214, 68, 68, 0.10)',
+    shadow: 'rgba(214, 68, 68, 0.22)',
+    tag: 'NO'
+  }
+];
+
+const getEstadoMeta = (estado) => DECISIONES.find((item) => item.val === estado) || DECISIONES[0];
 
 export default function JefePGO() {
   const [pgoList, setPgoList] = useState([]);
@@ -21,25 +53,31 @@ export default function JefePGO() {
     setPgoList(data);
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    cargar();
+  }, []);
 
-  const abrirRevision = (p) => {
-    setSelected(p);
-    setForm({ estado: p.estado, observaciones: p.observaciones || '' });
+  const abrirRevision = (pgo) => {
+    setSelected(pgo);
+    setForm({ estado: pgo.estado, observaciones: pgo.observaciones || '' });
   };
+
+  const cerrarRevision = () => setSelected(null);
 
   const revisar = async (e) => {
     e.preventDefault();
     await api.put(`/jefe/pgo/${selected.id}`, form);
-    setSelected(null);
+    cerrarRevision();
     cargar();
   };
+
+  const decisionActiva = getEstadoMeta(form.estado);
 
   return (
     <>
       <PageHeader
         num="02"
-        eyebrow="Revisión documental"
+        eyebrow="Revision documental"
         title={<>Planes <span className="display-italic">globales operativos</span></>}
         lead="Revise, apruebe o solicite correcciones de los PGO enviados por el cuerpo docente."
       />
@@ -52,10 +90,10 @@ export default function JefePGO() {
       <table className="data-table">
         <thead>
           <tr>
-            <th>№</th>
+            <th>No</th>
             <th>Materia</th>
             <th>Docente</th>
-            <th>Período</th>
+            <th>Periodo</th>
             <th>Enviado</th>
             <th>Estado</th>
             <th style={{ textAlign: 'right' }}>Acciones</th>
@@ -63,29 +101,40 @@ export default function JefePGO() {
         </thead>
         <tbody>
           {pgoList.length === 0 && (
-            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', fontStyle: 'italic' }}>Sin PGO pendientes</td></tr>
+            <tr>
+              <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', fontStyle: 'italic' }}>
+                Sin PGO pendientes
+              </td>
+            </tr>
           )}
-          {pgoList.map((p, i) => {
-            const est = ESTADOS[p.estado] || ESTADOS.enviado;
+          {pgoList.map((pgo, index) => {
+            const estado = ESTADOS[pgo.estado] || ESTADOS.enviado;
+
             return (
-              <tr key={p.id}>
-                <td className="num">{String(i + 1).padStart(3, '0')}</td>
+              <tr key={pgo.id}>
+                <td className="num">{String(index + 1).padStart(3, '0')}</td>
                 <td>
-                  <div style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{p.materia_nombre}</div>
-                  <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>{p.materia_codigo}</div>
+                  <div style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{pgo.materia_nombre}</div>
+                  <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
+                    {pgo.materia_codigo}
+                  </div>
                 </td>
-                <td>{p.docente_nombre} {p.docente_apellido}</td>
-                <td className="text-mono" style={{ fontSize: '.8rem' }}>{p.periodo}</td>
+                <td>{pgo.docente_nombre} {pgo.docente_apellido}</td>
+                <td className="text-mono" style={{ fontSize: '.8rem' }}>{pgo.periodo}</td>
                 <td className="text-mono" style={{ fontSize: '.8rem', color: 'var(--ink-light)' }}>
-                  {new Date(p.fecha_envio).toLocaleDateString()}
+                  {new Date(pgo.fecha_envio).toLocaleDateString()}
                 </td>
-                <td><span className={`chip ${est.cls}`}>{est.txt}</span></td>
+                <td><span className={`chip ${estado.cls}`}>{estado.txt}</span></td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'inline-flex', gap: '.5rem' }}>
-                    {p.archivo_url && (
-                      <a href={p.archivo_url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">Ver</a>
+                    {pgo.archivo_url && (
+                      <a href={pgo.archivo_url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                        Ver
+                      </a>
                     )}
-                    <button className="btn btn-primary btn-sm" onClick={() => abrirRevision(p)}>Revisar</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => abrirRevision(pgo)}>
+                      Revisar
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -94,53 +143,152 @@ export default function JefePGO() {
         </tbody>
       </table>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title="Revisar PGO">
+      <Modal open={!!selected} onClose={cerrarRevision} title="Revisar PGO">
         {selected && (
           <>
-            <div style={{
-              padding: '1rem', background: 'var(--paper-dark)', borderRadius: '2px', marginBottom: '1.25rem',
-              borderLeft: '3px solid var(--gold)'
-            }}>
+            <div
+              style={{
+                padding: '1rem 1.1rem',
+                background: 'linear-gradient(180deg, rgba(246, 248, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%)',
+                borderRadius: '18px',
+                marginBottom: '1.25rem',
+                border: '1px solid var(--line)',
+                boxShadow: '0 18px 40px -34px rgba(15, 23, 42, 0.45)'
+              }}
+            >
               <div className="eyebrow">{selected.materia_codigo} · {selected.periodo}</div>
-              <h3 style={{ marginTop: '.25rem' }}>{selected.titulo}</h3>
+              <h3 style={{ marginTop: '.35rem' }}>{selected.titulo}</h3>
               <div className="text-muted" style={{ fontSize: '.85rem' }}>
                 Por {selected.docente_nombre} {selected.docente_apellido}
               </div>
-              {selected.descripcion && <p style={{ marginTop: '.5rem', fontSize: '.85rem' }}>{selected.descripcion}</p>}
+              {selected.descripcion && (
+                <p style={{ marginTop: '.6rem', fontSize: '.85rem', lineHeight: 1.6 }}>{selected.descripcion}</p>
+              )}
             </div>
 
             <form onSubmit={revisar}>
               <div className="form-field">
-                <label>Decisión *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '.5rem' }}>
-                  {[
-                    { val: 'aprobado', label: 'Aprobar', color: 'var(--forest)' },
-                    { val: 'revision', label: 'Solicitar cambios', color: 'var(--gold-dark)' },
-                    { val: 'rechazado', label: 'Rechazar', color: 'var(--crimson)' }
-                  ].map(op => (
-                    <label key={op.val} style={{
-                      padding: '.75rem', border: `1.5px solid ${form.estado === op.val ? op.color : 'var(--line-strong)'}`,
-                      background: form.estado === op.val ? `${op.color}15` : 'transparent',
-                      borderRadius: '2px', textAlign: 'center', cursor: 'pointer',
-                      fontSize: '.85rem', color: form.estado === op.val ? op.color : 'var(--ink)',
-                      fontWeight: form.estado === op.val ? 500 : 400, transition: 'all .2s'
-                    }}>
-                      <input type="radio" value={op.val}
-                        checked={form.estado === op.val}
-                        onChange={e => setForm({...form, estado: e.target.value})}
-                        style={{ display: 'none' }}/>
-                      {op.label}
-                    </label>
-                  ))}
+                <label>Decision *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '.75rem' }}>
+                  {DECISIONES.map((op) => {
+                    const isActive = form.estado === op.val;
+                    return (
+                      <label
+                        key={op.val}
+                        style={{
+                          padding: '1rem',
+                          border: `1.5px solid ${isActive ? op.color : 'var(--line-strong)'}`,
+                          background: isActive
+                            ? op.soft
+                            : 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(246,248,252,0.96) 100%)',
+                          borderRadius: '16px',
+                          cursor: 'pointer',
+                          color: isActive ? op.color : 'var(--ink)',
+                          transition: 'all .2s ease',
+                          minHeight: '138px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '.9rem',
+                          boxShadow: isActive
+                            ? `0 18px 36px -28px ${op.shadow}`
+                            : '0 14px 28px -30px rgba(15, 23, 42, 0.36)'
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          value={op.val}
+                          checked={isActive}
+                          onChange={(e) => setForm({ ...form, estado: e.target.value })}
+                          style={{ display: 'none' }}
+                        />
+
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '.75rem' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '2.15rem',
+                              height: '2.15rem',
+                              padding: '0 .65rem',
+                              borderRadius: '999px',
+                              background: isActive ? op.color : 'var(--paper-dark)',
+                              color: isActive ? '#fff' : 'var(--ink-light)',
+                              fontSize: '.72rem',
+                              letterSpacing: '.16em',
+                              textTransform: 'uppercase',
+                              fontWeight: 700
+                            }}
+                          >
+                            {op.tag}
+                          </span>
+                          <span
+                            style={{
+                              width: '1.15rem',
+                              height: '1.15rem',
+                              borderRadius: '999px',
+                              border: `1.5px solid ${isActive ? op.color : 'var(--line-strong)'}`,
+                              background: isActive ? op.color : 'transparent',
+                              boxShadow: isActive ? `0 0 0 4px ${op.soft}` : 'none',
+                              flexShrink: 0
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <div style={{ fontSize: '.98rem', marginBottom: '.35rem', fontWeight: 600 }}>
+                            {op.label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '.78rem',
+                              lineHeight: 1.6,
+                              color: isActive ? op.color : 'var(--ink-light)',
+                              fontWeight: 400
+                            }}
+                          >
+                            {op.hint}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
+
+              <div
+                style={{
+                  marginTop: '1rem',
+                  marginBottom: '1rem',
+                  padding: '.85rem 1rem',
+                  borderRadius: '14px',
+                  border: `1px solid ${decisionActiva.color}`,
+                  background: decisionActiva.soft,
+                  color: decisionActiva.color,
+                  fontSize: '.82rem',
+                  lineHeight: 1.6
+                }}
+              >
+                <strong style={{ display: 'block', marginBottom: '.2rem' }}>Decision seleccionada: {decisionActiva.label}</strong>
+                {decisionActiva.hint}
+              </div>
+
               <div className="form-field">
                 <label>Observaciones</label>
-                <textarea value={form.observaciones} onChange={e => setForm({...form, observaciones: e.target.value})} rows="4"/>
+                <textarea
+                  value={form.observaciones}
+                  onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+                  rows="4"
+                  placeholder="Escriba comentarios para el docente si hace falta."
+                />
               </div>
+
               <div className="flex gap-2" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setSelected(null)}>Cancelar</button>
-                <button className="btn btn-primary">Guardar revisión</button>
+                <button type="button" className="btn btn-ghost" onClick={cerrarRevision}>
+                  Cancelar
+                </button>
+                <button className="btn btn-primary">Guardar revision</button>
               </div>
             </form>
           </>

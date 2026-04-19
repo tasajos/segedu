@@ -40,7 +40,7 @@ export const listarPGO = async (req, res) => {
   try {
     const docenteId = req.user.docente_id;
     const [rows] = await pool.query(
-      `SELECT p.*, m.nombre as materia_nombre, m.codigo as materia_codigo
+      `SELECT p.*, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo
        FROM pgo p
        JOIN materias m ON p.materia_id = m.id
        WHERE p.docente_id = ?
@@ -74,7 +74,7 @@ export const listarAvance = async (req, res) => {
   try {
     const docenteId = req.user.docente_id;
     const { materia_id } = req.query;
-    let query = `SELECT av.*, m.nombre as materia_nombre,
+    let query = `SELECT av.*, m.nombre as materia_nombre, m.grupo as materia_grupo,
                    u.nombre as validador_nombre, u.apellido as validador_apellido
                  FROM avance_materia av
                  JOIN materias m ON av.materia_id = m.id
