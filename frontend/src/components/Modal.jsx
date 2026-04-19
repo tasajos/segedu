@@ -1,17 +1,21 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './Modal.css';
 
 export default function Modal({ open, onClose, title, children, maxWidth = '560px' }) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = ''; };
+      return () => {
+        document.body.style.overflow = '';
+      };
     }
+    return undefined;
   }, [open]);
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth }}>
         <div className="modal-head">
@@ -20,6 +24,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = '560p
         </div>
         <div className="modal-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

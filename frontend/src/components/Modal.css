@@ -3,9 +3,9 @@
   inset: 0;
   background: rgba(15,32,68,.5);
   backdrop-filter: blur(4px);
-  z-index: 100;
+  z-index: 9999;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
   overflow-y: auto;
   padding: 1.5rem;
@@ -14,13 +14,15 @@
 
 .modal {
   width: 100%;
+  color: var(--text);
   background: var(--white);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  margin: auto;
   animation: fadeUp .25s ease-out both;
   position: relative;
+  overflow: hidden;
+  max-height: calc(100vh - 3rem);
 }
 
 .modal::before {
@@ -54,4 +56,7 @@
 }
 .modal-close:hover { background: var(--gray-100); color: var(--text); }
 
-.modal-body { padding: 1.25rem 1.75rem 1.75rem; }
+.modal-body {
+  padding: 1.25rem 1.75rem 1.75rem;
+  overflow-y: auto;
+}

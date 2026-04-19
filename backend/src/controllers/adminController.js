@@ -1,5 +1,28 @@
 import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import { parseStudentImportExcel } from '../utils/studentImportExcel.js';
+
+const normalizeText = (value = '') => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .toUpperCase();
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [value];
+    } catch {
+      return value.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [value];
+};
 
 // ============ DASHBOARD ============
 export const dashboard = async (req, res) => {
@@ -167,6 +190,180 @@ export const crearUsuario = async (req, res) => {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El email o código ya existe' });
     res.status(500).json({ error: err.message });
   } finally {
+    conn.release();
+  }
+};
+
+export const importarEstudiantesExcel = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Debe adjuntar un archivo Excel' });
+  }
+
+  const conn = await pool.getConnection();
+
+  try {
+    const importData = parseStudentImportExcel(req.file.path);
+    const {
+      carrera_id: carreraIdOverride,
+      materia_id: materiaIdOverride,
+      materia_ids: materiaIdsRaw,
+      semestre,
+      fecha_ingreso: fechaIngreso,
+      password_inicial: passwordInicial,
+      email_domain: emailDomain
+    } = req.body;
+
+    const [carreras] = await conn.query('SELECT id, nombre FROM carreras ORDER BY nombre');
+    const [materias] = await conn.query(
+      'SELECT id, nombre, codigo, grupo, carrera_id, semestre FROM materias ORDER BY nombre, grupo'
+    );
+
+    let carrera = null;
+    if (carreraIdOverride) {
+      carrera = carreras.find((item) => String(item.id) === String(carreraIdOverride)) || null;
+    } else if (importData.metadata.carreraNombre) {
+      const target = normalizeText(importData.metadata.carreraNombre);
+      carrera = carreras.find((item) => normalizeText(item.nombre) === target) || null;
+    }
+
+    let materiaDetectada = null;
+    if (materiaIdOverride) {
+      materiaDetectada = materias.find((item) => String(item.id) === String(materiaIdOverride)) || null;
+    } else if (importData.metadata.materiaNombre) {
+      const targetName = normalizeText(importData.metadata.materiaNombre);
+      const targetGroup = normalizeText(importData.metadata.grupo || '');
+      materiaDetectada = materias.find((item) => (
+        normalizeText(item.nombre) === targetName &&
+        (!targetGroup || normalizeText(item.grupo) === targetGroup) &&
+        (!carrera || item.carrera_id === carrera.id)
+      )) || null;
+    }
+
+    const manualMateriaIds = [
+      ...toArray(materiaIdsRaw),
+      ...toArray(materiaIdOverride)
+    ].map((item) => String(item));
+
+    const materiasSeleccionadas = manualMateriaIds.length > 0
+      ? materias.filter((item) => manualMateriaIds.includes(String(item.id)))
+      : (materiaDetectada ? [materiaDetectada] : []);
+
+    if (materiasSeleccionadas.length === 0) {
+      return res.status(400).json({
+        error: 'No se pudo identificar ninguna materia del Excel. Seleccione una o varias materias manualmente.',
+        detected: importData.metadata
+      });
+    }
+
+    if (!carrera) {
+      carrera = carreras.find((item) => item.id === materiasSeleccionadas[0].carrera_id) || null;
+    }
+
+    if (!carrera) {
+      return res.status(400).json({ error: 'No se pudo identificar la carrera para los estudiantes importados' });
+    }
+
+    const materiasFueraCarrera = materiasSeleccionadas.filter((item) => item.carrera_id !== carrera.id);
+    if (materiasFueraCarrera.length > 0) {
+      return res.status(400).json({ error: 'Todas las materias seleccionadas deben pertenecer a la misma carrera' });
+    }
+
+    await conn.beginTransaction();
+
+    const emailSuffix = (emailDomain || 'est.uni.edu').replace(/^@+/, '').trim() || 'est.uni.edu';
+    const rawPassword = passwordInicial || 'password123';
+    const hash = await bcrypt.hash(rawPassword, 10);
+    const result = {
+      createdUsers: 0,
+      reusedStudents: 0,
+      enrolled: 0,
+      alreadyEnrolled: 0,
+      students: importData.students.length,
+      nuevosUsuarios: [],
+      materias: materiasSeleccionadas.map((item) => ({
+        id: item.id,
+        nombre: item.nombre,
+        codigo: item.codigo,
+        grupo: item.grupo
+      })),
+      detected: importData.metadata
+    };
+
+    for (const student of importData.students) {
+      const studentCode = student.unicodigo.trim();
+      const generatedEmail = `${studentCode}@${emailSuffix}`.toLowerCase();
+
+      const [[existingStudent]] = await conn.query(
+        `SELECT e.id, e.usuario_id, e.codigo_estudiante, e.carrera_id, u.email
+         FROM estudiantes e
+         JOIN usuarios u ON u.id = e.usuario_id
+         WHERE e.codigo_estudiante = ? OR u.email = ?
+         LIMIT 1`,
+        [studentCode, generatedEmail]
+      );
+
+      let studentId;
+
+      if (existingStudent) {
+        studentId = existingStudent.id;
+        result.reusedStudents += 1;
+
+        await conn.query(
+          'UPDATE estudiantes SET carrera_id = COALESCE(carrera_id, ?), semestre = COALESCE(semestre, ?) WHERE id = ?',
+          [carrera.id, semestre || materiasSeleccionadas[0].semestre || 1, studentId]
+        );
+      } else {
+        const [userResult] = await conn.query(
+          'INSERT INTO usuarios (nombre, apellido, email, password, rol, ci, telefono) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [student.nombre, student.apellido, generatedEmail, hash, 'estudiante', studentCode, null]
+        );
+
+        const [studentResult] = await conn.query(
+          'INSERT INTO estudiantes (usuario_id, carrera_id, semestre, codigo_estudiante, fecha_ingreso) VALUES (?, ?, ?, ?, ?)',
+          [userResult.insertId, carrera.id, semestre || materiasSeleccionadas[0].semestre || 1, studentCode, fechaIngreso || null]
+        );
+
+        studentId = studentResult.insertId;
+        result.createdUsers += 1;
+        result.nuevosUsuarios.push({
+          id: userResult.insertId,
+          estudiante_id: studentResult.insertId,
+          nombre: student.nombre,
+          apellido: student.apellido,
+          email: generatedEmail,
+          codigo_estudiante: studentCode
+        });
+      }
+
+      for (const materia of materiasSeleccionadas) {
+        const [enrollResult] = await conn.query(
+          'INSERT IGNORE INTO inscripciones (estudiante_id, materia_id) VALUES (?, ?)',
+          [studentId, materia.id]
+        );
+
+        if (enrollResult.affectedRows > 0) {
+          result.enrolled += 1;
+        } else {
+          result.alreadyEnrolled += 1;
+        }
+      }
+    }
+
+    await conn.commit();
+    res.status(201).json({
+      message: 'Importación completada',
+      ...result
+    });
+  } catch (err) {
+    await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Se encontraron datos duplicados durante la importación' });
+    }
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     conn.release();
   }
 };
