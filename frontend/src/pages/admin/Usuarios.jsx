@@ -166,6 +166,14 @@ export default function AdminUsuarios() {
   const materiasFiltradas = importForm.carrera_id
     ? materias.filter((m) => String(m.carrera_id) === String(importForm.carrera_id))
     : materias;
+  const toggleMateriaImport = (materiaId) => {
+    setImportForm((p) => ({
+      ...p,
+      materia_ids: p.materia_ids.includes(materiaId)
+        ? p.materia_ids.filter((id) => id !== materiaId)
+        : [...p.materia_ids, materiaId]
+    }));
+  };
 
   return (
     <>
@@ -350,7 +358,7 @@ export default function AdminUsuarios() {
         </div>
       </Modal>
 
-      <Modal open={modalImport} onClose={() => setModalImport(false)} title="Importar estudiantes desde Excel" maxWidth="680px">
+      <Modal open={modalImport} onClose={() => setModalImport(false)} title="Importar estudiantes desde Excel" maxWidth="920px">
         <div style={{ display: 'grid', gap: '1rem' }}>
           <div style={{ fontSize: '.9rem', color: 'var(--ink-light)' }}>
             Suba una lista de estudiantes en Excel. El sistema leerá el encabezado de la materia y registrará a cada estudiante con su inscripción correspondiente.
@@ -385,7 +393,7 @@ export default function AdminUsuarios() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr', gap: '1rem', alignItems: 'start' }}>
             <div>
               <label className="form-label">Carrera manual</label>
               <select
@@ -399,21 +407,48 @@ export default function AdminUsuarios() {
             </div>
             <div>
               <label className="form-label">Materias manuales</label>
-              <select
-                className="form-input"
-                multiple
-                size="6"
-                value={importForm.materia_ids}
-                onChange={(e) => fi('materia_ids', Array.from(e.target.selectedOptions, (option) => option.value))}
-              >
-                {materiasFiltradas.map((m) => (
-                  <option key={m.id} value={String(m.id)}>
-                    {m.nombre} ({m.codigo}) - Grupo {m.grupo}
-                  </option>
-                ))}
-              </select>
+              <div style={{ border: '1px solid var(--border-strong)', borderRadius: '8px', background: 'var(--surface)', padding: '.5rem', minHeight: '290px', maxHeight: '290px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
+                {materiasFiltradas.length === 0 && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '.88rem', padding: '.5rem' }}>
+                    No hay materias disponibles para esta carrera.
+                  </div>
+                )}
+                {materiasFiltradas.map((m) => {
+                  const checked = importForm.materia_ids.includes(String(m.id));
+                  return (
+                    <label
+                      key={m.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '.7rem',
+                        padding: '.7rem .75rem',
+                        border: `1px solid ${checked ? 'var(--blue-500)' : 'var(--border)'}`,
+                        borderRadius: '8px',
+                        background: checked ? 'var(--blue-50)' : 'var(--white)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleMateriaImport(String(m.id))}
+                        style={{ marginTop: '.15rem' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '.92rem', color: 'var(--text)' }}>
+                          {m.nombre}
+                        </div>
+                        <div className="text-mono" style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '.18rem' }}>
+                          {m.codigo} - Grupo {m.grupo}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
               <div style={{ fontSize: '.8rem', color: 'var(--ink-light)', marginTop: '.35rem' }}>
-                Puede seleccionar varias materias con `Ctrl` o `Shift`. Si no selecciona ninguna, se intentará detectar la materia desde el Excel.
+                Puede marcar varias materias. Si no selecciona ninguna, se intentará detectar la materia desde el Excel.
               </div>
             </div>
           </div>

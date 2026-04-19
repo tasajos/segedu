@@ -586,6 +586,58 @@ export const obtenerMateria = async (req, res) => {
   }
 };
 
+export const detalleMateriaEstudiantes = async (req, res) => {
+  try {
+    const carrera = await getCarreraJefe(req.user.id);
+    const { id } = req.params;
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const [[materia]] = await pool.query(
+      `SELECT m.*, c.nombre as carrera_nombre,
+              u.nombre as docente_nombre, u.apellido as docente_apellido
+       FROM materias m
+       LEFT JOIN carreras c ON m.carrera_id = c.id
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios u ON d.usuario_id = u.id
+       WHERE m.id = ? AND m.carrera_id = ?`,
+      [id, carrera.id]
+    );
+
+    if (!materia) {
+      return res.status(404).json({ error: 'Materia no encontrada' });
+    }
+
+    const [inscritos] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, e.semestre,
+              u.nombre, u.apellido, u.email, u.ci, u.telefono
+       FROM inscripciones i
+       JOIN estudiantes e ON i.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE i.materia_id = ?
+       ORDER BY u.apellido, u.nombre`,
+      [id]
+    );
+
+    const [disponibles] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, e.semestre,
+              u.nombre, u.apellido, u.email
+       FROM estudiantes e
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE e.carrera_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM inscripciones i
+           WHERE i.estudiante_id = e.id AND i.materia_id = ?
+         )
+       ORDER BY e.semestre, u.apellido, u.nombre`,
+      [carrera.id, id]
+    );
+
+    res.json({ materia, inscritos, disponibles });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const crearMateria = async (req, res) => {
   try {
     const carrera = await getCarreraJefe(req.user.id);

@@ -27,6 +27,7 @@ import JefeHorarios from './pages/jefe/Horarios';
 import JefeDisciplina from './pages/jefe/Disciplina';
 import JefeDisciplinaDocentes from './pages/jefe/DisciplinaDocentes';
 import JefeMaterias from './pages/jefe/Materias';
+import JefeMateriaEstudiantes from './pages/jefe/MateriaEstudiantes';
 import JefeMateriaForm from './pages/jefe/MateriaForm';
 
 // Admin
@@ -90,6 +91,7 @@ export default function App() {
         <Route path="disciplina" element={<JefeDisciplina />} />
         <Route path="disciplina-docentes" element={<JefeDisciplinaDocentes />} />
         <Route path="materias" element={<JefeMaterias />} />
+        <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
         <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />
       </Route>
