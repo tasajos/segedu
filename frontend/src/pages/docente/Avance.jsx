@@ -41,8 +41,33 @@ export default function DocenteAvance() {
         actions={<button className="btn btn-primary" onClick={() => setOpen(true)}>＋ Marcar avance</button>}
       />
 
+      {/* Indicador de avance actual por materia */}
+      {materias.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+          {materias.map(m => {
+            const registros = avances.filter(a => String(a.materia_id) === String(m.id) || a.materia_nombre === m.nombre);
+            const maxAvance = registros.length > 0 ? Math.max(...registros.map(r => +r.porcentaje_avance)) : 0;
+            const color = maxAvance >= 80 ? 'var(--forest)' : maxAvance >= 50 ? 'var(--gold)' : 'var(--crimson)';
+            return (
+              <div key={m.id} style={{ padding: '1.25rem', background: 'var(--paper-dark)', borderRadius: '2px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '.5rem' }}>
+                  <span style={{ fontFamily: 'var(--serif)', fontSize: '.9rem', fontWeight: 600 }}>{m.nombre}</span>
+                  <span className="text-mono" style={{ fontSize: '.85rem', color, fontWeight: 700 }}>{maxAvance}%</span>
+                </div>
+                <div style={{ height: '10px', background: 'var(--paper-light)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ width: `${maxAvance}%`, height: '100%', background: color, transition: 'width .6s ease' }} />
+                </div>
+                <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)', marginTop: '.4rem' }}>
+                  {registros.length} registro{registros.length !== 1 ? 's' : ''} · máximo alcanzado
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="section-head">
-        <h2>Registros</h2>
+        <h2>Registros por fecha</h2>
         <select value={filter} onChange={e => setFilter(e.target.value)} style={{
           fontFamily: 'var(--mono)', fontSize: '.75rem', padding: '.4rem .75rem',
           background: 'var(--paper-light)', border: '1px solid var(--line-strong)', borderRadius: '2px'

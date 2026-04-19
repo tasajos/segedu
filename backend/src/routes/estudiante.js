@@ -5,24 +5,24 @@ import {
   listarCursos, crearCurso, eliminarCurso,
   actualizarInfoPersonal,
   listarMateriasEstudiante, listarAsistenciasEstudiante,
-  registrarAsistencia, resumenAsistencias
+  registrarAsistencia, resumenAsistencias,
+  miExpediente
 } from '../controllers/estudianteController.js';
 
 const router = Router();
 router.use(verifyToken, requireRole('estudiante'));
 
-// Cursos de capacitación
 router.get('/cursos', listarCursos);
 router.post('/cursos', upload.single('certificado'), crearCurso);
 router.delete('/cursos/:id', eliminarCurso);
 
-// Información personal
 router.put('/info-personal', actualizarInfoPersonal);
 
-// Materias y asistencias
 router.get('/materias', listarMateriasEstudiante);
+router.get('/asistencias/resumen', resumenAsistencias);
 router.get('/asistencias', listarAsistenciasEstudiante);
 router.post('/asistencias', registrarAsistencia);
-router.get('/asistencias/resumen', resumenAsistencias);
+
+router.get('/expediente', miExpediente);
 
 export default router;

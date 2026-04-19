@@ -4,9 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
 const demos = [
-  { rol: 'Estudiante', email: 'estudiante@uni.edu', color: 'gold' },
-  { rol: 'Docente',    email: 'docente@uni.edu',    color: 'forest' },
-  { rol: 'Jefatura',  email: 'jefe@uni.edu',        color: 'crimson' }
+  { rol: 'Admin',      email: 'admin@uni.edu',       color: 'ink' },
+  { rol: 'Jefatura',  email: 'jefe@uni.edu',         color: 'crimson' },
+  { rol: 'Docente',    email: 'docente@uni.edu',     color: 'forest' },
+  { rol: 'Estudiante', email: 'estudiante@uni.edu',  color: 'gold' }
 ];
 
 export default function Login() {

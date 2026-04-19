@@ -14,7 +14,7 @@ CREATE TABLE usuarios (
   apellido VARCHAR(100) NOT NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
-  rol ENUM('estudiante', 'docente', 'jefe') NOT NULL,
+  rol ENUM('estudiante', 'docente', 'jefe', 'admin') NOT NULL,
   ci VARCHAR(20),
   telefono VARCHAR(30),
   foto VARCHAR(255),
@@ -51,15 +51,16 @@ CREATE TABLE docentes (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- Materias
+-- Materias (mismo código puede existir en distintas carreras)
 CREATE TABLE materias (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(150) NOT NULL,
-  codigo VARCHAR(30) UNIQUE NOT NULL,
+  codigo VARCHAR(30) NOT NULL,
   carrera_id INT NOT NULL,
   docente_id INT,
   semestre INT NOT NULL,
   creditos INT DEFAULT 4,
+  UNIQUE KEY unique_codigo_carrera (codigo, carrera_id),
   FOREIGN KEY (carrera_id) REFERENCES carreras(id) ON DELETE CASCADE,
   FOREIGN KEY (docente_id) REFERENCES docentes(id) ON DELETE SET NULL
 );
@@ -100,6 +101,7 @@ CREATE TABLE asistencias (
   estado ENUM('presente', 'falta', 'permiso', 'tarde') NOT NULL,
   justificacion TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_asistencia (estudiante_id, materia_id, fecha),
   FOREIGN KEY (estudiante_id) REFERENCES estudiantes(id) ON DELETE CASCADE,
   FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE CASCADE
 );
@@ -154,12 +156,63 @@ CREATE TABLE comentarios_estudiantes (
   FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE SET NULL
 );
 
+-- Horarios de clases (asignados por jefe de carrera)
+CREATE TABLE horarios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  materia_id INT NOT NULL,
+  docente_id INT NOT NULL,
+  dia_semana ENUM('Lunes','Martes','Miércoles','Jueves','Viernes','Sábado') NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fin TIME NOT NULL,
+  aula VARCHAR(50),
+  periodo VARCHAR(50),
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE CASCADE,
+  FOREIGN KEY (docente_id) REFERENCES docentes(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES usuarios(id) ON DELETE SET NULL
+);
+
+-- Disciplina de estudiantes: faltas, sanciones, permisos formales
+CREATE TABLE disciplina_estudiantes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tipo ENUM('falta', 'sancion', 'permiso') NOT NULL,
+  estudiante_id INT NOT NULL,
+  materia_id INT,
+  fecha DATE NOT NULL,
+  descripcion TEXT NOT NULL,
+  registrado_por INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (estudiante_id) REFERENCES estudiantes(id) ON DELETE CASCADE,
+  FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE SET NULL,
+  FOREIGN KEY (registrado_por) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+-- Disciplina de docentes: faltas, sanciones, permisos (solo jefe puede registrar)
+CREATE TABLE disciplina_docentes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tipo ENUM('falta', 'sancion', 'permiso') NOT NULL,
+  docente_id INT NOT NULL,
+  materia_id INT,
+  fecha DATE NOT NULL,
+  descripcion TEXT NOT NULL,
+  registrado_por INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (docente_id) REFERENCES docentes(id) ON DELETE CASCADE,
+  FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE SET NULL,
+  FOREIGN KEY (registrado_por) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
 -- =====================================================
 -- DATOS DE PRUEBA
 -- =====================================================
 
 -- Contraseña para todos: "password123" (hasheada con bcrypt)
 -- Hash: $2b$10$cG2YJZjz9NRYMULZtbXkt.uc6lgK3HmCi09gphxikEwIZYZlov4tq
+
+-- Administrador del sistema
+INSERT INTO usuarios (nombre, apellido, email, password, rol, ci, telefono) VALUES
+('Admin', 'Sistema', 'admin@uni.edu', '$2b$10$cG2YJZjz9NRYMULZtbXkt.uc6lgK3HmCi09gphxikEwIZYZlov4tq', 'admin', '0000001', '70000000');
 
 -- Jefe de carrera
 INSERT INTO usuarios (nombre, apellido, email, password, rol, ci, telefono) VALUES
@@ -176,20 +229,20 @@ INSERT INTO usuarios (nombre, apellido, email, password, rol, ci, telefono) VALU
 ('Luis', 'Torres', 'estudiante2@uni.edu', '$2b$10$cG2YJZjz9NRYMULZtbXkt.uc6lgK3HmCi09gphxikEwIZYZlov4tq', 'estudiante', '5678901', '70000005'),
 ('Sofía', 'Vargas', 'estudiante3@uni.edu', '$2b$10$cG2YJZjz9NRYMULZtbXkt.uc6lgK3HmCi09gphxikEwIZYZlov4tq', 'estudiante', '6789012', '70000006');
 
--- Carrera
+-- Carrera (jefe_id=2 porque admin ocupa el id=1 ahora)
 INSERT INTO carreras (nombre, codigo, jefe_id) VALUES
-('Ingeniería de Sistemas', 'ISI', 1);
+('Ingeniería de Sistemas', 'ISI', 2);
 
--- Registros de docentes
+-- Registros de docentes (usuario_id 3 y 4 porque admin=1, jefe=2)
 INSERT INTO docentes (usuario_id, especialidad, titulo) VALUES
-(2, 'Desarrollo de Software', 'MSc. en Ciencias de la Computación'),
-(3, 'Bases de Datos', 'Ing. en Sistemas');
+(3, 'Desarrollo de Software', 'MSc. en Ciencias de la Computación'),
+(4, 'Bases de Datos', 'Ing. en Sistemas');
 
--- Registros de estudiantes
+-- Registros de estudiantes (usuario_id 5,6,7)
 INSERT INTO estudiantes (usuario_id, carrera_id, semestre, codigo_estudiante, fecha_ingreso) VALUES
-(4, 1, 5, 'EST-2023-001', '2023-02-01'),
-(5, 1, 5, 'EST-2023-002', '2023-02-01'),
-(6, 1, 3, 'EST-2024-003', '2024-02-01');
+(5, 1, 5, 'EST-2023-001', '2023-02-01'),
+(6, 1, 5, 'EST-2023-002', '2023-02-01'),
+(7, 1, 3, 'EST-2024-003', '2024-02-01');
 
 -- Materias
 INSERT INTO materias (nombre, codigo, carrera_id, docente_id, semestre, creditos) VALUES
@@ -203,6 +256,13 @@ INSERT INTO inscripciones (estudiante_id, materia_id) VALUES
 (2, 1), (2, 2),
 (3, 3);
 
+-- Horarios de ejemplo
+INSERT INTO horarios (materia_id, docente_id, dia_semana, hora_inicio, hora_fin, aula, periodo, created_by) VALUES
+(1, 1, 'Lunes', '08:00:00', '10:00:00', 'Aula 101', '2026-I', 2),
+(1, 1, 'Miércoles', '08:00:00', '10:00:00', 'Aula 101', '2026-I', 2),
+(2, 2, 'Martes', '10:00:00', '12:00:00', 'Lab DB', '2026-I', 2),
+(3, 1, 'Jueves', '14:00:00', '16:00:00', 'Aula 203', '2026-I', 2);
+
 -- Asistencias de ejemplo
 INSERT INTO asistencias (estudiante_id, materia_id, fecha, estado) VALUES
 (1, 1, '2026-04-15', 'presente'),
@@ -212,6 +272,19 @@ INSERT INTO asistencias (estudiante_id, materia_id, fecha, estado) VALUES
 (2, 1, '2026-04-15', 'presente'),
 (2, 1, '2026-04-16', 'tarde'),
 (3, 3, '2026-04-15', 'permiso');
+
+-- Disciplina de ejemplo
+INSERT INTO disciplina_estudiantes (tipo, estudiante_id, materia_id, fecha, descripcion, registrado_por) VALUES
+('sancion', 1, 1, '2026-04-10', 'Uso de celular durante el examen', 2),
+('permiso', 3, 3, '2026-04-15', 'Cita médica presentada con justificativo', 2);
+
+INSERT INTO disciplina_docentes (tipo, docente_id, materia_id, fecha, descripcion, registrado_por) VALUES
+('permiso', 1, 1, '2026-04-12', 'Permiso por capacitación docente externa', 2);
+
+-- Cursos de capacitación
+INSERT INTO cursos_capacitacion (estudiante_id, nombre_curso, institucion, fecha_inicio, fecha_fin, horas, estado) VALUES
+(1, 'React Avanzado', 'Platzi', '2026-01-15', '2026-02-28', 40, 'aprobado'),
+(2, 'Docker y Kubernetes', 'Udemy', '2026-02-01', '2026-03-15', 60, 'pendiente');
 
 -- Cursos de capacitación
 INSERT INTO cursos_capacitacion (estudiante_id, nombre_curso, institucion, fecha_inicio, fecha_fin, horas, estado) VALUES

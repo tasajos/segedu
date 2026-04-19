@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
-import Modal from '../../components/Modal';
 
 const ESTADOS = [
   { val: 'presente', label: 'Presente', color: 'forest' },
@@ -9,35 +8,33 @@ const ESTADOS = [
   { val: 'permiso', label: 'Permiso', color: 'gold' },
   { val: 'tarde', label: 'Tarde', color: 'ink' }
 ];
+const TIPO_COLOR = { falta: 'var(--crimson)', sancion: '#7b2d8b', permiso: 'var(--gold)' };
+const TIPO_CHIP = { falta: 'chip-crimson', sancion: 'chip-ink', permiso: 'chip-gold' };
+const COMENTARIO_COLOR = { alerta: 'var(--crimson)', felicitacion: 'var(--forest)', positivo: 'var(--forest)', observacion: 'var(--gold)' };
 
 export default function EstudianteAsistencias() {
   const [materias, setMaterias] = useState([]);
-  const [asistencias, setAsistencias] = useState([]);
   const [resumen, setResumen] = useState([]);
+  const [expediente, setExpediente] = useState(null);
   const [filter, setFilter] = useState('');
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ materia_id: '', fecha: new Date().toISOString().slice(0,10), estado: 'presente', justificacion: '' });
+  const [tab, setTab] = useState('asistencias');
 
   const cargar = async () => {
-    const [m, a, r] = await Promise.all([
+    const [m, r, e] = await Promise.all([
       api.get('/estudiante/materias'),
-      api.get('/estudiante/asistencias', { params: filter ? { materia_id: filter } : {} }),
-      api.get('/estudiante/asistencias/resumen')
+      api.get('/estudiante/asistencias/resumen'),
+      api.get('/estudiante/expediente')
     ]);
     setMaterias(m.data);
-    setAsistencias(a.data);
     setResumen(r.data);
+    setExpediente(e.data);
   };
 
-  useEffect(() => { cargar(); }, [filter]);
+  useEffect(() => { cargar(); }, []);
 
-  const guardar = async (e) => {
-    e.preventDefault();
-    await api.post('/estudiante/asistencias', form);
-    setOpen(false);
-    setForm({ materia_id: '', fecha: new Date().toISOString().slice(0,10), estado: 'presente', justificacion: '' });
-    cargar();
-  };
+  const asistenciasFiltradas = (expediente?.asistencias || []).filter(a =>
+    !filter || String(a.materia_id) === filter
+  );
 
   const estadoInfo = (v) => ESTADOS.find(e => e.val === v) || ESTADOS[0];
 
@@ -45,10 +42,9 @@ export default function EstudianteAsistencias() {
     <>
       <PageHeader
         num="04"
-        eyebrow="Control académico"
-        title={<>Registro de <span className="display-italic">asistencias</span></>}
-        lead="Visualice sus asistencias, faltas, permisos y tardanzas por materia."
-        actions={<button className="btn btn-primary" onClick={() => setOpen(true)}>＋ Registrar</button>}
+        eyebrow="Mi expediente académico"
+        title={<>Asistencias y <span className="display-italic">registros</span></>}
+        lead="Consulte todas sus asistencias, disciplina, observaciones y permisos registrados por docentes y jefe de carrera."
       />
 
       {/* Resumen por materia */}
@@ -82,78 +78,151 @@ export default function EstudianteAsistencias() {
         })}
       </div>
 
-      {/* Historial */}
-      <div className="section-head">
-        <h2>Historial</h2>
-        <select value={filter} onChange={e => setFilter(e.target.value)} style={{
-          fontFamily: 'var(--mono)', fontSize: '.75rem', padding: '.4rem .75rem',
-          background: 'var(--paper-light)', border: '1px solid var(--line-strong)', borderRadius: '2px'
-        }}>
-          <option value="">Todas las materias</option>
-          {materias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-        </select>
+      {/* Tabs de detalle */}
+      <div style={{ display: 'flex', gap: '.25rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--line)' }}>
+        {[
+          { key: 'asistencias', label: 'Asistencias' },
+          { key: 'disciplina', label: 'Disciplina' },
+          { key: 'comentarios', label: 'Observaciones' }
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '.5rem 1rem', border: 'none', background: 'transparent',
+            fontFamily: 'var(--mono)', fontSize: '.78rem', cursor: 'pointer',
+            letterSpacing: '.06em', textTransform: 'uppercase',
+            borderBottom: tab === t.key ? '2px solid var(--ink)' : '2px solid transparent',
+            marginBottom: '-2px',
+            color: tab === t.key ? 'var(--ink)' : 'var(--ink-light)'
+          }}>
+            {t.label}
+            {t.key === 'disciplina' && expediente?.disciplina?.length > 0 && (
+              <span style={{
+                marginLeft: '.4rem', background: 'var(--crimson)', color: '#fff',
+                borderRadius: '999px', padding: '1px 6px', fontSize: '.6rem'
+              }}>{expediente.disciplina.length}</span>
+            )}
+          </button>
+        ))}
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>№</th>
-            <th>Fecha</th>
-            <th>Materia</th>
-            <th>Estado</th>
-            <th>Justificación</th>
-          </tr>
-        </thead>
-        <tbody>
-          {asistencias.length === 0 && (
-            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', fontStyle: 'italic', color: 'var(--ink-light)' }}>Sin registros</td></tr>
-          )}
-          {asistencias.map((a, i) => {
-            const info = estadoInfo(a.estado);
-            return (
-              <tr key={a.id}>
-                <td className="num">{String(i + 1).padStart(3, '0')}</td>
-                <td style={{ fontFamily: 'var(--serif)' }}>{a.fecha}</td>
-                <td>{a.materia_nombre}</td>
-                <td><span className={`chip chip-${info.color}`}>{info.label}</span></td>
-                <td style={{ color: 'var(--ink-light)', fontSize: '.85rem' }}>{a.justificacion || '—'}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      <Modal open={open} onClose={() => setOpen(false)} title="Registrar asistencia">
-        <form onSubmit={guardar}>
-          <div className="form-field">
-            <label>Materia *</label>
-            <select value={form.materia_id} onChange={e => setForm({...form, materia_id: e.target.value})} required>
-              <option value="">Seleccione una materia</option>
+      {tab === 'asistencias' && (
+        <>
+          <div className="section-head">
+            <h2>Historial de asistencias</h2>
+            <select value={filter} onChange={e => setFilter(e.target.value)} style={{
+              fontFamily: 'var(--mono)', fontSize: '.75rem', padding: '.4rem .75rem',
+              background: 'var(--paper-light)', border: '1px solid var(--line-strong)', borderRadius: '2px'
+            }}>
+              <option value="">Todas las materias</option>
               {materias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
             </select>
           </div>
-          <div className="grid-2" style={{ gap: '1rem' }}>
-            <div className="form-field">
-              <label>Fecha *</label>
-              <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha: e.target.value})} required/>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Fecha</th>
+                <th>Materia</th>
+                <th>Estado</th>
+                <th>Justificación</th>
+              </tr>
+            </thead>
+            <tbody>
+              {asistenciasFiltradas.length === 0 && (
+                <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', fontStyle: 'italic', color: 'var(--ink-light)' }}>Sin registros</td></tr>
+              )}
+              {asistenciasFiltradas.map((a, i) => {
+                const info = estadoInfo(a.estado);
+                return (
+                  <tr key={a.id}>
+                    <td className="num">{String(i + 1).padStart(3, '0')}</td>
+                    <td style={{ fontFamily: 'var(--serif)' }}>{new Date(a.fecha).toLocaleDateString('es-ES')}</td>
+                    <td>{a.materia_nombre}</td>
+                    <td><span className={`chip chip-${info.color}`}>{info.label}</span></td>
+                    <td style={{ color: 'var(--ink-light)', fontSize: '.85rem' }}>{a.justificacion || '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {tab === 'disciplina' && (
+        <>
+          <div className="section-head">
+            <h2>Registros disciplinarios</h2>
+            <span className="count">{expediente?.disciplina?.length || 0} registros</span>
+          </div>
+          {expediente?.disciplina?.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>
+              Sin registros disciplinarios
             </div>
-            <div className="form-field">
-              <label>Estado *</label>
-              <select value={form.estado} onChange={e => setForm({...form, estado: e.target.value})} required>
-                {ESTADOS.map(e => <option key={e.val} value={e.val}>{e.label}</option>)}
-              </select>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+              {expediente?.disciplina?.map(d => (
+                <div key={d.id} style={{
+                  padding: '.875rem 1rem', borderLeft: `4px solid ${TIPO_COLOR[d.tipo] || 'var(--gold)'}`,
+                  background: 'var(--paper-dark)', borderRadius: '0 2px 2px 0'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span className={`chip ${TIPO_CHIP[d.tipo]}`}>{d.tipo}</span>
+                    <span className="text-mono" style={{ fontSize: '.72rem', color: 'var(--ink-light)' }}>
+                      {new Date(d.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '.9rem', marginTop: '.5rem', marginBottom: '.4rem' }}>{d.descripcion}</p>
+                  <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
+                    {d.materia_nombre && `${d.materia_nombre} · `}
+                    Registrado por: {d.registrado_nombre} {d.registrado_apellido} ({d.registrado_rol})
+                  </div>
+                </div>
+              ))}
             </div>
+          )}
+        </>
+      )}
+
+      {tab === 'comentarios' && (
+        <>
+          <div className="section-head">
+            <h2>Observaciones y comentarios</h2>
+            <span className="count">{expediente?.comentarios?.length || 0} registros</span>
           </div>
-          <div className="form-field">
-            <label>Justificación (opcional)</label>
-            <textarea value={form.justificacion} onChange={e => setForm({...form, justificacion: e.target.value})}/>
-          </div>
-          <div className="flex gap-2" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancelar</button>
-            <button className="btn btn-primary">Guardar</button>
-          </div>
-        </form>
-      </Modal>
+          {expediente?.comentarios?.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>
+              Sin observaciones registradas
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+              {expediente?.comentarios?.map(c => {
+                const color = COMENTARIO_COLOR[c.tipo] || 'var(--gold)';
+                return (
+                  <div key={c.id} style={{
+                    padding: '.875rem 1rem', borderLeft: `4px solid ${color}`,
+                    background: 'var(--paper-dark)', borderRadius: '0 2px 2px 0'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="text-mono" style={{ fontSize: '.65rem', letterSpacing: '.1em', textTransform: 'uppercase', color }}>
+                        {c.tipo}
+                      </span>
+                      <span className="text-mono" style={{ fontSize: '.72rem', color: 'var(--ink-light)' }}>
+                        {new Date(c.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: '.95rem', marginTop: '.4rem' }}>
+                      «{c.comentario}»
+                    </p>
+                    <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)', marginTop: '.3rem' }}>
+                      — {c.docente_nombre} {c.docente_apellido}
+                      {c.materia_nombre && ` · ${c.materia_nombre}`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
 
       <style>{`
         .res-bar { height: 6px; background: var(--paper-dark); border-radius: 2px; overflow: hidden; margin-bottom: 1rem; }

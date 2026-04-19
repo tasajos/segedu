@@ -240,9 +240,10 @@
 .demo-label { font-size: 0.82rem; font-weight: 700; color: var(--text); }
 .demo-email { font-family: var(--font-mono); font-size: 0.58rem; color: var(--text-muted); }
 
-.demo-gold:hover  { border-color: var(--warning); background: var(--warning-bg); }
-.demo-forest:hover{ border-color: var(--success); background: var(--success-bg); }
-.demo-crimson:hover{ border-color: var(--blue-500); background: var(--blue-50); }
+.demo-gold:hover    { border-color: var(--warning); background: var(--warning-bg); }
+.demo-forest:hover  { border-color: var(--success); background: var(--success-bg); }
+.demo-crimson:hover { border-color: var(--blue-500); background: var(--blue-50); }
+.demo-ink:hover     { border-color: var(--gray-700); background: var(--gray-100); }
 
 .login-foot {
   font-size: 0.75rem;

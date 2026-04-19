@@ -14,6 +14,8 @@ import DocenteInicio from './pages/docente/Inicio';
 import DocentePGO from './pages/docente/PGO';
 import DocenteAvance from './pages/docente/Avance';
 import DocenteComentarios from './pages/docente/Comentarios';
+import DocenteAsistencia from './pages/docente/Asistencia';
+import DocenteDisciplina from './pages/docente/MiDisciplina';
 
 // Jefe
 import JefeDashboard from './pages/jefe/Dashboard';
@@ -21,6 +23,16 @@ import JefePGO from './pages/jefe/PGO';
 import JefeAvances from './pages/jefe/Avances';
 import JefeComportamiento from './pages/jefe/Comportamiento';
 import JefeEstudiantes from './pages/jefe/Estudiantes';
+import JefeHorarios from './pages/jefe/Horarios';
+import JefeDisciplina from './pages/jefe/Disciplina';
+import JefeDisciplinaDocentes from './pages/jefe/DisciplinaDocentes';
+import JefeMaterias from './pages/jefe/Materias';
+
+// Admin
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsuarios from './pages/admin/Usuarios';
+import AdminCarreras from './pages/admin/Carreras';
+import AdminMaterias from './pages/admin/Materias';
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -37,6 +49,7 @@ const RootRedirect = () => {
   if (user.rol === 'estudiante') return <Navigate to="/estudiante" replace />;
   if (user.rol === 'docente') return <Navigate to="/docente" replace />;
   if (user.rol === 'jefe') return <Navigate to="/jefe" replace />;
+  if (user.rol === 'admin') return <Navigate to="/admin" replace />;
   return <Navigate to="/login" replace />;
 };
 
@@ -60,6 +73,8 @@ export default function App() {
         <Route path="pgo" element={<DocentePGO />} />
         <Route path="avance" element={<DocenteAvance />} />
         <Route path="comentarios" element={<DocenteComentarios />} />
+        <Route path="asistencia" element={<DocenteAsistencia />} />
+        <Route path="disciplina" element={<DocenteDisciplina />} />
       </Route>
 
       {/* Jefe */}
@@ -69,6 +84,18 @@ export default function App() {
         <Route path="avances" element={<JefeAvances />} />
         <Route path="comportamiento" element={<JefeComportamiento />} />
         <Route path="estudiantes" element={<JefeEstudiantes />} />
+        <Route path="horarios" element={<JefeHorarios />} />
+        <Route path="disciplina" element={<JefeDisciplina />} />
+        <Route path="disciplina-docentes" element={<JefeDisciplinaDocentes />} />
+        <Route path="materias" element={<JefeMaterias />} />
+      </Route>
+
+      {/* Admin */}
+      <Route path="/admin" element={<Protected roles={['admin']}><Layout /></Protected>}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="usuarios" element={<AdminUsuarios />} />
+        <Route path="carreras" element={<AdminCarreras />} />
+        <Route path="materias" element={<AdminMaterias />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

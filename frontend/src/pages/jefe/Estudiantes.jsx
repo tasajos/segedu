@@ -3,11 +3,14 @@ import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 
+const TIPO_COLOR = { falta: 'var(--crimson)', sancion: '#7b2d8b', permiso: 'var(--gold)' };
+
 export default function JefeEstudiantes() {
   const [estudiantes, setEstudiantes] = useState([]);
   const [semestre, setSemestre] = useState('');
   const [detalle, setDetalle] = useState(null);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('asistencias');
 
   const cargar = async () => {
     const { data } = await api.get('/jefe/estudiantes', { params: semestre ? { semestre } : {} });
@@ -19,6 +22,7 @@ export default function JefeEstudiantes() {
   const verDetalle = async (id) => {
     const { data } = await api.get(`/jefe/estudiantes/${id}`);
     setDetalle(data);
+    setTab('asistencias');
   };
 
   const filtrados = estudiantes.filter(e => {
@@ -34,15 +38,13 @@ export default function JefeEstudiantes() {
         num="05"
         eyebrow="Directorio académico"
         title={<>Ficha de <span className="display-italic">estudiantes</span></>}
-        lead="Consulte el expediente completo de cada estudiante: asistencias, capacitaciones y observaciones docentes."
+        lead="Consulte el expediente completo de cada estudiante: asistencias, capacitaciones, disciplina y observaciones."
       />
 
       <div className="flex gap-4 mb-6" style={{ alignItems: 'center' }}>
         <input
-          type="text"
-          placeholder="Buscar por nombre o código…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          type="text" placeholder="Buscar por nombre o código…"
+          value={search} onChange={e => setSearch(e.target.value)}
           style={{
             flex: 1, padding: '.75rem 1rem', border: '1px solid var(--line-strong)',
             borderRadius: '2px', background: 'var(--paper-light)', fontFamily: 'var(--sans)'
@@ -82,14 +84,11 @@ export default function JefeEstudiantes() {
                   <div style={{
                     width: '32px', height: '32px', borderRadius: '50%',
                     background: 'var(--ink)', color: 'var(--gold)',
-                    display: 'grid', placeItems: 'center',
-                    fontFamily: 'var(--serif)', fontSize: '.8rem'
+                    display: 'grid', placeItems: 'center', fontFamily: 'var(--serif)', fontSize: '.8rem'
                   }}>
                     {e.nombre[0]}{e.apellido[0]}
                   </div>
-                  <span style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>
-                    {e.nombre} {e.apellido}
-                  </span>
+                  <span style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{e.nombre} {e.apellido}</span>
                 </div>
               </td>
               <td style={{ fontSize: '.85rem', color: 'var(--ink-light)' }}>{e.email}</td>
@@ -103,9 +102,11 @@ export default function JefeEstudiantes() {
         </tbody>
       </table>
 
-      <Modal open={!!detalle} onClose={() => setDetalle(null)} title="Expediente del estudiante" maxWidth="780px">
+      {/* Modal detalle con tabs */}
+      <Modal open={!!detalle} onClose={() => setDetalle(null)} title="Expediente del estudiante" maxWidth="820px">
         {detalle && (
           <>
+            {/* Cabecera */}
             <div style={{
               padding: '1.5rem', background: 'var(--ink)', color: 'var(--paper)', borderRadius: '2px',
               marginBottom: '1.5rem', position: 'relative', overflow: 'hidden'
@@ -118,8 +119,7 @@ export default function JefeEstudiantes() {
                 <div style={{
                   width: '64px', height: '64px', borderRadius: '50%',
                   background: 'var(--gold)', color: 'var(--ink)',
-                  display: 'grid', placeItems: 'center',
-                  fontFamily: 'var(--serif)', fontSize: '1.5rem'
+                  display: 'grid', placeItems: 'center', fontFamily: 'var(--serif)', fontSize: '1.5rem'
                 }}>
                   {detalle.estudiante.nombre[0]}{detalle.estudiante.apellido[0]}
                 </div>
@@ -142,70 +142,134 @@ export default function JefeEstudiantes() {
               </div>
             </div>
 
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '.25rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--line)' }}>
+              {[
+                { key: 'asistencias', label: 'Asistencias' },
+                { key: 'disciplina', label: 'Disciplina' },
+                { key: 'materias', label: 'Materias' },
+                { key: 'comentarios', label: 'Observaciones' },
+                { key: 'cursos', label: 'Capacitaciones' }
+              ].map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)} style={{
+                  padding: '.5rem 1rem', border: 'none', background: 'transparent',
+                  fontFamily: 'var(--mono)', fontSize: '.78rem', cursor: 'pointer',
+                  letterSpacing: '.06em', textTransform: 'uppercase',
+                  borderBottom: tab === t.key ? '2px solid var(--ink)' : '2px solid transparent',
+                  marginBottom: '-2px',
+                  color: tab === t.key ? 'var(--ink)' : 'var(--ink-light)'
+                }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
             {/* Asistencias */}
-            <div className="section-head"><h2>Asistencias</h2></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '.5rem', marginBottom: '1.5rem' }}>
-              {['presente', 'falta', 'permiso', 'tarde'].map(est => {
-                const v = detalle.asistencias.find(a => a.estado === est)?.total || 0;
-                const color = est === 'presente' ? 'forest' : est === 'falta' ? 'crimson' : est === 'permiso' ? 'gold' : 'ink';
-                return (
-                  <div key={est} className="card" style={{ padding: '.75rem', textAlign: 'center' }}>
-                    <div className="text-serif" style={{ fontSize: '1.75rem' }}>{v}</div>
-                    <div className="text-mono" style={{ fontSize: '.6rem', color: 'var(--ink-light)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
-                      {est}
+            {tab === 'asistencias' && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '.5rem', marginBottom: '1rem' }}>
+                  {['presente', 'falta', 'permiso', 'tarde'].map(est => {
+                    const v = detalle.asistencias.find(a => a.estado === est)?.total || 0;
+                    return (
+                      <div key={est} className="card" style={{ padding: '.75rem', textAlign: 'center' }}>
+                        <div className="text-serif" style={{ fontSize: '1.75rem' }}>{v}</div>
+                        <div className="text-mono" style={{ fontSize: '.6rem', color: 'var(--ink-light)', letterSpacing: '.1em', textTransform: 'uppercase' }}>{est}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                  {detalle.asistenciasDetalle?.map(a => (
+                    <div key={a.id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '.5rem .75rem', borderBottom: '1px solid var(--line)', fontSize: '.85rem'
+                    }}>
+                      <span>{a.materia_nombre}</span>
+                      <span className="text-mono" style={{ fontSize: '.75rem' }}>{new Date(a.fecha).toLocaleDateString('es-ES')}</span>
+                      <span className={`chip ${a.estado === 'presente' ? 'chip-forest' : a.estado === 'falta' ? 'chip-crimson' : 'chip-gold'}`}>{a.estado}</span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Materias */}
-            <div className="section-head"><h2>Materias inscritas</h2><span className="count">{detalle.materias.length}</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem', marginBottom: '1.5rem' }}>
-              {detalle.materias.map(m => (
-                <div key={m.id} style={{ padding: '.75rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', fontSize: '.9rem' }}>
-                  <strong>{m.nombre}</strong> <span className="text-mono" style={{ fontSize: '.75rem', color: 'var(--ink-light)' }}>· {m.codigo}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
 
-            {/* Cursos */}
-            <div className="section-head"><h2>Capacitaciones</h2><span className="count">{detalle.cursos.length}</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem', marginBottom: '1.5rem' }}>
-              {detalle.cursos.length === 0 && <div style={{ color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin cursos registrados</div>}
-              {detalle.cursos.map(c => (
-                <div key={c.id} style={{ padding: '.75rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', fontSize: '.9rem' }}>
-                  <strong>{c.nombre_curso}</strong> <span style={{ color: 'var(--ink-light)' }}>· {c.institucion} · {c.horas}h</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Comentarios */}
-            <div className="section-head"><h2>Observaciones docentes</h2><span className="count">{detalle.comentarios.length}</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
-              {detalle.comentarios.length === 0 && <div style={{ color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin comentarios registrados</div>}
-              {detalle.comentarios.map(c => {
-                const color = c.tipo === 'alerta' ? 'var(--crimson)' : c.tipo === 'felicitacion' || c.tipo === 'positivo' ? 'var(--forest)' : 'var(--gold)';
-                return (
-                  <div key={c.id} style={{ padding: '.75rem 1rem', borderLeft: `3px solid ${color}`, background: 'var(--paper-dark)' }}>
+            {/* Disciplina */}
+            {tab === 'disciplina' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                {detalle.disciplina?.length === 0 && <div style={{ color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin registros disciplinarios</div>}
+                {detalle.disciplina?.map(d => (
+                  <div key={d.id} style={{
+                    padding: '.75rem 1rem', borderLeft: `3px solid ${TIPO_COLOR[d.tipo] || 'var(--gold)'}`,
+                    background: 'var(--paper-dark)'
+                  }}>
                     <div className="flex justify-between">
-                      <span className="text-mono" style={{ fontSize: '.65rem', letterSpacing: '.1em', textTransform: 'uppercase', color }}>
-                        {c.tipo}
+                      <span className="text-mono" style={{ fontSize: '.65rem', letterSpacing: '.1em', textTransform: 'uppercase', color: TIPO_COLOR[d.tipo] }}>
+                        {d.tipo}
                       </span>
                       <span className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)' }}>
-                        {new Date(c.created_at).toLocaleDateString()}
+                        {new Date(d.fecha).toLocaleDateString('es-ES')}
                       </span>
                     </div>
-                    <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: '.9rem', marginTop: '.35rem' }}>
-                      «{c.comentario}»
-                    </p>
+                    <p style={{ fontSize: '.9rem', marginTop: '.3rem' }}>{d.descripcion}</p>
                     <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)', marginTop: '.25rem' }}>
-                      — {c.docente_nombre} {c.docente_apellido}
+                      {d.materia_nombre && `${d.materia_nombre} · `}
+                      Por: {d.registrado_nombre} {d.registrado_apellido} ({d.registrado_rol})
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
+
+            {/* Materias */}
+            {tab === 'materias' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                {detalle.materias.map(m => (
+                  <div key={m.id} style={{ padding: '.75rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', fontSize: '.9rem' }}>
+                    <strong>{m.nombre}</strong>
+                    <span className="text-mono" style={{ fontSize: '.75rem', color: 'var(--ink-light)' }}> · {m.codigo}</span>
+                    {m.docente_nombre && <div style={{ fontSize: '.8rem', color: 'var(--ink-light)', marginTop: '.2rem' }}>Docente: {m.docente_nombre} {m.docente_apellido}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Observaciones docentes */}
+            {tab === 'comentarios' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                {detalle.comentarios.length === 0 && <div style={{ color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin comentarios registrados</div>}
+                {detalle.comentarios.map(c => {
+                  const color = c.tipo === 'alerta' ? 'var(--crimson)' : c.tipo === 'felicitacion' || c.tipo === 'positivo' ? 'var(--forest)' : 'var(--gold)';
+                  return (
+                    <div key={c.id} style={{ padding: '.75rem 1rem', borderLeft: `3px solid ${color}`, background: 'var(--paper-dark)' }}>
+                      <div className="flex justify-between">
+                        <span className="text-mono" style={{ fontSize: '.65rem', letterSpacing: '.1em', textTransform: 'uppercase', color }}>{c.tipo}</span>
+                        <span className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)' }}>{new Date(c.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: '.9rem', marginTop: '.35rem' }}>«{c.comentario}»</p>
+                      <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)', marginTop: '.25rem' }}>
+                        — {c.docente_nombre} {c.docente_apellido}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Capacitaciones */}
+            {tab === 'cursos' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                {detalle.cursos.length === 0 && <div style={{ color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin cursos registrados</div>}
+                {detalle.cursos.map(c => (
+                  <div key={c.id} style={{ padding: '.75rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', fontSize: '.9rem' }}>
+                    <strong>{c.nombre_curso}</strong>
+                    <span style={{ color: 'var(--ink-light)' }}> · {c.institucion} · {c.horas}h</span>
+                    <span className={`chip ${c.estado === 'aprobado' ? 'chip-forest' : c.estado === 'rechazado' ? 'chip-crimson' : 'chip-gold'}`} style={{ marginLeft: '.5rem' }}>
+                      {c.estado}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </Modal>

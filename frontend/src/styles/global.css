@@ -157,6 +157,16 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   border-color: var(--gray-400);
 }
 
+.btn-secondary {
+  background: var(--white);
+  color: var(--gray-700);
+  border: 1.5px solid var(--border-strong);
+}
+.btn-secondary:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-400);
+}
+
 .btn-danger {
   background: var(--white);
   color: var(--danger);
@@ -349,6 +359,43 @@ table.data-table {
 @media (max-width:900px) {
   .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; }
 }
+
+/* ===================== FORMS ===================== */
+.form-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+}
+.form-input {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.875rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-50);
+}
+.form-input::placeholder { color: var(--text-light); }
+select.form-input { cursor: pointer; }
+textarea.form-input { resize: vertical; min-height: 80px; }
+
+/* ===================== MISC UTILS ===================== */
+.gap-3 { gap: 0.75rem; }
+.justify-end { justify-content: flex-end; }
 
 /* Loading dots */
 .loading-dots { display:inline-flex; gap:5px; }

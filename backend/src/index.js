@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import estudianteRoutes from './routes/estudiante.js';
 import docenteRoutes from './routes/docente.js';
 import jefeRoutes from './routes/jefe.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
@@ -20,16 +21,14 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'uni-tracking-api' }));
 
-// Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/estudiante', estudianteRoutes);
 app.use('/api/docente', docenteRoutes);
 app.use('/api/jefe', jefeRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Manejador de errores
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Error interno del servidor' });
@@ -37,5 +36,5 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`🎓 Uni Tracking API corriendo en http://localhost:${PORT}`);
+  console.log(`🎓 SEGEDU API corriendo en http://localhost:${PORT}`);
 });

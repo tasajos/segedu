@@ -130,3 +130,46 @@ export const resumenAsistencias = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ============ EXPEDIENTE COMPLETO (asistencias + disciplina + observaciones) ============
+export const miExpediente = async (req, res) => {
+  try {
+    const estudianteId = req.user.estudiante_id;
+
+    const [asistencias] = await pool.query(
+      `SELECT a.*, m.nombre as materia_nombre
+       FROM asistencias a
+       JOIN materias m ON a.materia_id = m.id
+       WHERE a.estudiante_id = ?
+       ORDER BY a.fecha DESC`,
+      [estudianteId]
+    );
+
+    const [disciplina] = await pool.query(
+      `SELECT de.*, m.nombre as materia_nombre,
+              u.nombre as registrado_nombre, u.apellido as registrado_apellido, u.rol as registrado_rol
+       FROM disciplina_estudiantes de
+       LEFT JOIN materias m ON de.materia_id = m.id
+       JOIN usuarios u ON de.registrado_por = u.id
+       WHERE de.estudiante_id = ?
+       ORDER BY de.fecha DESC`,
+      [estudianteId]
+    );
+
+    const [comentarios] = await pool.query(
+      `SELECT c.*, m.nombre as materia_nombre,
+              u.nombre as docente_nombre, u.apellido as docente_apellido
+       FROM comentarios_estudiantes c
+       JOIN docentes d ON c.docente_id = d.id
+       JOIN usuarios u ON d.usuario_id = u.id
+       LEFT JOIN materias m ON c.materia_id = m.id
+       WHERE c.estudiante_id = ?
+       ORDER BY c.created_at DESC`,
+      [estudianteId]
+    );
+
+    res.json({ asistencias, disciplina, comentarios });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -5,7 +5,9 @@ import {
   listarMateriasDocente, listarEstudiantesPorMateria,
   listarPGO, crearPGO,
   listarAvance, crearAvance,
-  listarComentarios, crearComentario
+  listarComentarios, crearComentario,
+  registrarListaAsistencia, listarSesionesAsistencia, listarAsistenciaSesion,
+  misDisciplina
 } from '../controllers/docenteController.js';
 
 const router = Router();
@@ -22,5 +24,11 @@ router.post('/avance', crearAvance);
 
 router.get('/comentarios', listarComentarios);
 router.post('/comentarios', crearComentario);
+
+router.post('/asistencia/lista', registrarListaAsistencia);
+router.get('/asistencia/sesiones', listarSesionesAsistencia);
+router.get('/asistencia/sesion', listarAsistenciaSesion);
+
+router.get('/mi-disciplina', misDisciplina);
 
 export default router;
