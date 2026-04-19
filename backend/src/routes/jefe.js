@@ -6,6 +6,7 @@ import {
   listarTodosAvances, validarAvance,
   analisisComportamiento,
   dashboard, detalleEstudiante, listarEstudiantes,
+  inscribirEstudianteMateria, retirarEstudianteMateria,
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
   listarHorarios, crearHorario, eliminarHorario,
@@ -28,6 +29,8 @@ router.get('/dashboard', dashboard);
 
 router.get('/estudiantes', listarEstudiantes);
 router.get('/estudiantes/:id', detalleEstudiante);
+router.post('/inscripciones', inscribirEstudianteMateria);
+router.delete('/inscripciones/:estudiante_id/:materia_id', retirarEstudianteMateria);
 
 router.get('/disciplina-estudiantes', listarDisciplinaEstudiantes);
 router.post('/disciplina-estudiantes', crearDisciplinaEstudiante);

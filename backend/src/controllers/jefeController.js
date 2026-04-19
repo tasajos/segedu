@@ -6,6 +6,14 @@ const getCarreraJefe = async (usuarioId) => {
   return rows[0] || null;
 };
 
+const getEstudianteCarrera = async (estudianteId) => {
+  const [[estudiante]] = await pool.query(
+    'SELECT id, carrera_id, semestre FROM estudiantes WHERE id = ?',
+    [estudianteId]
+  );
+  return estudiante || null;
+};
+
 // ============ MI CARRERA ============
 export const miCarrera = async (req, res) => {
   try {
@@ -217,6 +225,7 @@ export const listarEstudiantes = async (req, res) => {
 export const detalleEstudiante = async (req, res) => {
   try {
     const { id } = req.params;
+    const carrera = await getCarreraJefe(req.user.id);
     const [[est]] = await pool.query(
       `SELECT e.*, u.nombre, u.apellido, u.email, u.ci, u.telefono,
               c.nombre as carrera_nombre
@@ -227,6 +236,9 @@ export const detalleEstudiante = async (req, res) => {
       [id]
     );
     if (!est) return res.status(404).json({ error: 'Estudiante no encontrado' });
+    if (carrera && est.carrera_id !== carrera.id) {
+      return res.status(403).json({ error: 'No autorizado para ver este estudiante' });
+    }
 
     const [materias] = await pool.query(
       `SELECT m.*, ud.nombre as docente_nombre, ud.apellido as docente_apellido
@@ -236,6 +248,20 @@ export const detalleEstudiante = async (req, res) => {
        LEFT JOIN usuarios ud ON d.usuario_id = ud.id
        WHERE i.estudiante_id = ?`,
       [id]
+    );
+
+    const [materiasDisponibles] = await pool.query(
+      `SELECT m.*, ud.nombre as docente_nombre, ud.apellido as docente_apellido,
+              EXISTS(
+                SELECT 1 FROM inscripciones i
+                WHERE i.estudiante_id = ? AND i.materia_id = m.id
+              ) as inscrito
+       FROM materias m
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios ud ON d.usuario_id = ud.id
+       WHERE m.carrera_id = ?
+       ORDER BY m.semestre, m.nombre, m.grupo`,
+      [id, est.carrera_id]
     );
 
     const [asistencias] = await pool.query(
@@ -279,7 +305,72 @@ export const detalleEstudiante = async (req, res) => {
       [id]
     );
 
-    res.json({ estudiante: est, materias, asistencias, asistenciasDetalle, cursos, comentarios, disciplina });
+    res.json({ estudiante: est, materias, materiasDisponibles, asistencias, asistenciasDetalle, cursos, comentarios, disciplina });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const inscribirEstudianteMateria = async (req, res) => {
+  try {
+    const { estudiante_id, materia_id } = req.body;
+    if (!estudiante_id || !materia_id) {
+      return res.status(400).json({ error: 'Estudiante y materia son requeridos' });
+    }
+
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const estudiante = await getEstudianteCarrera(estudiante_id);
+    if (!estudiante || estudiante.carrera_id !== carrera.id) {
+      return res.status(404).json({ error: 'Estudiante no encontrado en su carrera' });
+    }
+
+    const [[materia]] = await pool.query(
+      'SELECT id, carrera_id FROM materias WHERE id = ?',
+      [materia_id]
+    );
+    if (!materia || materia.carrera_id !== carrera.id) {
+      return res.status(404).json({ error: 'Materia no encontrada en su carrera' });
+    }
+
+    const [result] = await pool.query(
+      'INSERT INTO inscripciones (estudiante_id, materia_id) VALUES (?, ?)',
+      [estudiante_id, materia_id]
+    );
+    res.status(201).json({ id: result.insertId, message: 'Estudiante inscrito' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'El estudiante ya está inscrito en esta materia' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const retirarEstudianteMateria = async (req, res) => {
+  try {
+    const { estudiante_id, materia_id } = req.params;
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const estudiante = await getEstudianteCarrera(estudiante_id);
+    if (!estudiante || estudiante.carrera_id !== carrera.id) {
+      return res.status(404).json({ error: 'Estudiante no encontrado en su carrera' });
+    }
+
+    const [[materia]] = await pool.query(
+      'SELECT id, carrera_id FROM materias WHERE id = ?',
+      [materia_id]
+    );
+    if (!materia || materia.carrera_id !== carrera.id) {
+      return res.status(404).json({ error: 'Materia no encontrada en su carrera' });
+    }
+
+    await pool.query(
+      'DELETE FROM inscripciones WHERE estudiante_id = ? AND materia_id = ?',
+      [estudiante_id, materia_id]
+    );
+    res.json({ message: 'Inscripción eliminada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
