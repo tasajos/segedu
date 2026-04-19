@@ -1,65 +1,56 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(26, 22, 18, 0.6);
+  background: rgba(15,32,68,.5);
   backdrop-filter: blur(4px);
   z-index: 100;
   display: grid;
   place-items: center;
   padding: 1.5rem;
-  animation: fadeIn .2s ease-out both;
+  animation: fadeIn .15s ease-out both;
 }
 
 .modal {
   width: 100%;
-  background: var(--paper-light);
-  border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   max-height: 90vh;
   overflow-y: auto;
-  animation: fadeUp .3s ease-out both;
+  animation: fadeUp .25s ease-out both;
   position: relative;
 }
+
 .modal::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 4px;
-  background: var(--ink);
+  background: linear-gradient(90deg, var(--blue-600), var(--blue-400));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .modal-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem 1rem;
-  border-bottom: 1px solid var(--line);
+  padding: 1.5rem 1.75rem 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.modal-head h3 {
-  font-family: var(--serif);
-  font-size: 1.5rem;
-  font-weight: 400;
-}
+.modal-head h3 { font-size: 1.2rem; font-weight: 700; }
 
 .modal-close {
-  font-size: 1.75rem;
-  color: var(--ink-light);
-  width: 36px;
-  height: 36px;
+  width: 32px; height: 32px;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
-  transition: all .2s;
-  cursor: pointer;
+  display: grid; place-items: center;
+  font-size: 1.25rem;
   line-height: 1;
+  color: var(--text-muted);
+  transition: all .15s;
+  cursor: pointer;
 }
-.modal-close:hover {
-  background: var(--ink);
-  color: var(--paper);
-}
+.modal-close:hover { background: var(--gray-100); color: var(--text); }
 
-.modal-body {
-  padding: 1.5rem 2rem 2rem;
-}
+.modal-body { padding: 1.25rem 1.75rem 1.75rem; }
