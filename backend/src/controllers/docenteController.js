@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { ensurePgoTaskSchema } from '../utils/pgoTasks.js';
 
 // ============ MATERIAS DEL DOCENTE ============
 export const listarMateriasDocente = async (req, res) => {
@@ -88,6 +89,126 @@ export const listarAvance = async (req, res) => {
     query += ' ORDER BY av.fecha DESC';
     const [rows] = await pool.query(query, params);
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarPgoTareas = async (req, res) => {
+  try {
+    await ensurePgoTaskSchema();
+    const docenteId = req.user.docente_id;
+    const { materia_id } = req.query;
+
+    let query = `
+      SELECT t.*, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
+             p.periodo, p.estado as pgo_estado
+      FROM pgo_tareas t
+      JOIN materias m ON t.materia_id = m.id
+      JOIN pgo p ON t.pgo_id = p.id
+      WHERE t.docente_id = ?
+    `;
+    const params = [docenteId];
+
+    if (materia_id) {
+      query += ' AND t.materia_id = ?';
+      params.push(materia_id);
+    }
+
+    query += ' ORDER BY m.nombre, m.grupo, t.orden';
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const actualizarEstadoPgoTarea = async (req, res) => {
+  try {
+    await ensurePgoTaskSchema();
+    const docenteId = req.user.docente_id;
+    const { id } = req.params;
+    const completed = !!req.body.completed;
+
+    const [[task]] = await pool.query(
+      `SELECT t.*, p.estado as pgo_estado
+       FROM pgo_tareas t
+       JOIN pgo p ON t.pgo_id = p.id
+       WHERE t.id = ? AND t.docente_id = ?`,
+      [id, docenteId]
+    );
+
+    if (!task) {
+      return res.status(404).json({ error: 'Tarea no encontrada' });
+    }
+
+    if (task.pgo_estado !== 'aprobado') {
+      return res.status(409).json({ error: 'El PGO de esta materia aun no esta aprobado' });
+    }
+
+    if (completed && task.estado !== 'completado') {
+      await pool.query(
+        'UPDATE pgo_tareas SET estado = ?, fecha_completado = CURDATE() WHERE id = ?',
+        ['completado', id]
+      );
+
+      const [[stats]] = await pool.query(
+        `SELECT COUNT(*) as total,
+                SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END) as completadas
+         FROM pgo_tareas
+         WHERE pgo_id = ?`,
+        [task.pgo_id]
+      );
+
+      const porcentaje = stats.total ? Number(((stats.completadas * 100) / stats.total).toFixed(2)) : 0;
+      const [insertResult] = await pool.query(
+        `INSERT INTO avance_materia (materia_id, docente_id, tema, descripcion, porcentaje_avance, fecha)
+         VALUES (?, ?, ?, ?, ?, CURDATE())`,
+        [
+          task.materia_id,
+          docenteId,
+          task.titulo,
+          `Contenido del PGO completado - ${task.unidad_codigo}: ${task.unidad_nombre}`,
+          porcentaje
+        ]
+      );
+
+      await pool.query(
+        'UPDATE pgo_tareas SET avance_id = ? WHERE id = ?',
+        [insertResult.insertId, id]
+      );
+    }
+
+    if (!completed && task.estado === 'completado') {
+      if (task.avance_id) {
+        await pool.query(
+          'DELETE FROM avance_materia WHERE id = ? AND docente_id = ?',
+          [task.avance_id, docenteId]
+        );
+      }
+
+      await pool.query(
+        'UPDATE pgo_tareas SET estado = ?, fecha_completado = NULL, avance_id = NULL WHERE id = ?',
+        ['pendiente', id]
+      );
+    }
+
+    const [[updated]] = await pool.query(
+      `SELECT COUNT(*) as total,
+              SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END) as completadas
+       FROM pgo_tareas
+       WHERE pgo_id = ?`,
+      [task.pgo_id]
+    );
+
+    res.json({
+      message: completed ? 'Contenido marcado como completado' : 'Contenido marcado como pendiente',
+      resumen: {
+        total: updated.total,
+        completadas: updated.completadas || 0,
+        porcentaje: updated.total ? Number((((updated.completadas || 0) * 100) / updated.total).toFixed(2)) : 0
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

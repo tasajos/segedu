@@ -4,7 +4,7 @@ import { upload } from '../middleware/upload.js';
 import {
   listarMateriasDocente, listarEstudiantesPorMateria,
   listarPGO, crearPGO,
-  listarAvance, crearAvance,
+  listarAvance, crearAvance, listarPgoTareas, actualizarEstadoPgoTarea,
   listarComentarios, crearComentario,
   registrarListaAsistencia, listarSesionesAsistencia, listarAsistenciaSesion,
   misDisciplina
@@ -21,6 +21,8 @@ router.post('/pgo', upload.single('archivo'), crearPGO);
 
 router.get('/avance', listarAvance);
 router.post('/avance', crearAvance);
+router.get('/pgo-tareas', listarPgoTareas);
+router.put('/pgo-tareas/:id', actualizarEstadoPgoTarea);
 
 router.get('/comentarios', listarComentarios);
 router.post('/comentarios', crearComentario);

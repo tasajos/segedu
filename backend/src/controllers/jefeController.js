@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { generarTareasDesdePgo } from '../utils/pgoTasks.js';
 
 // Helper: obtener carrera del jefe
 const getCarreraJefe = async (usuarioId) => {
@@ -55,7 +56,17 @@ export const revisarPGO = async (req, res) => {
       'UPDATE pgo SET estado = ?, observaciones = ?, fecha_revision = NOW() WHERE id = ?',
       [estado, observaciones, id]
     );
-    res.json({ message: 'PGO revisado' });
+
+    let tareas = null;
+    if (estado === 'aprobado') {
+      try {
+        tareas = await generarTareasDesdePgo(id);
+      } catch (taskErr) {
+        console.error('Error generando tareas del PGO:', taskErr);
+      }
+    }
+
+    res.json({ message: 'PGO revisado', tareas });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
