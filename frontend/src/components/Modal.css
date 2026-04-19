@@ -1,0 +1,65 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 22, 18, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  animation: fadeIn .2s ease-out both;
+}
+
+.modal {
+  width: 100%;
+  background: var(--paper-light);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: fadeUp .3s ease-out both;
+  position: relative;
+}
+.modal::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--ink);
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h3 {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+}
+
+.modal-close {
+  font-size: 1.75rem;
+  color: var(--ink-light);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition: all .2s;
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-close:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.modal-body {
+  padding: 1.5rem 2rem 2rem;
+}
