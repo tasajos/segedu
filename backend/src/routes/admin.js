@@ -5,7 +5,7 @@ import {
   listarCarreras, crearCarrera, actualizarCarrera, eliminarCarrera,
   listarUsuarios, crearUsuario, actualizarUsuario, eliminarUsuario,
   listarJefes, resetPassword,
-  listarMaterias, crearMateria, actualizarMateria, eliminarMateria,
+  listarMaterias, obtenerMateria, crearMateria, actualizarMateria, eliminarMateria,
   listarDocentesAdmin
 } from '../controllers/adminController.js';
 
@@ -28,6 +28,7 @@ router.put('/usuarios/:id/reset-password', resetPassword);
 router.get('/jefes', listarJefes);
 
 router.get('/materias', listarMaterias);
+router.get('/materias/:id', obtenerMateria);
 router.post('/materias', crearMateria);
 router.put('/materias/:id', actualizarMateria);
 router.delete('/materias/:id', eliminarMateria);

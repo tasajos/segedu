@@ -462,21 +462,54 @@ export const listarMaterias = async (req, res) => {
   }
 };
 
+export const obtenerMateria = async (req, res) => {
+  try {
+    const carrera = await getCarreraJefe(req.user.id);
+    const { id } = req.params;
+    const params = [id];
+    let carreraFilter = '';
+
+    if (carrera) {
+      carreraFilter = ' AND m.carrera_id = ?';
+      params.push(carrera.id);
+    }
+
+    const [[materia]] = await pool.query(
+      `SELECT m.*, c.nombre as carrera_nombre,
+              u.nombre as docente_nombre, u.apellido as docente_apellido
+       FROM materias m
+       LEFT JOIN carreras c ON m.carrera_id = c.id
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios u ON d.usuario_id = u.id
+       WHERE m.id = ?${carreraFilter}`,
+      params
+    );
+
+    if (!materia) {
+      return res.status(404).json({ error: 'Materia no encontrada' });
+    }
+
+    res.json(materia);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const crearMateria = async (req, res) => {
   try {
     const carrera = await getCarreraJefe(req.user.id);
     if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
-    const { nombre, codigo, docente_id, semestre, creditos } = req.body;
+    const { nombre, codigo, grupo, docente_id, semestre, creditos } = req.body;
     if (!nombre || !codigo || !semestre) {
       return res.status(400).json({ error: 'Nombre, código y semestre son requeridos' });
     }
     const [result] = await pool.query(
-      'INSERT INTO materias (nombre, codigo, carrera_id, docente_id, semestre, creditos) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombre, codigo.toUpperCase(), carrera.id, docente_id || null, semestre, creditos || 4]
+      'INSERT INTO materias (nombre, codigo, grupo, carrera_id, docente_id, semestre, creditos) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nombre, codigo.toUpperCase(), (grupo || 'A').toUpperCase(), carrera.id, docente_id || null, semestre, creditos || 4]
     );
     res.status(201).json({ id: result.insertId, message: 'Materia creada' });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe una materia con ese código en esta carrera' });
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe ese código/grupo en esta carrera' });
     res.status(500).json({ error: err.message });
   }
 };
@@ -484,14 +517,14 @@ export const crearMateria = async (req, res) => {
 export const actualizarMateria = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, codigo, docente_id, semestre, creditos } = req.body;
+    const { nombre, codigo, grupo, docente_id, semestre, creditos } = req.body;
     await pool.query(
-      'UPDATE materias SET nombre=?, codigo=?, docente_id=?, semestre=?, creditos=? WHERE id=?',
-      [nombre, codigo.toUpperCase(), docente_id || null, semestre, creditos || 4, id]
+      'UPDATE materias SET nombre=?, codigo=?, grupo=?, docente_id=?, semestre=?, creditos=? WHERE id=?',
+      [nombre, codigo.toUpperCase(), (grupo || 'A').toUpperCase(), docente_id || null, semestre, creditos || 4, id]
     );
     res.json({ message: 'Materia actualizada' });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe una materia con ese código en esta carrera' });
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe ese código/grupo en esta carrera' });
     res.status(500).json({ error: err.message });
   }
 };

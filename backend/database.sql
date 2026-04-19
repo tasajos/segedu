@@ -51,16 +51,17 @@ CREATE TABLE docentes (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- Materias (mismo código puede existir en distintas carreras)
+-- Materias (mismo código puede existir en distintas carreras y grupos)
 CREATE TABLE materias (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(150) NOT NULL,
   codigo VARCHAR(30) NOT NULL,
+  grupo VARCHAR(10) NOT NULL DEFAULT 'A',
   carrera_id INT NOT NULL,
   docente_id INT,
   semestre INT NOT NULL,
   creditos INT DEFAULT 4,
-  UNIQUE KEY unique_codigo_carrera (codigo, carrera_id),
+  UNIQUE KEY unique_codigo_carrera_grupo (codigo, carrera_id, grupo),
   FOREIGN KEY (carrera_id) REFERENCES carreras(id) ON DELETE CASCADE,
   FOREIGN KEY (docente_id) REFERENCES docentes(id) ON DELETE SET NULL
 );
@@ -245,10 +246,10 @@ INSERT INTO estudiantes (usuario_id, carrera_id, semestre, codigo_estudiante, fe
 (7, 1, 3, 'EST-2024-003', '2024-02-01');
 
 -- Materias
-INSERT INTO materias (nombre, codigo, carrera_id, docente_id, semestre, creditos) VALUES
-('Programación Web', 'INF-501', 1, 1, 5, 5),
-('Base de Datos II', 'INF-502', 1, 2, 5, 4),
-('Estructuras de Datos', 'INF-301', 1, 1, 3, 5);
+INSERT INTO materias (nombre, codigo, grupo, carrera_id, docente_id, semestre, creditos) VALUES
+('Programación Web', 'INF-501', 'A', 1, 1, 5, 5),
+('Base de Datos II', 'INF-502', 'A', 1, 2, 5, 4),
+('Estructuras de Datos', 'INF-301', 'A', 1, 1, 3, 5);
 
 -- Inscripciones
 INSERT INTO inscripciones (estudiante_id, materia_id) VALUES

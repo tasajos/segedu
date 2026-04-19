@@ -9,7 +9,7 @@ import {
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
   listarHorarios, crearHorario, eliminarHorario,
-  asignarDocente, listarMaterias, crearMateria, actualizarMateria, eliminarMateria, listarDocentes
+  asignarDocente, listarMaterias, obtenerMateria, crearMateria, actualizarMateria, eliminarMateria, listarDocentes
 } from '../controllers/jefeController.js';
 
 const router = Router();
@@ -43,6 +43,7 @@ router.delete('/horarios/:id', eliminarHorario);
 
 router.post('/asignar-docente', asignarDocente);
 router.get('/materias', listarMaterias);
+router.get('/materias/:id', obtenerMateria);
 router.post('/materias', crearMateria);
 router.put('/materias/:id', actualizarMateria);
 router.delete('/materias/:id', eliminarMateria);

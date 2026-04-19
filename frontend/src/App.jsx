@@ -27,12 +27,14 @@ import JefeHorarios from './pages/jefe/Horarios';
 import JefeDisciplina from './pages/jefe/Disciplina';
 import JefeDisciplinaDocentes from './pages/jefe/DisciplinaDocentes';
 import JefeMaterias from './pages/jefe/Materias';
+import JefeMateriaForm from './pages/jefe/MateriaForm';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsuarios from './pages/admin/Usuarios';
 import AdminCarreras from './pages/admin/Carreras';
 import AdminMaterias from './pages/admin/Materias';
+import AdminMateriaForm from './pages/admin/MateriaForm';
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -88,6 +90,8 @@ export default function App() {
         <Route path="disciplina" element={<JefeDisciplina />} />
         <Route path="disciplina-docentes" element={<JefeDisciplinaDocentes />} />
         <Route path="materias" element={<JefeMaterias />} />
+        <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
+        <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />
       </Route>
 
       {/* Admin */}
@@ -96,6 +100,8 @@ export default function App() {
         <Route path="usuarios" element={<AdminUsuarios />} />
         <Route path="carreras" element={<AdminCarreras />} />
         <Route path="materias" element={<AdminMaterias />} />
+        <Route path="materias/nueva" element={<AdminMateriaForm role="admin" />} />
+        <Route path="materias/:id/editar" element={<AdminMateriaForm role="admin" />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
