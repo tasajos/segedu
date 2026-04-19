@@ -373,40 +373,42 @@ export default function JefeEstudiantes() {
                   </div>
                 )}
 
-                {detalle.materias.map((m) => (
-                  <div
-                    key={m.id}
-                    style={{
-                      padding: '.75rem 1rem',
-                      background: 'var(--paper-dark)',
-                      borderRadius: '2px',
-                      fontSize: '.9rem',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '1rem'
-                    }}
-                  >
-                    <div>
-                      <strong>{m.nombre}</strong>
-                      <span className="text-mono" style={{ fontSize: '.75rem', color: 'var(--ink-light)' }}>
-                        {' '} - {m.codigo} - Grupo {m.grupo}
-                      </span>
-                      {m.docente_nombre && (
-                        <div style={{ fontSize: '.8rem', color: 'var(--ink-light)', marginTop: '.2rem' }}>
-                          Docente: {m.docente_nombre} {m.docente_apellido}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => retirarMateria(m.id)}
-                      disabled={savingMateria}
+                <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '.75rem', paddingRight: '.25rem' }}>
+                  {detalle.materias.map((m) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        padding: '.75rem 1rem',
+                        background: 'var(--paper-dark)',
+                        borderRadius: '2px',
+                        fontSize: '.9rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '1rem'
+                      }}
                     >
-                      Quitar
-                    </button>
-                  </div>
-                ))}
+                      <div>
+                        <strong>{m.nombre}</strong>
+                        <span className="text-mono" style={{ fontSize: '.75rem', color: 'var(--ink-light)' }}>
+                          {' '} - {m.codigo} - Grupo {m.grupo}
+                        </span>
+                        {m.docente_nombre && (
+                          <div style={{ fontSize: '.8rem', color: 'var(--ink-light)', marginTop: '.2rem' }}>
+                            Docente: {m.docente_nombre} {m.docente_apellido}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => retirarMateria(m.id)}
+                        disabled={savingMateria}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
