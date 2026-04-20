@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 import {
   miCarrera,
-  listarTodosPGO, revisarPGO,
+  listarTodosPGO, revisarPGO, eliminarPGO,
   listarTodosAvances, validarAvance,
   analisisComportamiento,
   dashboard, detalleEstudiante, listarEstudiantes,
@@ -20,6 +20,7 @@ router.get('/mi-carrera', miCarrera);
 
 router.get('/pgo', listarTodosPGO);
 router.put('/pgo/:id', revisarPGO);
+router.delete('/pgo/:id', eliminarPGO);
 
 router.get('/avances', listarTodosAvances);
 router.put('/avances/:id', validarAvance);

@@ -3,7 +3,7 @@ import { verifyToken, requireRole } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import {
   listarMateriasDocente, listarEstudiantesPorMateria,
-  listarPGO, crearPGO,
+  listarPGO, crearPGO, eliminarPGO,
   listarAvance, crearAvance, listarPgoTareas, actualizarEstadoPgoTarea,
   listarComentarios, crearComentario,
   registrarListaAsistencia, listarSesionesAsistencia, listarAsistenciaSesion,
@@ -18,6 +18,7 @@ router.get('/materias/:materia_id/estudiantes', listarEstudiantesPorMateria);
 
 router.get('/pgo', listarPGO);
 router.post('/pgo', upload.single('archivo'), crearPGO);
+router.delete('/pgo/:id', eliminarPGO);
 
 router.get('/avance', listarAvance);
 router.post('/avance', crearAvance);

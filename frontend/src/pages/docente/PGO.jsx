@@ -43,6 +43,13 @@ export default function DocentePGO() {
     cargar();
   };
 
+  const eliminar = async (pgo) => {
+    const ok = window.confirm(`¿Desea eliminar el PGO "${pgo.titulo}"?`);
+    if (!ok) return;
+    await api.delete(`/docente/pgo/${pgo.id}`);
+    cargar();
+  };
+
   return (
     <>
       <PageHeader
@@ -93,11 +100,16 @@ export default function DocentePGO() {
                   <span className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
                     {new Date(p.fecha_envio).toLocaleDateString()}
                   </span>
-                  {p.archivo_url && (
-                    <a href={p.archivo_url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-                      Ver archivo
-                    </a>
-                  )}
+                  <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {p.archivo_url && (
+                      <a href={p.archivo_url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                        Ver archivo
+                      </a>
+                    )}
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => eliminar(p)}>
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

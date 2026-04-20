@@ -1,5 +1,33 @@
 import pool from '../config/db.js';
 import { ensurePgoTaskSchema } from '../utils/pgoTasks.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const resolveUploadCandidates = (archivoUrl) => {
+  if (!archivoUrl) return [];
+  const fileName = path.basename(archivoUrl);
+  return [
+    path.resolve(process.cwd(), 'uploads', fileName),
+    path.resolve(process.cwd(), 'backend', 'uploads', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', fileName)
+  ];
+};
+
+const removeUploadedFile = async (archivoUrl) => {
+  for (const candidate of resolveUploadCandidates(archivoUrl)) {
+    try {
+      await fs.unlink(candidate);
+      return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
+};
 
 // ============ MATERIAS DEL DOCENTE ============
 export const listarMateriasDocente = async (req, res) => {
@@ -65,6 +93,29 @@ export const crearPGO = async (req, res) => {
       [materia_id, docenteId, titulo, descripcion, periodo, archivo_url]
     );
     res.status(201).json({ id: result.insertId, message: 'PGO enviado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const eliminarPGO = async (req, res) => {
+  try {
+    const docenteId = req.user.docente_id;
+    const { id } = req.params;
+
+    const [[pgo]] = await pool.query(
+      'SELECT id, archivo_url FROM pgo WHERE id = ? AND docente_id = ?',
+      [id, docenteId]
+    );
+
+    if (!pgo) {
+      return res.status(404).json({ error: 'PGO no encontrado' });
+    }
+
+    await pool.query('DELETE FROM pgo WHERE id = ? AND docente_id = ?', [id, docenteId]);
+    await removeUploadedFile(pgo.archivo_url);
+
+    res.json({ message: 'PGO eliminado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

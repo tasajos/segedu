@@ -1,5 +1,11 @@
 import pool from '../config/db.js';
 import { generarTareasDesdePgo } from '../utils/pgoTasks.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Helper: obtener carrera del jefe
 const getCarreraJefe = async (usuarioId) => {
@@ -13,6 +19,28 @@ const getEstudianteCarrera = async (estudianteId) => {
     [estudianteId]
   );
   return estudiante || null;
+};
+
+const resolveUploadCandidates = (archivoUrl) => {
+  if (!archivoUrl) return [];
+  const fileName = path.basename(archivoUrl);
+  return [
+    path.resolve(process.cwd(), 'uploads', fileName),
+    path.resolve(process.cwd(), 'backend', 'uploads', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', fileName)
+  ];
+};
+
+const removeUploadedFile = async (archivoUrl) => {
+  for (const candidate of resolveUploadCandidates(archivoUrl)) {
+    try {
+      await fs.unlink(candidate);
+      return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
 };
 
 // ============ MI CARRERA ============
@@ -67,6 +95,33 @@ export const revisarPGO = async (req, res) => {
     }
 
     res.json({ message: 'PGO revisado', tareas });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const eliminarPGO = async (req, res) => {
+  try {
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { id } = req.params;
+    const [[pgo]] = await pool.query(
+      `SELECT p.id, p.archivo_url
+       FROM pgo p
+       JOIN materias m ON p.materia_id = m.id
+       WHERE p.id = ? AND m.carrera_id = ?`,
+      [id, carrera.id]
+    );
+
+    if (!pgo) {
+      return res.status(404).json({ error: 'PGO no encontrado en su carrera' });
+    }
+
+    await pool.query('DELETE FROM pgo WHERE id = ?', [id]);
+    await removeUploadedFile(pgo.archivo_url);
+
+    res.json({ message: 'PGO eliminado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

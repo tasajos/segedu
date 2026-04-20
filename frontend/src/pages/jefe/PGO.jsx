@@ -71,6 +71,14 @@ export default function JefePGO() {
     cargar();
   };
 
+  const eliminar = async (pgo) => {
+    const ok = window.confirm(`¿Desea eliminar el PGO "${pgo.titulo}"?`);
+    if (!ok) return;
+    if (selected?.id === pgo.id) cerrarRevision();
+    await api.delete(`/jefe/pgo/${pgo.id}`);
+    cargar();
+  };
+
   const decisionActiva = getEstadoMeta(form.estado);
 
   return (
@@ -134,6 +142,9 @@ export default function JefePGO() {
                     )}
                     <button className="btn btn-primary btn-sm" onClick={() => abrirRevision(pgo)}>
                       Revisar
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => eliminar(pgo)}>
+                      Eliminar
                     </button>
                   </div>
                 </td>
