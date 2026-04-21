@@ -7,6 +7,7 @@ const TIPO_COLOR = { falta: 'var(--crimson)', sancion: '#7b2d8b', permiso: 'var(
 
 export default function JefeEstudiantes() {
   const [estudiantes, setEstudiantes] = useState([]);
+  const [indicadores, setIndicadores] = useState({ resumen: { falta: 0, permiso: 0, tarde: 0 }, topAsistencia: [], topFaltas: [] });
   const [semestre, setSemestre] = useState('');
   const [detalle, setDetalle] = useState(null);
   const [search, setSearch] = useState('');
@@ -15,8 +16,12 @@ export default function JefeEstudiantes() {
   const [savingMateria, setSavingMateria] = useState(false);
 
   const cargar = async () => {
-    const { data } = await api.get('/jefe/estudiantes', { params: semestre ? { semestre } : {} });
-    setEstudiantes(data);
+    const [estudiantesResp, indicadoresResp] = await Promise.all([
+      api.get('/jefe/estudiantes', { params: semestre ? { semestre } : {} }),
+      api.get('/jefe/estudiantes-indicadores')
+    ]);
+    setEstudiantes(estudiantesResp.data);
+    setIndicadores(indicadoresResp.data);
   };
 
   useEffect(() => {
@@ -93,6 +98,76 @@ export default function JefeEstudiantes() {
         title={<>Ficha de <span className="display-italic">estudiantes</span></>}
         lead="Consulte el expediente completo de cada estudiante: asistencias, capacitaciones, disciplina y observaciones."
       />
+
+      <div className="grid-4 mb-6">
+        <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--crimson)' }}>
+          <div className="text-serif" style={{ fontSize: '2rem', lineHeight: 1 }}>{indicadores.resumen?.falta || 0}</div>
+          <div className="text-mono" style={{ fontSize: '.7rem', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-light)', marginTop: '.35rem' }}>
+            Faltas acumuladas
+          </div>
+        </div>
+        <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--gold)' }}>
+          <div className="text-serif" style={{ fontSize: '2rem', lineHeight: 1 }}>{indicadores.resumen?.permiso || 0}</div>
+          <div className="text-mono" style={{ fontSize: '.7rem', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-light)', marginTop: '.35rem' }}>
+            Permisos acumulados
+          </div>
+        </div>
+        <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--blue-600)' }}>
+          <div className="text-serif" style={{ fontSize: '2rem', lineHeight: 1 }}>{indicadores.resumen?.tarde || 0}</div>
+          <div className="text-mono" style={{ fontSize: '.7rem', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-light)', marginTop: '.35rem' }}>
+            Tardes acumuladas
+          </div>
+        </div>
+        <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--forest)' }}>
+          <div className="text-serif" style={{ fontSize: '2rem', lineHeight: 1 }}>{indicadores.topAsistencia?.[0]?.total_presentes || 0}</div>
+          <div className="text-mono" style={{ fontSize: '.7rem', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-light)', marginTop: '.35rem' }}>
+            Mayor asistencia
+          </div>
+          <div style={{ fontSize: '.8rem', color: 'var(--ink-light)', marginTop: '.35rem' }}>
+            {indicadores.topAsistencia?.[0] ? `${indicadores.topAsistencia[0].nombre} ${indicadores.topAsistencia[0].apellido}` : 'Sin datos'}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid-2 mb-6">
+        <div className="card" style={{ padding: '1rem' }}>
+          <div className="section-head">
+            <h2>Indicador de faltas</h2>
+            <span className="count">top 5</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem', marginTop: '1rem' }}>
+            {(indicadores.topFaltas || []).map((row, index) => (
+              <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: '.75rem', alignItems: 'center' }}>
+                <span className="text-mono" style={{ fontSize: '.72rem', color: 'var(--ink-light)' }}>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <div style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{row.nombre} {row.apellido}</div>
+                  <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)' }}>{row.codigo_estudiante}</div>
+                </div>
+                <span className="chip chip-crimson">{row.total_faltas}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: '1rem' }}>
+          <div className="section-head">
+            <h2>Indicador de asistencia</h2>
+            <span className="count">top 5</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem', marginTop: '1rem' }}>
+            {(indicadores.topAsistencia || []).map((row, index) => (
+              <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: '.75rem', alignItems: 'center' }}>
+                <span className="text-mono" style={{ fontSize: '.72rem', color: 'var(--ink-light)' }}>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <div style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{row.nombre} {row.apellido}</div>
+                  <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)' }}>{row.codigo_estudiante}</div>
+                </div>
+                <span className="chip chip-forest">{row.total_presentes}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div className="flex gap-4 mb-6" style={{ alignItems: 'center' }}>
         <input

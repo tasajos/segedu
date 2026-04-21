@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import { ensurePgoTaskSchema } from '../utils/pgoTasks.js';
+import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -468,6 +469,29 @@ export const listarReporteAsistencia = async (req, res) => {
       resumen,
       registros: rows
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarSolicitudesPermisoDocente = async (req, res) => {
+  try {
+    await ensureStudentPermissionSchema();
+    const docenteId = req.user.docente_id;
+    const { materia_id, fecha } = req.query;
+
+    const [rows] = await pool.query(
+      `SELECT spr.*, e.codigo_estudiante, u.nombre, u.apellido
+       FROM student_permission_requests spr
+       JOIN materias m ON spr.materia_id = m.id
+       JOIN estudiantes e ON spr.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE m.docente_id = ? AND spr.materia_id = ? AND ? BETWEEN spr.fecha_desde AND spr.fecha_hasta
+       ORDER BY spr.created_at DESC, u.apellido, u.nombre`,
+      [docenteId, materia_id, fecha]
+    );
+
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

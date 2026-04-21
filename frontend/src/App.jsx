@@ -22,6 +22,7 @@ import JefeDashboard from './pages/jefe/Dashboard';
 import JefePGO from './pages/jefe/PGO';
 import JefeAvances from './pages/jefe/Avances';
 import JefeComportamiento from './pages/jefe/Comportamiento';
+import JefeAsistencias from './pages/jefe/Asistencias';
 import JefeEstudiantes from './pages/jefe/Estudiantes';
 import JefeHorarios from './pages/jefe/Horarios';
 import JefeDisciplina from './pages/jefe/Disciplina';
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="pgo" element={<JefePGO />} />
         <Route path="avances" element={<JefeAvances />} />
         <Route path="comportamiento" element={<JefeComportamiento />} />
+        <Route path="asistencias" element={<JefeAsistencias />} />
         <Route path="estudiantes" element={<JefeEstudiantes />} />
         <Route path="horarios" element={<JefeHorarios />} />
         <Route path="disciplina" element={<JefeDisciplina />} />

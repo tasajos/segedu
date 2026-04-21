@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
+import { upload } from '../middleware/upload.js';
 import {
   miCarrera,
   listarTodosPGO, revisarPGO, eliminarPGO,
   listarTodosAvances, validarAvance,
-  analisisComportamiento,
+  analisisComportamiento, listarReportesAsistenciaDocentes, actualizarAsistenciaDocente,
   dashboard, detalleEstudiante, listarEstudiantes,
+  indicadoresEstudiantes,
+  listarSolicitudesPermiso, crearSolicitudPermiso,
   inscribirEstudianteMateria, retirarEstudianteMateria,
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
@@ -27,8 +30,13 @@ router.put('/avances/:id', validarAvance);
 
 router.get('/comportamiento', analisisComportamiento);
 router.get('/dashboard', dashboard);
+router.get('/asistencias', listarReportesAsistenciaDocentes);
+router.put('/asistencias/:id', upload.single('respaldo'), actualizarAsistenciaDocente);
+router.get('/solicitudes-permiso', listarSolicitudesPermiso);
+router.post('/solicitudes-permiso', upload.single('documento'), crearSolicitudPermiso);
 
 router.get('/estudiantes', listarEstudiantes);
+router.get('/estudiantes-indicadores', indicadoresEstudiantes);
 router.get('/estudiantes/:id', detalleEstudiante);
 router.post('/inscripciones', inscribirEstudianteMateria);
 router.delete('/inscripciones/:estudiante_id/:materia_id', retirarEstudianteMateria);

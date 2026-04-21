@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
+import Modal from '../../components/Modal';
+import mammoth from 'mammoth';
 import { useAuth } from '../../context/AuthContext';
 import {
   buildAttendanceExportMetadata,
@@ -61,6 +63,7 @@ export default function DocenteAsistencia() {
   const [estudiantes, setEstudiantes] = useState([]);
   const [estados, setEstados] = useState({});
   const [justificaciones, setJustificaciones] = useState({});
+  const [permisosSolicitados, setPermisosSolicitados] = useState([]);
   const [sesiones, setSesiones] = useState([]);
   const [reporte, setReporte] = useState({ registros: [], resumen: { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 } });
   const [saving, setSaving] = useState(false);
@@ -75,6 +78,9 @@ export default function DocenteAsistencia() {
   const [estadoHistorial, setEstadoHistorial] = useState('');
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [exporting, setExporting] = useState('');
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
 
   useEffect(() => {
     api.get('/docente/materias').then((r) => {
@@ -130,6 +136,13 @@ export default function DocenteAsistencia() {
   }, [materiaId, fecha, estudiantes]);
 
   useEffect(() => {
+    if (!materiaId || !fecha) return;
+    api.get('/docente/asistencia/permisos', { params: { materia_id: materiaId, fecha } })
+      .then((r) => setPermisosSolicitados(r.data || []))
+      .catch(() => setPermisosSolicitados([]));
+  }, [materiaId, fecha]);
+
+  useEffect(() => {
     if (!materiaId) return;
 
     const params = { materia_id: materiaId };
@@ -170,6 +183,60 @@ export default function DocenteAsistencia() {
       next[e.id] = estado;
     });
     setEstados(next);
+  };
+
+  const aplicarPermisoSolicitado = (solicitud) => {
+    if (listaBloqueada) return;
+    setEstados((prev) => ({ ...prev, [solicitud.estudiante_id]: 'permiso' }));
+    setJustificaciones((prev) => ({
+      ...prev,
+      [solicitud.estudiante_id]: solicitud.detalle || solicitud.horas_detalle || 'Permiso respaldado'
+    }));
+  };
+
+  const openDocumentPreview = (item) => {
+    if (!item?.documento_url) return;
+    const absoluteUrl = item.documento_url.startsWith('http')
+      ? item.documento_url
+      : `${window.location.origin}${item.documento_url}`;
+    const extension = absoluteUrl.split('.').pop()?.toLowerCase().split('?')[0] || '';
+    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+    setPreviewLoading(true);
+    setPreviewError('');
+    setPreviewDoc({
+      title: `${item.nombre} ${item.apellido}`,
+      sourceUrl: absoluteUrl,
+      extension,
+      type: extension === 'pdf' ? 'pdf' : imageExtensions.includes(extension) ? 'image' : extension === 'docx' ? 'docx' : 'unsupported',
+      html: '',
+      previewUrl: absoluteUrl
+    });
+
+    if (extension === 'docx') {
+      fetch(absoluteUrl)
+        .then((resp) => {
+          if (!resp.ok) throw new Error('No se pudo cargar el documento');
+          return resp.arrayBuffer();
+        })
+        .then((buffer) => mammoth.convertToHtml({ arrayBuffer: buffer }))
+        .then((result) => {
+          setPreviewDoc((prev) => prev ? { ...prev, html: result.value } : prev);
+        })
+        .catch(() => {
+          setPreviewError('No se pudo renderizar el archivo DOCX en linea. Puede abrirlo en otra pestaña.');
+        })
+        .finally(() => setPreviewLoading(false));
+      return;
+    }
+
+    if (extension === 'pdf' || imageExtensions.includes(extension)) {
+      setPreviewLoading(false);
+      return;
+    }
+
+    setPreviewError('Este tipo de archivo no admite vista previa interna. Puede abrirlo en otra pestaña.');
+    setPreviewLoading(false);
   };
 
   const guardar = async () => {
@@ -317,6 +384,59 @@ export default function DocenteAsistencia() {
               }}
             >
               {mensajeError}
+            </div>
+          )}
+
+          {permisosSolicitados.length > 0 && (
+            <div className="card" style={{ padding: '1rem', marginBottom: '1.25rem', borderTop: '4px solid var(--gold)' }}>
+              <div className="section-head" style={{ marginBottom: '.85rem' }}>
+                <h2>Permisos</h2>
+                <span className="count">{permisosSolicitados.length} solicitudes</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.7rem' }}>
+                {permisosSolicitados.map((item) => (
+                  <div key={item.id} style={{ padding: '.85rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontFamily: 'var(--serif)', fontSize: '.96rem' }}>
+                        {item.nombre} {item.apellido}
+                        <span className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)', marginLeft: '.5rem' }}>
+                          {item.codigo_estudiante}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '.83rem', color: 'var(--ink-light)', marginTop: '.25rem' }}>
+                        {item.tipo === 'carta_permiso' ? 'Carta de permiso' : 'Justificacion'}
+                        {item.horas_detalle ? ` · ${item.horas_detalle}` : ''}
+                      </div>
+                      <div style={{ fontSize: '.82rem', marginTop: '.25rem' }}>
+                        {item.detalle || 'Sin detalle adicional'}
+                      </div>
+                      <div style={{ display: 'flex', gap: '.75rem', marginTop: '.35rem', fontSize: '.8rem' }}>
+                        <span>{formatDateEs(item.fecha_desde)} {item.fecha_desde !== item.fecha_hasta ? `al ${formatDateEs(item.fecha_hasta)}` : ''}</span>
+                        {item.documento_url ? (
+                          <button
+                            type="button"
+                            onClick={() => openDocumentPreview(item)}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              color: 'var(--blue-600)',
+                              cursor: 'pointer',
+                              padding: 0,
+                              textDecoration: 'underline',
+                              fontSize: '.8rem'
+                            }}
+                          >
+                            Ver documento
+                          </button>
+                        ) : <span>Sin documento</span>}
+                      </div>
+                    </div>
+                    <button className="btn btn-secondary" onClick={() => aplicarPermisoSolicitado(item)} disabled={listaBloqueada}>
+                      Marcar permiso
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -663,6 +783,61 @@ export default function DocenteAsistencia() {
           )}
         </>
       )}
+
+      <Modal
+        open={!!previewDoc}
+        onClose={() => {
+          setPreviewDoc(null);
+          setPreviewLoading(false);
+          setPreviewError('');
+        }}
+        title={previewDoc ? `Documento - ${previewDoc.title}` : 'Documento'}
+        maxWidth="960px"
+      >
+        {previewDoc && (
+          <div style={{ display: 'grid', gap: '.75rem' }}>
+            <div style={{ fontSize: '.82rem', color: 'var(--ink-light)' }}>
+              Vista previa del respaldo cargado para permiso o justificacion.
+            </div>
+            <div style={{ border: '1px solid var(--line-strong)', borderRadius: '2px', overflow: 'hidden', background: '#fff' }}>
+              {previewLoading ? (
+                <div style={{ height: '70vh', display: 'grid', placeItems: 'center', color: 'var(--ink-light)' }}>
+                  Cargando vista previa...
+                </div>
+              ) : previewDoc.type === 'pdf' ? (
+                <iframe
+                  title="Vista previa de PDF"
+                  src={previewDoc.previewUrl}
+                  style={{ width: '100%', height: '70vh', border: 'none' }}
+                />
+              ) : previewDoc.type === 'image' ? (
+                <div style={{ height: '70vh', overflow: 'auto', background: '#f8fafc', display: 'grid', placeItems: 'center' }}>
+                  <img src={previewDoc.previewUrl} alt="Documento" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                </div>
+              ) : previewDoc.type === 'docx' && previewDoc.html ? (
+                <div
+                  style={{ height: '70vh', overflow: 'auto', padding: '1.5rem', background: '#fff' }}
+                  dangerouslySetInnerHTML={{ __html: previewDoc.html }}
+                />
+              ) : (
+                <div style={{ height: '70vh', display: 'grid', placeItems: 'center', color: 'var(--ink-light)', padding: '2rem', textAlign: 'center' }}>
+                  No hay vista previa disponible para este archivo.
+                </div>
+              )}
+            </div>
+            {previewError && (
+              <div style={{ fontSize: '.78rem', color: 'var(--ink-light)' }}>
+                {previewError}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <a href={previewDoc.sourceUrl} target="_blank" rel="noreferrer" className="btn btn-secondary">
+                Abrir en otra pestaña
+              </a>
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

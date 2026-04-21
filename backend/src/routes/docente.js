@@ -7,6 +7,7 @@ import {
   listarAvance, crearAvance, listarPgoTareas, actualizarEstadoPgoTarea,
   listarComentarios, crearComentario,
   registrarListaAsistencia, listarSesionesAsistencia, listarAsistenciaSesion, listarReporteAsistencia,
+  listarSolicitudesPermisoDocente,
   misDisciplina
 } from '../controllers/docenteController.js';
 
@@ -32,6 +33,7 @@ router.post('/asistencia/lista', registrarListaAsistencia);
 router.get('/asistencia/sesiones', listarSesionesAsistencia);
 router.get('/asistencia/sesion', listarAsistenciaSesion);
 router.get('/asistencia/reporte', listarReporteAsistencia);
+router.get('/asistencia/permisos', listarSolicitudesPermisoDocente);
 
 router.get('/mi-disciplina', misDisciplina);
 

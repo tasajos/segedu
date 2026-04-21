@@ -1,11 +1,70 @@
 import pool from '../config/db.js';
 import { generarTareasDesdePgo } from '../utils/pgoTasks.js';
+import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+let attendanceSchemaEnsured = false;
+
+const ensureAttendanceSupportSchema = async () => {
+  if (attendanceSchemaEnsured) return;
+
+  const [columns] = await pool.query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'asistencias'`
+  );
+
+  const existing = new Set(columns.map((column) => column.COLUMN_NAME));
+
+  if (!existing.has('respaldo_url')) {
+    await pool.query('ALTER TABLE asistencias ADD COLUMN respaldo_url VARCHAR(500) NULL');
+  }
+  if (!existing.has('editado_por')) {
+    await pool.query('ALTER TABLE asistencias ADD COLUMN editado_por INT NULL');
+  }
+  if (!existing.has('updated_at')) {
+    await pool.query('ALTER TABLE asistencias ADD COLUMN updated_at DATETIME NULL');
+  }
+
+  attendanceSchemaEnsured = true;
+};
+
+const buildAttendanceDateRange = ({ periodo, fecha, desde, hasta }) => {
+  const format = (date) => date.toISOString().slice(0, 10);
+  const parse = (value) => {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return null;
+    const [year, month, day] = String(value).split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  if (desde && hasta) {
+    return { desde, hasta };
+  }
+
+  const base = parse(fecha) || new Date();
+  if (periodo === 'semana') {
+    const day = base.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const start = new Date(base);
+    start.setDate(base.getDate() + diffToMonday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { desde: format(start), hasta: format(end) };
+  }
+
+  if (periodo === 'mes') {
+    const start = new Date(base.getFullYear(), base.getMonth(), 1);
+    const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+    return { desde: format(start), hasta: format(end) };
+  }
+
+  return { desde: format(base), hasta: format(base) };
+};
 
 // Helper: obtener carrera del jefe
 const getCarreraJefe = async (usuarioId) => {
@@ -261,6 +320,295 @@ export const dashboard = async (req, res) => {
       estadoPGO,
       carrera: carrera || null
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ============ ASISTENCIAS DOCENTES ============ 
+export const listarReportesAsistenciaDocentes = async (req, res) => {
+  try {
+    await ensureAttendanceSupportSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { docente_id, materia_id, estado, periodo = 'dia', fecha, desde, hasta } = req.query;
+    const range = buildAttendanceDateRange({ periodo, fecha, desde, hasta });
+
+    let resumenQuery = `
+      SELECT a.id, a.fecha, a.estado, a.justificacion, a.respaldo_url, a.updated_at,
+             a.estudiante_id, a.materia_id,
+             m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
+             du.nombre as docente_nombre, du.apellido as docente_apellido, d.id as docente_id,
+             u.nombre, u.apellido, e.codigo_estudiante,
+             eu.nombre as editado_nombre, eu.apellido as editado_apellido
+      FROM asistencias a
+      JOIN materias m ON a.materia_id = m.id
+      JOIN estudiantes e ON a.estudiante_id = e.id
+      JOIN usuarios u ON e.usuario_id = u.id
+      LEFT JOIN docentes d ON m.docente_id = d.id
+      LEFT JOIN usuarios du ON d.usuario_id = du.id
+      LEFT JOIN usuarios eu ON a.editado_por = eu.id
+      WHERE m.carrera_id = ? AND a.fecha BETWEEN ? AND ?
+    `;
+    const params = [carrera.id, range.desde, range.hasta];
+
+    if (docente_id) {
+      resumenQuery += ' AND d.id = ?';
+      params.push(docente_id);
+    }
+    if (materia_id) {
+      resumenQuery += ' AND m.id = ?';
+      params.push(materia_id);
+    }
+    if (estado) {
+      resumenQuery += ' AND a.estado = ?';
+      params.push(estado);
+    }
+
+    resumenQuery += ' ORDER BY a.fecha DESC, du.apellido, m.nombre, u.apellido, u.nombre';
+    const [registros] = await pool.query(resumenQuery, params);
+
+    const sesionesMap = new Map();
+    registros.forEach((row) => {
+      const key = `${row.materia_id}-${row.fecha}`;
+      if (!sesionesMap.has(key)) {
+        sesionesMap.set(key, {
+          materia_id: row.materia_id,
+          fecha: row.fecha,
+          materia_nombre: row.materia_nombre,
+          materia_codigo: row.materia_codigo,
+          materia_grupo: row.materia_grupo,
+          docente_id: row.docente_id,
+          docente_nombre: row.docente_nombre,
+          docente_apellido: row.docente_apellido,
+          total_registros: 0,
+          presentes: 0,
+          faltas: 0,
+          permisos: 0,
+          tardes: 0
+        });
+      }
+      const session = sesionesMap.get(key);
+      session.total_registros += 1;
+      if (row.estado === 'presente') session.presentes += 1;
+      if (row.estado === 'falta') session.faltas += 1;
+      if (row.estado === 'permiso') session.permisos += 1;
+      if (row.estado === 'tarde') session.tardes += 1;
+    });
+
+    const resumen = registros.reduce((acc, row) => {
+      acc.total += 1;
+      acc[row.estado] += 1;
+      return acc;
+    }, { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 });
+
+    res.json({
+      rango: range,
+      resumen,
+      sesiones: Array.from(sesionesMap.values()),
+      registros
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const actualizarAsistenciaDocente = async (req, res) => {
+  try {
+    await ensureAttendanceSupportSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { id } = req.params;
+    const { estado, justificacion } = req.body;
+    const respaldoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (!['permiso', 'tarde'].includes(estado)) {
+      return res.status(400).json({ error: 'Solo se puede editar la asistencia a permiso o tarde' });
+    }
+    if (estado === 'permiso' && !respaldoUrl) {
+      return res.status(400).json({ error: 'Debe adjuntar un documento de respaldo para registrar permiso' });
+    }
+    if (estado === 'tarde' && !String(justificacion || '').trim()) {
+      return res.status(400).json({ error: 'Debe registrar un justificativo para marcar tarde' });
+    }
+
+    const [[attendance]] = await pool.query(
+      `SELECT a.id, a.respaldo_url
+       FROM asistencias a
+       JOIN materias m ON a.materia_id = m.id
+       WHERE a.id = ? AND m.carrera_id = ?`,
+      [id, carrera.id]
+    );
+
+    if (!attendance) {
+      return res.status(404).json({ error: 'Registro de asistencia no encontrado en su carrera' });
+    }
+
+    const nextRespaldo = estado === 'permiso' ? respaldoUrl : null;
+    await pool.query(
+      `UPDATE asistencias
+       SET estado = ?, justificacion = ?, respaldo_url = ?, editado_por = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [estado, justificacion || null, nextRespaldo, req.user.id, id]
+    );
+
+    if (attendance.respaldo_url && attendance.respaldo_url !== nextRespaldo) {
+      await removeUploadedFile(attendance.respaldo_url);
+    }
+
+    res.json({ message: 'Asistencia actualizada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const indicadoresEstudiantes = async (req, res) => {
+  try {
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const [totalesPorEstado] = await pool.query(
+      `SELECT a.estado, COUNT(*) as total
+       FROM asistencias a
+       JOIN estudiantes e ON a.estudiante_id = e.id
+       WHERE e.carrera_id = ?
+       GROUP BY a.estado`,
+      [carrera.id]
+    );
+
+    const [topAsistencia] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, u.nombre, u.apellido,
+              COUNT(CASE WHEN a.estado = 'presente' THEN 1 END) as total_presentes
+       FROM estudiantes e
+       JOIN usuarios u ON e.usuario_id = u.id
+       LEFT JOIN asistencias a ON a.estudiante_id = e.id
+       WHERE e.carrera_id = ?
+       GROUP BY e.id, e.codigo_estudiante, u.nombre, u.apellido
+       ORDER BY total_presentes DESC, u.apellido, u.nombre
+       LIMIT 5`,
+      [carrera.id]
+    );
+
+    const [topFaltas] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, u.nombre, u.apellido,
+              COUNT(CASE WHEN a.estado = 'falta' THEN 1 END) as total_faltas,
+              COUNT(CASE WHEN a.estado = 'permiso' THEN 1 END) as total_permisos,
+              COUNT(CASE WHEN a.estado = 'tarde' THEN 1 END) as total_tardes
+       FROM estudiantes e
+       JOIN usuarios u ON e.usuario_id = u.id
+       LEFT JOIN asistencias a ON a.estudiante_id = e.id
+       WHERE e.carrera_id = ?
+       GROUP BY e.id, e.codigo_estudiante, u.nombre, u.apellido
+       ORDER BY total_faltas DESC, total_tardes DESC, u.apellido, u.nombre
+       LIMIT 5`,
+      [carrera.id]
+    );
+
+    const resumen = { falta: 0, permiso: 0, tarde: 0 };
+    totalesPorEstado.forEach((item) => {
+      if (item.estado in resumen) resumen[item.estado] = item.total;
+    });
+
+    res.json({
+      resumen,
+      topAsistencia,
+      topFaltas
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarSolicitudesPermiso = async (req, res) => {
+  try {
+    await ensureStudentPermissionSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { estudiante_id, materia_id, fecha } = req.query;
+    let query = `
+      SELECT spr.*, e.codigo_estudiante, u.nombre as estudiante_nombre, u.apellido as estudiante_apellido,
+             m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
+             ru.nombre as registrado_nombre, ru.apellido as registrado_apellido
+      FROM student_permission_requests spr
+      JOIN estudiantes e ON spr.estudiante_id = e.id
+      JOIN usuarios u ON e.usuario_id = u.id
+      JOIN materias m ON spr.materia_id = m.id
+      JOIN usuarios ru ON spr.registrado_por = ru.id
+      WHERE e.carrera_id = ?
+    `;
+    const params = [carrera.id];
+
+    if (estudiante_id) {
+      query += ' AND spr.estudiante_id = ?';
+      params.push(estudiante_id);
+    }
+    if (materia_id) {
+      query += ' AND spr.materia_id = ?';
+      params.push(materia_id);
+    }
+    if (fecha) {
+      query += ' AND ? BETWEEN spr.fecha_desde AND spr.fecha_hasta';
+      params.push(fecha);
+    }
+
+    query += ' ORDER BY spr.fecha_desde DESC, spr.created_at DESC';
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const crearSolicitudPermiso = async (req, res) => {
+  try {
+    await ensureStudentPermissionSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { estudiante_id, materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle, detalle } = req.body;
+    const documentoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (!estudiante_id || !materia_id || !fecha_desde || !fecha_hasta) {
+      return res.status(400).json({ error: 'Estudiante, materia y rango de fechas son requeridos' });
+    }
+    if (!['carta_permiso', 'justificacion'].includes(tipo)) {
+      return res.status(400).json({ error: 'Tipo de solicitud no valido' });
+    }
+    if (tipo === 'carta_permiso' && !documentoUrl) {
+      return res.status(400).json({ error: 'Debe adjuntar la carta de permiso' });
+    }
+    if (tipo === 'justificacion' && !String(detalle || '').trim()) {
+      return res.status(400).json({ error: 'Debe escribir la justificacion' });
+    }
+
+    const estudiante = await getEstudianteCarrera(estudiante_id);
+    if (!estudiante || estudiante.carrera_id !== carrera.id) {
+      return res.status(404).json({ error: 'Estudiante no encontrado en su carrera' });
+    }
+
+    const [[materia]] = await pool.query(
+      `SELECT m.id
+       FROM materias m
+       JOIN inscripciones i ON i.materia_id = m.id
+       WHERE m.id = ? AND m.carrera_id = ? AND i.estudiante_id = ?`,
+      [materia_id, carrera.id, estudiante_id]
+    );
+
+    if (!materia) {
+      return res.status(404).json({ error: 'La materia no pertenece al estudiante o a su carrera' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO student_permission_requests
+       (estudiante_id, materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle, detalle, documento_url, registrado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [estudiante_id, materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle || null, detalle || null, documentoUrl, req.user.id]
+    );
+
+    res.status(201).json({ id: result.insertId, message: 'Solicitud registrada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
