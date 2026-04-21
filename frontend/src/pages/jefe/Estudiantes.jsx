@@ -320,6 +320,7 @@ export default function JefeEstudiantes() {
             <div style={{ display: 'flex', gap: '.25rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--line)' }}>
               {[
                 { key: 'asistencias', label: 'Asistencias' },
+                { key: 'notas', label: 'Notas' },
                 { key: 'disciplina', label: 'Disciplina' },
                 { key: 'materias', label: 'Materias' },
                 { key: 'comentarios', label: 'Observaciones' },
@@ -379,6 +380,81 @@ export default function JefeEstudiantes() {
                     </div>
                   ))}
                 </div>
+              </>
+            )}
+
+            {tab === 'notas' && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '.6rem', marginBottom: '1rem' }}>
+                  <div className="card" style={{ padding: '.85rem', borderTop: '4px solid var(--ink)' }}>
+                    <div className="text-serif" style={{ fontSize: '1.8rem' }}>{detalle.resumenNotas?.total_materias || 0}</div>
+                    <div className="text-mono" style={{ fontSize: '.65rem', color: 'var(--ink-light)', letterSpacing: '.08em' }}>MATERIAS CON NOTA</div>
+                  </div>
+                  <div className="card" style={{ padding: '.85rem', borderTop: '4px solid var(--forest)' }}>
+                    <div className="text-serif" style={{ fontSize: '1.8rem' }}>{detalle.resumenNotas?.aprobadas || 0}</div>
+                    <div className="text-mono" style={{ fontSize: '.65rem', color: 'var(--ink-light)', letterSpacing: '.08em' }}>APROBADAS</div>
+                  </div>
+                  <div className="card" style={{ padding: '.85rem', borderTop: '4px solid var(--crimson)' }}>
+                    <div className="text-serif" style={{ fontSize: '1.8rem' }}>{detalle.resumenNotas?.reprobadas || 0}</div>
+                    <div className="text-mono" style={{ fontSize: '.65rem', color: 'var(--ink-light)', letterSpacing: '.08em' }}>REPROBADAS</div>
+                  </div>
+                  <div className="card" style={{ padding: '.85rem', borderTop: '4px solid var(--gold)' }}>
+                    <div className="text-serif" style={{ fontSize: '1.8rem' }}>{detalle.resumenNotas?.reprobadas || 0}</div>
+                    <div className="text-mono" style={{ fontSize: '.65rem', color: 'var(--ink-light)', letterSpacing: '.08em' }}>ACUMULADO REPROBADAS</div>
+                  </div>
+                </div>
+
+                {detalle.notas?.length === 0 ? (
+                  <div style={{ color: 'var(--ink-light)', fontStyle: 'italic' }}>
+                    Este estudiante todavia no tiene notas registradas.
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Materia</th>
+                          <th>Periodo</th>
+                          <th>Docente</th>
+                          <th>Modalidad</th>
+                          <th>1P</th>
+                          <th>2P</th>
+                          <th>Final</th>
+                          <th>Recup.</th>
+                          <th>Total</th>
+                          <th>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detalle.notas.map((nota, index) => (
+                          <tr key={`${nota.materia_id}-${nota.periodo || 'sin-periodo'}-${index}`}>
+                            <td>
+                              <div style={{ fontFamily: 'var(--serif)' }}>{nota.materia_nombre}</div>
+                              <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
+                                {nota.materia_codigo} - Grupo {nota.materia_grupo}
+                              </div>
+                            </td>
+                            <td className="text-mono" style={{ fontSize: '.8rem' }}>{nota.periodo || '-'}</td>
+                            <td style={{ fontSize: '.84rem' }}>
+                              {nota.docente_nombre ? `${nota.docente_nombre} ${nota.docente_apellido}` : 'Sin docente'}
+                            </td>
+                            <td style={{ fontSize: '.84rem' }}>{nota.modalidad || '-'}</td>
+                            <td className="text-mono">{nota.primer_parcial ?? '-'}</td>
+                            <td className="text-mono">{nota.segundo_parcial ?? '-'}</td>
+                            <td className="text-mono">{nota.examen_final ?? '-'}</td>
+                            <td className="text-mono">{nota.examen_recuperacion ?? '-'}</td>
+                            <td className="text-mono">{nota.nota_final ?? '-'}</td>
+                            <td>
+                              <span className={`chip ${nota.estado === 'aprobado' ? 'chip-forest' : 'chip-crimson'}`}>
+                                {nota.estado === 'aprobado' ? 'Aprobado' : 'Reprobado'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             )}
 

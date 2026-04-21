@@ -946,14 +946,53 @@ export const indicadoresActas = async (req, res) => {
 
     const [reprobadosMasDos] = await pool.query(
       `SELECT e.id, e.codigo_estudiante, u.nombre, u.apellido,
-              COUNT(CASE WHEN grd.estado = 'reprobado' THEN 1 END) as materias_reprobadas,
-              GROUP_CONCAT(
-                CASE WHEN grd.estado = 'reprobado'
+              COUNT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular'
+                 AND (
+                   grd.primer_parcial IS NOT NULL
+                   OR grd.segundo_parcial IS NOT NULL
+                   OR grd.examen_final IS NOT NULL
+                 )
+                THEN gr.materia_id
+                ELSE NULL
+              END) as materias_con_nota,
+              COUNT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular'
+                 AND (
+                   COALESCE(grd.primer_parcial, 0) > 0
+                   OR COALESCE(grd.segundo_parcial, 0) > 0
+                   OR COALESCE(grd.examen_final, 0) > 0
+                 )
+                THEN gr.materia_id
+                ELSE NULL
+              END) as materias_con_avance,
+              COUNT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular' AND grd.primer_parcial IS NOT NULL AND grd.primer_parcial < 18 THEN gr.materia_id
+                ELSE NULL
+              END) as reprobadas_primer_parcial,
+              GROUP_CONCAT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular' AND grd.primer_parcial IS NOT NULL AND grd.primer_parcial < 18
                   THEN CONCAT(m.nombre, ' (', m.codigo, ' - G', m.grupo, ')')
-                  ELSE NULL
-                END
-                ORDER BY m.nombre SEPARATOR ' | '
-              ) as materias
+                ELSE NULL
+              END ORDER BY m.nombre SEPARATOR ' | ') as materias_primer_parcial,
+              COUNT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular' AND grd.segundo_parcial IS NOT NULL AND grd.segundo_parcial < 18 THEN gr.materia_id
+                ELSE NULL
+              END) as reprobadas_segundo_parcial,
+              GROUP_CONCAT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular' AND grd.segundo_parcial IS NOT NULL AND grd.segundo_parcial < 18
+                  THEN CONCAT(m.nombre, ' (', m.codigo, ' - G', m.grupo, ')')
+                ELSE NULL
+              END ORDER BY m.nombre SEPARATOR ' | ') as materias_segundo_parcial,
+              COUNT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular' AND grd.examen_final IS NOT NULL AND grd.examen_final < 15 THEN gr.materia_id
+                ELSE NULL
+              END) as reprobadas_final,
+              GROUP_CONCAT(DISTINCT CASE
+                WHEN grd.modalidad = 'regular' AND grd.examen_final IS NOT NULL AND grd.examen_final < 15
+                  THEN CONCAT(m.nombre, ' (', m.codigo, ' - G', m.grupo, ')')
+                ELSE NULL
+              END ORDER BY m.nombre SEPARATOR ' | ') as materias_final
        FROM estudiantes e
        JOIN usuarios u ON e.usuario_id = u.id
        LEFT JOIN grade_report_details grd ON grd.estudiante_id = e.id
@@ -961,10 +1000,52 @@ export const indicadoresActas = async (req, res) => {
        LEFT JOIN materias m ON gr.materia_id = m.id
        WHERE e.carrera_id = ?
        GROUP BY e.id, e.codigo_estudiante, u.nombre, u.apellido
-       HAVING materias_reprobadas > 2
-       ORDER BY materias_reprobadas DESC, u.apellido, u.nombre`,
+       ORDER BY reprobadas_primer_parcial DESC, reprobadas_segundo_parcial DESC, reprobadas_final DESC, u.apellido, u.nombre`,
       [carrera.id]
     );
+
+    const [altoDesempenoRows] = await pool.query(
+      `SELECT ranked.*
+       FROM (
+         SELECT e.id as estudiante_id, e.codigo_estudiante, e.semestre,
+                u.nombre, u.apellido,
+                m.grupo,
+                ROUND(AVG(grd.nota_final), 2) as promedio_general,
+                COUNT(DISTINCT gr.materia_id) as materias_evaluadas,
+                COUNT(CASE WHEN grd.estado = 'aprobado' THEN 1 END) as materias_aprobadas,
+                ROW_NUMBER() OVER (
+                  PARTITION BY m.grupo
+                  ORDER BY AVG(grd.nota_final) DESC, COUNT(CASE WHEN grd.estado = 'aprobado' THEN 1 END) DESC, u.apellido, u.nombre
+                ) as posicion_grupo
+         FROM grade_report_details grd
+         JOIN grade_reports gr ON grd.acta_id = gr.id
+         JOIN materias m ON gr.materia_id = m.id
+         JOIN estudiantes e ON grd.estudiante_id = e.id
+         JOIN usuarios u ON e.usuario_id = u.id
+         WHERE e.carrera_id = ?
+           AND grd.nota_final IS NOT NULL
+         GROUP BY e.id, e.codigo_estudiante, e.semestre, u.nombre, u.apellido, m.grupo
+       ) ranked
+       WHERE ranked.posicion_grupo <= 10
+       ORDER BY ranked.grupo, ranked.posicion_grupo`,
+      [carrera.id]
+    );
+
+    const altoDesempenoMap = new Map();
+    altoDesempenoRows.forEach((row) => {
+      const groupKey = row.grupo || 'Sin grupo';
+      if (!altoDesempenoMap.has(groupKey)) {
+        altoDesempenoMap.set(groupKey, []);
+      }
+      altoDesempenoMap.get(groupKey).push(row);
+    });
+
+    const altoDesempeno = Array.from(altoDesempenoMap.entries())
+      .sort(([groupA], [groupB]) => String(groupA).localeCompare(String(groupB)))
+      .map(([grupo, estudiantes]) => ({
+        grupo,
+        estudiantes
+      }));
 
     const resumen = porMateria.reduce((acc, row) => {
       acc.aprobados += Number(row.aprobados || 0);
@@ -977,7 +1058,8 @@ export const indicadoresActas = async (req, res) => {
       modalidades: GRADE_MODALITIES,
       resumen,
       porMateria: porMateriaConDetalle,
-      reprobadosMasDos
+      reprobadosMasDos,
+      altoDesempeno
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1008,6 +1090,7 @@ export const listarEstudiantes = async (req, res) => {
 
 export const detalleEstudiante = async (req, res) => {
   try {
+    await ensureGradeReportSchema();
     const { id } = req.params;
     const carrera = await getCarreraJefe(req.user.id);
     const [[est]] = await pool.query(
@@ -1089,7 +1172,40 @@ export const detalleEstudiante = async (req, res) => {
       [id]
     );
 
-    res.json({ estudiante: est, materias, materiasDisponibles, asistencias, asistenciasDetalle, cursos, comentarios, disciplina });
+    const [notas] = await pool.query(
+      `SELECT m.id as materia_id, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
+              gr.periodo, grd.modalidad, grd.primer_parcial, grd.segundo_parcial, grd.examen_final,
+              grd.examen_recuperacion, grd.nota_final, grd.estado,
+              ud.nombre as docente_nombre, ud.apellido as docente_apellido
+       FROM grade_report_details grd
+       JOIN grade_reports gr ON grd.acta_id = gr.id
+       JOIN materias m ON gr.materia_id = m.id
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios ud ON d.usuario_id = ud.id
+       WHERE grd.estudiante_id = ?
+       ORDER BY gr.periodo DESC, m.nombre, m.grupo`,
+      [id]
+    );
+
+    const resumenNotas = notas.reduce((acc, item) => {
+      acc.total_materias += 1;
+      if (item.estado === 'aprobado') acc.aprobadas += 1;
+      if (item.estado === 'reprobado') acc.reprobadas += 1;
+      return acc;
+    }, { total_materias: 0, aprobadas: 0, reprobadas: 0 });
+
+    res.json({
+      estudiante: est,
+      materias,
+      materiasDisponibles,
+      asistencias,
+      asistenciasDetalle,
+      cursos,
+      comentarios,
+      disciplina,
+      notas,
+      resumenNotas
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

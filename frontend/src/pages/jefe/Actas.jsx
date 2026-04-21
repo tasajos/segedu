@@ -14,6 +14,23 @@ const EMPTY_DETAIL = {
 };
 
 const REGULAR = 'regular';
+const PARTIAL_FILTERS = [
+  { value: 'primer_parcial', label: '1er parcial', countKey: 'reprobadas_primer_parcial', materiasKey: 'materias_primer_parcial' },
+  { value: 'segundo_parcial', label: '2do parcial', countKey: 'reprobadas_segundo_parcial', materiasKey: 'materias_segundo_parcial' },
+  { value: 'final', label: 'Examen final', countKey: 'reprobadas_final', materiasKey: 'materias_final' }
+];
+const TAB_LABELS = {
+  carga: 'Carga de acta',
+  indicadores: 'Indicadores',
+  'alto-desempeno': 'Alto desempeño'
+};
+
+const parseMateriasList = (value) => (
+  String(value || '')
+    .split('|')
+    .map((item) => item.trim())
+    .filter(Boolean)
+);
 
 const typeLabel = {
   regular: 'Regular',
@@ -84,7 +101,7 @@ export default function JefeActas() {
   const [materias, setMaterias] = useState([]);
   const [materiaId, setMateriaId] = useState('');
   const [detalle, setDetalle] = useState(EMPTY_DETAIL);
-  const [indicadores, setIndicadores] = useState({ resumen: { aprobados: 0, reprobados: 0 }, porMateria: [], reprobadosMasDos: [], nota_aprobacion: 51, modalidades: {} });
+  const [indicadores, setIndicadores] = useState({ resumen: { aprobados: 0, reprobados: 0 }, porMateria: [], reprobadosMasDos: [], altoDesempeno: [], nota_aprobacion: 51, modalidades: {} });
   const [notas, setNotas] = useState({});
   const [periodo, setPeriodo] = useState('2026-I');
   const [observaciones, setObservaciones] = useState('');
@@ -92,6 +109,7 @@ export default function JefeActas() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [detalleReprobados, setDetalleReprobados] = useState(null);
+  const [partialFilter, setPartialFilter] = useState('primer_parcial');
 
   const cargarMaterias = async () => {
     const { data } = await api.get('/jefe/materias');
@@ -248,6 +266,32 @@ export default function JefeActas() {
     );
   };
 
+  const partialConfig = PARTIAL_FILTERS.find((item) => item.value === partialFilter) || PARTIAL_FILTERS[0];
+
+  const indicadoresReprobados = useMemo(() => {
+    const rows = indicadores.reprobadosMasDos || [];
+    const sinNota = rows.filter((item) => Number(item.materias_con_avance || 0) === 0);
+    const conRiesgo = rows
+      .filter((item) => Number(item.materias_con_avance || 0) > 0)
+      .filter((item) => Number(item[partialConfig.countKey] || 0) > 2)
+      .sort((a, b) => Number(b[partialConfig.countKey] || 0) - Number(a[partialConfig.countKey] || 0));
+
+    return { conRiesgo, sinNota };
+  }, [indicadores.reprobadosMasDos, partialConfig]);
+
+  const renderMateriasList = (value) => {
+    const materias = parseMateriasList(value);
+    if (!materias.length) return '-';
+
+    return (
+      <ul style={{ margin: 0, paddingLeft: '1rem', display: 'grid', gap: '.25rem' }}>
+        {materias.map((materia) => (
+          <li key={materia} style={{ fontSize: '.88rem' }}>{materia}</li>
+        ))}
+      </ul>
+    );
+  };
+
   return (
     <>
       <PageHeader
@@ -257,13 +301,49 @@ export default function JefeActas() {
         lead="Cargue parciales, final o modalidades especiales y analice aprobados, reprobados y riesgo academico."
       />
 
-      <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1.5rem' }}>
-        <button className={`btn ${tab === 'carga' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('carga')}>
-          Carga de acta
-        </button>
-        <button className={`btn ${tab === 'indicadores' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setTab('indicadores')}>
-          Indicadores
-        </button>
+      <div
+        style={{
+          display: 'flex',
+          gap: '.65rem',
+          marginBottom: '1.8rem',
+          padding: '.55rem',
+          borderRadius: '18px',
+          background: 'linear-gradient(180deg, rgba(18, 50, 89, 0.05), rgba(18, 50, 89, 0.015))',
+          border: '1px solid rgba(18, 50, 89, 0.08)',
+          width: 'fit-content',
+          flexWrap: 'wrap',
+          boxShadow: '0 16px 36px rgba(18, 50, 89, 0.06)'
+        }}
+      >
+        {Object.entries(TAB_LABELS).map(([key, label]) => {
+          const active = tab === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              style={{
+                padding: '.85rem 1.2rem',
+                minWidth: '152px',
+                borderRadius: '12px',
+                border: active ? '1px solid rgba(41, 84, 220, 0.22)' : '1px solid rgba(18, 50, 89, 0.08)',
+                background: active
+                  ? 'linear-gradient(135deg, #2f5bda, #2247bc)'
+                  : 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,247,252,0.95))',
+                color: active ? 'white' : 'var(--ink)',
+                fontFamily: 'var(--sans)',
+                fontSize: '.95rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: active ? '0 14px 28px rgba(47, 91, 218, 0.28)' : '0 8px 18px rgba(18, 50, 89, 0.05)',
+                transform: active ? 'translateY(-1px)' : 'none',
+                transition: 'all .18s ease'
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {tab === 'carga' && (
@@ -490,34 +570,281 @@ export default function JefeActas() {
           </table>
 
           <div className="section-head" style={{ marginBottom: '1rem' }}>
-            <h2>Estudiantes reprobados en mas de 2 materias</h2>
-            <span className="count">{indicadores.reprobadosMasDos.length} estudiantes</span>
+            <h2>Estudiantes reprobados en mas de 2 materias por parcial</h2>
+            <span className="count">{indicadoresReprobados.conRiesgo.length} estudiantes</span>
           </div>
-          {indicadores.reprobadosMasDos.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>
-              No hay estudiantes con mas de 2 materias reprobadas
+          <div className="card" style={{ padding: '1rem', marginBottom: '1rem', background: 'linear-gradient(135deg, rgba(151, 31, 46, 0.06), rgba(18, 50, 89, 0.04))' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div>
+                <div className="text-mono" style={{ fontSize: '.72rem', color: 'var(--ink-light)', letterSpacing: '.08em', marginBottom: '.35rem' }}>
+                  FILTRO DE RIESGO ACADEMICO
+                </div>
+                <div style={{ fontSize: '.95rem', color: 'var(--ink)' }}>
+                  Se muestran solo estudiantes con mas de 2 materias reprobadas en el parcial seleccionado y con avance real mayor a cero.
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                {PARTIAL_FILTERS.map((filter) => (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    className={`btn ${partialFilter === filter.value ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setPartialFilter(filter.value)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid-3 mb-6">
+            {PARTIAL_FILTERS.map((filter) => {
+              const total = (indicadores.reprobadosMasDos || []).filter((item) => Number(item[filter.countKey] || 0) > 2).length;
+              return (
+                <div key={filter.value} className="card" style={{ padding: '1rem', borderTop: partialFilter === filter.value ? '4px solid var(--crimson)' : '4px solid rgba(18, 50, 89, 0.18)' }}>
+                  <div className="text-serif" style={{ fontSize: '1.7rem' }}>{total}</div>
+                  <div className="text-mono" style={{ fontSize: '.72rem', color: 'var(--ink-light)' }}>{filter.label}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {indicadoresReprobados.conRiesgo.length === 0 ? (
+            <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem', textAlign: 'center', color: 'var(--ink-light)', fontStyle: 'italic' }}>
+              No hay estudiantes con mas de 2 materias reprobadas en {partialConfig.label.toLowerCase()}.
             </div>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Estudiante</th>
-                  <th>Codigo</th>
-                  <th>Total reprobadas</th>
-                  <th>Materias</th>
-                </tr>
-              </thead>
-              <tbody>
-                {indicadores.reprobadosMasDos.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.apellido} {item.nombre}</td>
-                    <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo_estudiante}</td>
-                    <td><span className="chip chip-crimson">{item.materias_reprobadas}</span></td>
-                    <td style={{ fontSize: '.88rem' }}>{item.materias}</td>
+            <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Estudiante</th>
+                    <th>Codigo</th>
+                    <th>Reprobadas</th>
+                    <th>Materias agrupadas</th>
+                    <th>Notas cargadas</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {indicadoresReprobados.conRiesgo.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.apellido} {item.nombre}</td>
+                      <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo_estudiante}</td>
+                      <td><span className="chip chip-crimson">{item[partialConfig.countKey]}</span></td>
+                      <td>{renderMateriasList(item[partialConfig.materiasKey])}</td>
+                      <td><span className="chip chip-ink">{item.materias_con_avance}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="section-head" style={{ marginBottom: '1rem' }}>
+            <h2>Estudiantes sin nota</h2>
+            <span className="count">{indicadoresReprobados.sinNota.length} estudiantes</span>
+          </div>
+          {indicadoresReprobados.sinNota.length === 0 ? (
+            <div className="card" style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--ink-light)', fontStyle: 'italic' }}>
+              Todos los estudiantes ya tienen al menos una materia con nota cargada.
+            </div>
+          ) : (
+            <div className="card" style={{ padding: '1rem', background: 'linear-gradient(135deg, rgba(18, 50, 89, 0.05), rgba(201, 122, 0, 0.05))' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Estudiante</th>
+                    <th>Codigo</th>
+                    <th>Materias registradas</th>
+                    <th>Avance real</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {indicadoresReprobados.sinNota.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.apellido} {item.nombre}</td>
+                      <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo_estudiante}</td>
+                      <td><span className="chip chip-ink">{item.materias_con_nota || 0}</span></td>
+                      <td><span className="chip chip-ink">{item.materias_con_avance || 0}</span></td>
+                      <td><span className="chip" style={{ background: 'rgba(201, 122, 0, 0.12)', color: '#8a5300' }}>Solo ceros o sin carga</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'alto-desempeno' && (
+        <>
+          <div
+            className="card"
+            style={{
+              padding: '1.65rem',
+              marginBottom: '1.75rem',
+              background: 'linear-gradient(135deg, rgba(18, 50, 89, 0.98), rgba(24, 62, 110, 0.96) 58%, rgba(201, 122, 0, 0.72))',
+              color: 'var(--paper)',
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: '20px',
+              boxShadow: '0 24px 44px rgba(18, 50, 89, 0.18)'
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 28%), radial-gradient(circle at bottom left, rgba(227, 179, 65, 0.22), transparent 30%)'
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: '-38px',
+                right: '-18px',
+                width: '220px',
+                height: '220px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(255,255,255,0.12), transparent 62%)'
+              }}
+            />
+            <div style={{ position: 'relative', display: 'grid', gap: '.55rem' }}>
+              <div className="text-mono" style={{ fontSize: '.72rem', color: 'rgba(255,255,255,0.72)', letterSpacing: '.18em' }}>
+                HONOR ACADEMICO
+              </div>
+              <h2 style={{ color: 'var(--paper)', margin: 0, fontSize: '2rem', lineHeight: 1.05 }}>
+                Alto desempeño por grupo
+              </h2>
+              <p style={{ margin: 0, maxWidth: '760px', opacity: 0.92, fontSize: '1rem' }}>
+                Este ranking considera el promedio general de todas las materias con nota registrada por estudiante dentro de cada grupo.
+              </p>
+              <div style={{ display: 'flex', gap: '.6rem', flexWrap: 'wrap', marginTop: '.35rem' }}>
+                <span className="chip" style={{ background: 'rgba(255,255,255,0.16)', color: 'white', border: '1px solid rgba(255,255,255,0.14)' }}>
+                  Top 10 por grupo
+                </span>
+                <span className="chip" style={{ background: 'rgba(255,255,255,0.16)', color: 'white', border: '1px solid rgba(255,255,255,0.14)' }}>
+                  Promedio general acumulado
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid-3 mb-6">
+            <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--gold)' }}>
+              <div className="text-serif" style={{ fontSize: '2rem' }}>{indicadores.altoDesempeno?.length || 0}</div>
+              <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>Grupos con ranking</div>
+            </div>
+            <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--forest)' }}>
+              <div className="text-serif" style={{ fontSize: '2rem' }}>
+                {indicadores.altoDesempeno?.reduce((acc, grupo) => acc + (grupo.estudiantes?.length || 0), 0) || 0}
+              </div>
+              <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>Estudiantes destacados</div>
+            </div>
+            <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--blue-600)' }}>
+              <div className="text-serif" style={{ fontSize: '2rem' }}>
+                {(() => {
+                  const top = (indicadores.altoDesempeno || []).flatMap((grupo) => grupo.estudiantes || []).sort((a, b) => Number(b.promedio_general || 0) - Number(a.promedio_general || 0))[0];
+                  return top ? top.promedio_general : '0.00';
+                })()}
+              </div>
+              <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>Mejor promedio general</div>
+            </div>
+          </div>
+
+          {(!indicadores.altoDesempeno || indicadores.altoDesempeno.length === 0) ? (
+            <div className="card" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--ink-light)', fontStyle: 'italic' }}>
+              Todavia no hay suficientes notas registradas para construir el ranking de alto desempeno.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '1.25rem' }}>
+              {indicadores.altoDesempeno.map((grupo) => (
+                <div
+                  key={grupo.grupo}
+                  className="card"
+                  style={{
+                    padding: '1.15rem',
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,244,236,0.96))',
+                    border: '1px solid rgba(18, 50, 89, 0.1)',
+                    borderRadius: '18px',
+                    boxShadow: '0 18px 32px rgba(18, 50, 89, 0.07)'
+                  }}
+                >
+                  <div className="section-head" style={{ marginBottom: '1rem' }}>
+                    <h2>Grupo {grupo.grupo}</h2>
+                    <span className="count">{grupo.estudiantes.length} estudiantes</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '.8rem' }}>
+                    {grupo.estudiantes.map((item, index) => (
+                      <div
+                        key={`${grupo.grupo}-${item.estudiante_id}`}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '72px minmax(0, 1.3fr) repeat(3, minmax(110px, .7fr))',
+                          gap: '.85rem',
+                          alignItems: 'center',
+                          padding: '.85rem 1rem',
+                          background: index < 3
+                            ? 'linear-gradient(135deg, rgba(227, 179, 65, 0.12), rgba(18, 50, 89, 0.04))'
+                            : 'rgba(255,255,255,0.75)',
+                          borderRadius: '8px',
+                          border: index === 0
+                            ? '1px solid rgba(227, 179, 65, 0.45)'
+                            : '1px solid rgba(18, 50, 89, 0.08)',
+                          boxShadow: index < 3 ? '0 14px 26px rgba(18, 50, 89, 0.08)' : 'none'
+                        }}
+                      >
+                        <div style={{ display: 'grid', justifyItems: 'center', gap: '.25rem' }}>
+                          <div
+                            style={{
+                              width: '44px',
+                              height: '44px',
+                              borderRadius: '50%',
+                              display: 'grid',
+                              placeItems: 'center',
+                              background: index === 0 ? 'var(--gold)' : index === 1 ? 'rgba(18, 50, 89, 0.15)' : index === 2 ? 'rgba(151, 31, 46, 0.12)' : 'rgba(18, 50, 89, 0.08)',
+                              color: 'var(--ink)',
+                              fontFamily: 'var(--serif)',
+                              fontSize: '1rem'
+                            }}
+                          >
+                            {String(item.posicion_grupo).padStart(2, '0')}
+                          </div>
+                          <span className="text-mono" style={{ fontSize: '.62rem', color: 'var(--ink-light)' }}>POSICION</span>
+                        </div>
+
+                        <div>
+                          <div style={{ fontFamily: 'var(--serif)', fontSize: '1.05rem', color: 'var(--ink)' }}>
+                            {item.apellido} {item.nombre}
+                          </div>
+                          <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)', marginTop: '.15rem' }}>
+                            {item.codigo_estudiante} · Semestre {item.semestre || '-'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-serif" style={{ fontSize: '1.5rem', color: 'var(--ink)' }}>{item.promedio_general}</div>
+                          <div className="text-mono" style={{ fontSize: '.62rem', color: 'var(--ink-light)' }}>PROMEDIO GENERAL</div>
+                        </div>
+
+                        <div>
+                          <div className="text-serif" style={{ fontSize: '1.25rem', color: 'var(--ink)' }}>{item.materias_evaluadas}</div>
+                          <div className="text-mono" style={{ fontSize: '.62rem', color: 'var(--ink-light)' }}>MATERIAS EVALUADAS</div>
+                        </div>
+
+                        <div>
+                          <div className="text-serif" style={{ fontSize: '1.25rem', color: 'var(--forest)' }}>{item.materias_aprobadas}</div>
+                          <div className="text-mono" style={{ fontSize: '.62rem', color: 'var(--ink-light)' }}>MATERIAS APROBADAS</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </>
       )}
