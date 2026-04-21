@@ -7,6 +7,50 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const parseDateParts = (value) => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return null;
+  const [year, month, day] = String(value).split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const formatDateParts = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const resolveDateRange = ({ periodo, fecha, desde, hasta }) => {
+  if (desde && hasta) {
+    return { desde, hasta, periodo: periodo || 'rango' };
+  }
+
+  const base = parseDateParts(fecha || formatDateParts(new Date()));
+  if (!base) return null;
+
+  if (periodo === 'semana') {
+    const day = base.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const start = new Date(base);
+    start.setDate(base.getDate() + diffToMonday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { desde: formatDateParts(start), hasta: formatDateParts(end), periodo };
+  }
+
+  if (periodo === 'mes') {
+    const start = new Date(base.getFullYear(), base.getMonth(), 1);
+    const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+    return { desde: formatDateParts(start), hasta: formatDateParts(end), periodo };
+  }
+
+  return {
+    desde: formatDateParts(base),
+    hasta: formatDateParts(base),
+    periodo: periodo || 'dia'
+  };
+};
+
 const resolveUploadCandidates = (archivoUrl) => {
   if (!archivoUrl) return [];
   const fileName = path.basename(archivoUrl);
@@ -298,11 +342,19 @@ export const registrarListaAsistencia = async (req, res) => {
     );
     if (!materia) return res.status(403).json({ error: 'Materia no asignada a este docente' });
 
+    const [[existente]] = await conn.query(
+      'SELECT COUNT(*) as total FROM asistencias WHERE materia_id = ? AND fecha = ?',
+      [materia_id, fecha]
+    );
+    if (existente.total > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'La lista de asistencia de esta materia ya fue registrada para esa fecha' });
+    }
+
     for (const r of registros) {
       await conn.query(
         `INSERT INTO asistencias (estudiante_id, materia_id, fecha, estado, justificacion)
-         VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE estado = VALUES(estado), justificacion = VALUES(justificacion)`,
+         VALUES (?, ?, ?, ?, ?)`,
         [r.estudiante_id, materia_id, fecha, r.estado, r.justificacion || null]
       );
     }
@@ -319,9 +371,11 @@ export const registrarListaAsistencia = async (req, res) => {
 export const listarSesionesAsistencia = async (req, res) => {
   try {
     const docenteId = req.user.docente_id;
-    const { materia_id } = req.query;
+    const { materia_id, fecha, desde, hasta, periodo } = req.query;
+    const range = resolveDateRange({ periodo, fecha, desde, hasta });
     let query = `
       SELECT a.materia_id, a.fecha, m.nombre as materia_nombre,
+             m.grupo,
              COUNT(*) as total_registros,
              COUNT(CASE WHEN a.estado = 'presente' THEN 1 END) as presentes,
              COUNT(CASE WHEN a.estado = 'falta' THEN 1 END) as faltas,
@@ -332,9 +386,16 @@ export const listarSesionesAsistencia = async (req, res) => {
       WHERE m.docente_id = ?`;
     const params = [docenteId];
     if (materia_id) { query += ' AND a.materia_id = ?'; params.push(materia_id); }
-    query += ' GROUP BY a.materia_id, a.fecha, m.nombre ORDER BY a.fecha DESC';
+    if (range?.desde && range?.hasta) {
+      query += ' AND a.fecha BETWEEN ? AND ?';
+      params.push(range.desde, range.hasta);
+    }
+    query += ' GROUP BY a.materia_id, a.fecha, m.nombre, m.grupo ORDER BY a.fecha DESC';
     const [rows] = await pool.query(query, params);
-    res.json(rows);
+    res.json({
+      rango: range,
+      sesiones: rows
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -355,6 +416,58 @@ export const listarAsistenciaSesion = async (req, res) => {
       [docenteId, materia_id, fecha]
     );
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarReporteAsistencia = async (req, res) => {
+  try {
+    const docenteId = req.user.docente_id;
+    const { materia_id, estado, fecha, desde, hasta, periodo } = req.query;
+    const range = resolveDateRange({ periodo, fecha, desde, hasta });
+
+    let query = `
+      SELECT a.fecha, a.estado, a.justificacion, a.estudiante_id, a.materia_id,
+             m.nombre as materia_nombre, m.grupo as materia_grupo, m.codigo as materia_codigo,
+             u.nombre, u.apellido, e.codigo_estudiante
+      FROM asistencias a
+      JOIN materias m ON a.materia_id = m.id
+      JOIN estudiantes e ON a.estudiante_id = e.id
+      JOIN usuarios u ON e.usuario_id = u.id
+      WHERE m.docente_id = ?
+    `;
+    const params = [docenteId];
+
+    if (materia_id) {
+      query += ' AND a.materia_id = ?';
+      params.push(materia_id);
+    }
+
+    if (estado) {
+      query += ' AND a.estado = ?';
+      params.push(estado);
+    }
+
+    if (range?.desde && range?.hasta) {
+      query += ' AND a.fecha BETWEEN ? AND ?';
+      params.push(range.desde, range.hasta);
+    }
+
+    query += ' ORDER BY a.fecha DESC, u.apellido, u.nombre';
+    const [rows] = await pool.query(query, params);
+
+    const resumen = rows.reduce((acc, row) => {
+      acc.total += 1;
+      acc[row.estado] += 1;
+      return acc;
+    }, { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 });
+
+    res.json({
+      rango: range,
+      resumen,
+      registros: rows
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
