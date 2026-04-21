@@ -8,6 +8,7 @@ import {
   listarComentarios, crearComentario,
   registrarListaAsistencia, listarSesionesAsistencia, listarAsistenciaSesion, listarReporteAsistencia,
   listarSolicitudesPermisoDocente,
+  listarNotificacionesPendientesDocente, revisarNotificacionesDocente,
   misDisciplina
 } from '../controllers/docenteController.js';
 
@@ -34,6 +35,8 @@ router.get('/asistencia/sesiones', listarSesionesAsistencia);
 router.get('/asistencia/sesion', listarAsistenciaSesion);
 router.get('/asistencia/reporte', listarReporteAsistencia);
 router.get('/asistencia/permisos', listarSolicitudesPermisoDocente);
+router.get('/notificaciones/pendientes', listarNotificacionesPendientesDocente);
+router.post('/notificaciones/revisar', revisarNotificacionesDocente);
 
 router.get('/mi-disciplina', misDisciplina);
 

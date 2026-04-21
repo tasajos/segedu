@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { ensureNotificationSchema } from '../utils/notifications.js';
 import { ensurePgoTaskSchema } from '../utils/pgoTasks.js';
 import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
 import fs from 'fs/promises';
@@ -492,6 +493,63 @@ export const listarSolicitudesPermisoDocente = async (req, res) => {
     );
 
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarNotificacionesPendientesDocente = async (req, res) => {
+  try {
+    await ensureNotificationSchema();
+    const docenteId = req.user.docente_id;
+
+    const [rows] = await pool.query(
+      `SELECT DISTINCT n.id, n.tipo, n.titulo, n.mensaje, n.created_at,
+              c.nombre as carrera_nombre,
+              u.nombre as creado_nombre, u.apellido as creado_apellido
+       FROM notifications n
+       JOIN carreras c ON n.carrera_id = c.id
+       JOIN materias m ON m.carrera_id = c.id
+       JOIN usuarios u ON n.creado_por = u.id
+       LEFT JOIN notification_reviews nr
+         ON nr.notification_id = n.id AND nr.docente_id = ?
+       WHERE m.docente_id = ? AND nr.id IS NULL
+       ORDER BY
+         CASE n.tipo
+           WHEN 'emergencia' THEN 1
+           WHEN 'institucional' THEN 2
+           ELSE 3
+         END,
+         n.created_at DESC`,
+      [docenteId, docenteId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const revisarNotificacionesDocente = async (req, res) => {
+  try {
+    await ensureNotificationSchema();
+    const docenteId = req.user.docente_id;
+    const notificationIds = Array.isArray(req.body.notification_ids) ? req.body.notification_ids : [];
+
+    if (!notificationIds.length) {
+      return res.status(400).json({ error: 'Debe enviar al menos una notificacion' });
+    }
+
+    for (const id of notificationIds) {
+      await pool.query(
+        `INSERT INTO notification_reviews (notification_id, docente_id)
+         VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE reviewed_at = CURRENT_TIMESTAMP`,
+        [id, docenteId]
+      );
+    }
+
+    res.json({ message: 'Notificaciones revisadas' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

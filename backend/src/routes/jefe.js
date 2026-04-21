@@ -9,6 +9,7 @@ import {
   dashboard, detalleEstudiante, listarEstudiantes,
   indicadoresEstudiantes,
   listarSolicitudesPermiso, crearSolicitudPermiso,
+  listarNotificaciones, crearNotificacion,
   inscribirEstudianteMateria, retirarEstudianteMateria,
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
@@ -34,6 +35,8 @@ router.get('/asistencias', listarReportesAsistenciaDocentes);
 router.put('/asistencias/:id', upload.single('respaldo'), actualizarAsistenciaDocente);
 router.get('/solicitudes-permiso', listarSolicitudesPermiso);
 router.post('/solicitudes-permiso', upload.single('documento'), crearSolicitudPermiso);
+router.get('/notificaciones', listarNotificaciones);
+router.post('/notificaciones', crearNotificacion);
 
 router.get('/estudiantes', listarEstudiantes);
 router.get('/estudiantes-indicadores', indicadoresEstudiantes);

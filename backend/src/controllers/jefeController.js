@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import { generarTareasDesdePgo } from '../utils/pgoTasks.js';
+import { ensureNotificationSchema } from '../utils/notifications.js';
 import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -609,6 +610,53 @@ export const crearSolicitudPermiso = async (req, res) => {
     );
 
     res.status(201).json({ id: result.insertId, message: 'Solicitud registrada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarNotificaciones = async (req, res) => {
+  try {
+    await ensureNotificationSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const [rows] = await pool.query(
+      `SELECT n.*, u.nombre as creado_nombre, u.apellido as creado_apellido
+       FROM notifications n
+       JOIN usuarios u ON n.creado_por = u.id
+       WHERE n.carrera_id = ?
+       ORDER BY n.created_at DESC`,
+      [carrera.id]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const crearNotificacion = async (req, res) => {
+  try {
+    await ensureNotificationSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { tipo, titulo, mensaje } = req.body;
+    if (!['informativa', 'emergencia', 'institucional'].includes(tipo)) {
+      return res.status(400).json({ error: 'Tipo de notificacion no valido' });
+    }
+    if (!titulo || !mensaje) {
+      return res.status(400).json({ error: 'Titulo y mensaje son requeridos' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO notifications (carrera_id, tipo, titulo, mensaje, creado_por)
+       VALUES (?, ?, ?, ?, ?)`,
+      [carrera.id, tipo, titulo, mensaje, req.user.id]
+    );
+
+    res.status(201).json({ id: result.insertId, message: 'Notificacion creada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

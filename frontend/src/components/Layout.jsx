@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Modal from './Modal';
 import './Layout.css';
 
 const menuByRole = {
@@ -27,7 +28,8 @@ const menuByRole = {
     { to: '/jefe/horarios', label: 'Horarios', num: '07' },
     { to: '/jefe/disciplina', label: 'Disciplina est.', num: '08' },
     { to: '/jefe/disciplina-docentes', label: 'Disciplina doc.', num: '09' },
-    { to: '/jefe/materias', label: 'Materias', num: '10' }
+    { to: '/jefe/materias', label: 'Materias', num: '10' },
+    { to: '/jefe/notificaciones', label: 'Notificaciones', num: '11' }
   ],
   admin: [
     { to: '/admin', label: 'Dashboard', num: '01' },
@@ -45,13 +47,21 @@ const roleLabel = {
 };
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, docentePendientes, notificationsLoading, reviewPendingNotifications } = useAuth();
   const location = useLocation();
   const items = menuByRole[user.rol] || [];
 
   const pageName = items.find((item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/'))?.label || '';
+  const hasMandatoryNotifications = user.rol === 'docente' && docentePendientes.length > 0;
+
+  const tipoChip = {
+    informativa: 'chip-ink',
+    emergencia: 'chip-crimson',
+    institucional: 'chip-gold'
+  };
 
   return (
+    <>
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
@@ -114,5 +124,32 @@ export default function Layout() {
         </div>
       </main>
     </div>
+    <Modal open={hasMandatoryNotifications} onClose={() => {}} title="Notificaciones pendientes" maxWidth="860px">
+      <div style={{ display: 'grid', gap: '1rem' }}>
+        <div style={{ fontSize: '.92rem', color: 'var(--ink-light)' }}>
+          Debe revisar estas notificaciones antes de continuar en el sistema.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '.85rem', maxHeight: '65vh', overflowY: 'auto' }}>
+          {docentePendientes.map((item) => (
+            <div key={item.id} style={{ padding: '1rem 1.1rem', background: 'var(--paper-dark)', borderRadius: '2px', borderLeft: `4px solid ${item.tipo === 'emergencia' ? 'var(--crimson)' : item.tipo === 'institucional' ? 'var(--gold)' : 'var(--ink)'}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
+                <strong style={{ fontFamily: 'var(--serif)', fontSize: '1rem' }}>{item.titulo}</strong>
+                <span className={`chip ${tipoChip[item.tipo] || 'chip-ink'}`}>{item.tipo}</span>
+              </div>
+              <div style={{ fontSize: '.88rem', marginTop: '.55rem', whiteSpace: 'pre-wrap' }}>{item.mensaje}</div>
+              <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)', marginTop: '.7rem' }}>
+                {item.carrera_nombre} · {new Date(item.created_at).toLocaleString('es-ES')} · {item.creado_nombre} {item.creado_apellido}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="btn btn-primary" onClick={reviewPendingNotifications} disabled={notificationsLoading}>
+            {notificationsLoading ? 'Procesando...' : 'He revisado las notificaciones'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+    </>
   );
 }
