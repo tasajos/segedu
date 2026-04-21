@@ -836,8 +836,8 @@ export default function JefeActas() {
                         </div>
 
                         <div>
-                          <div className="text-serif" style={{ fontSize: '1.25rem', color: 'var(--forest)' }}>{item.materias_aprobadas}</div>
-                          <div className="text-mono" style={{ fontSize: '.62rem', color: 'var(--ink-light)' }}>MATERIAS APROBADAS</div>
+                          <div className="text-serif" style={{ fontSize: '1.25rem', color: 'var(--forest)' }}>{item.materias_aprobadas_parcial}</div>
+                          <div className="text-mono" style={{ fontSize: '.62rem', color: 'var(--ink-light)' }}>APROBADAS EN 1P</div>
                         </div>
                       </div>
                     ))}

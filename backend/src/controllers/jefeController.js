@@ -1012,10 +1012,10 @@ export const indicadoresActas = async (req, res) => {
                 m.grupo,
                 ROUND(AVG(grd.nota_final), 2) as promedio_general,
                 COUNT(DISTINCT gr.materia_id) as materias_evaluadas,
-                COUNT(CASE WHEN grd.estado = 'aprobado' THEN 1 END) as materias_aprobadas,
+                COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) as materias_aprobadas_parcial,
                 ROW_NUMBER() OVER (
                   PARTITION BY m.grupo
-                  ORDER BY AVG(grd.nota_final) DESC, COUNT(CASE WHEN grd.estado = 'aprobado' THEN 1 END) DESC, u.apellido, u.nombre
+                  ORDER BY AVG(grd.nota_final) DESC, COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) DESC, u.apellido, u.nombre
                 ) as posicion_grupo
          FROM grade_report_details grd
          JOIN grade_reports gr ON grd.acta_id = gr.id
