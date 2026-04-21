@@ -29,7 +29,8 @@ const menuByRole = {
     { to: '/jefe/disciplina', label: 'Disciplina est.', num: '08' },
     { to: '/jefe/disciplina-docentes', label: 'Disciplina doc.', num: '09' },
     { to: '/jefe/materias', label: 'Materias', num: '10' },
-    { to: '/jefe/notificaciones', label: 'Notificaciones', num: '11' }
+    { to: '/jefe/notificaciones', label: 'Notificaciones', num: '11' },
+    { to: '/jefe/actas', label: 'Actas', num: '12' }
   ],
   admin: [
     { to: '/admin', label: 'Dashboard', num: '01' },

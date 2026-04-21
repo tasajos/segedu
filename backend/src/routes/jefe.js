@@ -10,6 +10,7 @@ import {
   indicadoresEstudiantes,
   listarSolicitudesPermiso, crearSolicitudPermiso,
   listarNotificaciones, crearNotificacion,
+  obtenerActaMateria, guardarActaMateria, indicadoresActas,
   inscribirEstudianteMateria, retirarEstudianteMateria,
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
@@ -37,6 +38,9 @@ router.get('/solicitudes-permiso', listarSolicitudesPermiso);
 router.post('/solicitudes-permiso', upload.single('documento'), crearSolicitudPermiso);
 router.get('/notificaciones', listarNotificaciones);
 router.post('/notificaciones', crearNotificacion);
+router.get('/actas/indicadores', indicadoresActas);
+router.get('/actas/:id', obtenerActaMateria);
+router.post('/actas', upload.single('archivo'), guardarActaMateria);
 
 router.get('/estudiantes', listarEstudiantes);
 router.get('/estudiantes-indicadores', indicadoresEstudiantes);

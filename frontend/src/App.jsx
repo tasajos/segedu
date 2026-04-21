@@ -31,6 +31,7 @@ import JefeMaterias from './pages/jefe/Materias';
 import JefeMateriaEstudiantes from './pages/jefe/MateriaEstudiantes';
 import JefeMateriaForm from './pages/jefe/MateriaForm';
 import JefeNotificaciones from './pages/jefe/Notificaciones';
+import JefeActas from './pages/jefe/Actas';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="disciplina-docentes" element={<JefeDisciplinaDocentes />} />
         <Route path="materias" element={<JefeMaterias />} />
         <Route path="notificaciones" element={<JefeNotificaciones />} />
+        <Route path="actas" element={<JefeActas />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
         <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />

@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { ensureGradeReportSchema, PASSING_GRADE, GRADE_MODALITIES } from '../utils/gradeReports.js';
 import { generarTareasDesdePgo } from '../utils/pgoTasks.js';
 import { ensureNotificationSchema } from '../utils/notifications.js';
 import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
@@ -101,6 +102,40 @@ const removeUploadedFile = async (archivoUrl) => {
     }
   }
   return false;
+};
+
+const normalizeGradeDetail = (row) => {
+  const modalidad = row.modalidad || 'regular';
+  const config = GRADE_MODALITIES[modalidad] || GRADE_MODALITIES.regular;
+
+  if (modalidad === 'regular') {
+    const primer = Number(row.primer_parcial || 0);
+    const segundo = Number(row.segundo_parcial || 0);
+    const final = Number(row.examen_final || 0);
+    const notaFinal = Number((primer + segundo + final).toFixed(2));
+    const aprobado = primer >= 18 && notaFinal >= config.passing;
+    return {
+      modalidad,
+      primer_parcial: primer,
+      segundo_parcial: segundo,
+      examen_final: final,
+      examen_recuperacion: null,
+      nota_final: notaFinal,
+      estado: aprobado ? 'aprobado' : 'reprobado'
+    };
+  }
+
+  const recuperacion = Number(row.examen_recuperacion || 0);
+  const aprobado = recuperacion >= config.passing;
+  return {
+    modalidad,
+    primer_parcial: null,
+    segundo_parcial: null,
+    examen_final: null,
+    examen_recuperacion: recuperacion,
+    nota_final: recuperacion,
+    estado: aprobado ? 'aprobado' : 'reprobado'
+  };
 };
 
 // ============ MI CARRERA ============
@@ -657,6 +692,293 @@ export const crearNotificacion = async (req, res) => {
     );
 
     res.status(201).json({ id: result.insertId, message: 'Notificacion creada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const obtenerActaMateria = async (req, res) => {
+  try {
+    await ensureGradeReportSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    const { id } = req.params;
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const [[materia]] = await pool.query(
+      `SELECT m.*, u.nombre as docente_nombre, u.apellido as docente_apellido
+       FROM materias m
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios u ON d.usuario_id = u.id
+       WHERE m.id = ? AND m.carrera_id = ?`,
+      [id, carrera.id]
+    );
+
+    if (!materia) return res.status(404).json({ error: 'Materia no encontrada' });
+
+    const [inscritos] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, e.semestre,
+              u.nombre, u.apellido, u.email
+       FROM inscripciones i
+       JOIN estudiantes e ON i.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE i.materia_id = ?
+       ORDER BY u.apellido, u.nombre`,
+      [id]
+    );
+
+    const [[acta]] = await pool.query(
+      `SELECT * FROM grade_reports WHERE materia_id = ?`,
+      [id]
+    );
+
+    let detalles = [];
+    if (acta) {
+      const [rows] = await pool.query(
+        `SELECT grd.*, e.codigo_estudiante
+         FROM grade_report_details grd
+         JOIN estudiantes e ON grd.estudiante_id = e.id
+         WHERE grd.acta_id = ?`,
+        [acta.id]
+      );
+      detalles = rows;
+    }
+
+    res.json({
+      materia,
+      inscritos,
+      acta: acta || null,
+      detalles,
+      nota_aprobacion: PASSING_GRADE,
+      modalidades: GRADE_MODALITIES,
+      reglas: {
+        regular: { primer_parcial_max: 35, primer_parcial_minimo: 18, segundo_parcial_max: 35, examen_final_max: 30, nota_minima: 51 },
+        segunda_instancia: { maximo: 51, nota_minima: GRADE_MODALITIES.segunda_instancia.passing },
+        examen_mesa: { maximo: 51, nota_minima: GRADE_MODALITIES.examen_mesa.passing },
+        examen_gracia: { maximo: 100, nota_minima: GRADE_MODALITIES.examen_gracia.passing }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const guardarActaMateria = async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await ensureGradeReportSchema();
+    await conn.beginTransaction();
+
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) {
+      await conn.rollback();
+      return res.status(403).json({ error: 'Sin carrera asignada' });
+    }
+
+    const { materia_id, periodo, observaciones } = req.body;
+      const notas = JSON.parse(req.body.notas || '[]');
+    const archivoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (!materia_id || !Array.isArray(notas) || !notas.length) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Materia y notas son requeridas' });
+    }
+
+    const [[materia]] = await conn.query(
+      'SELECT id FROM materias WHERE id = ? AND carrera_id = ?',
+      [materia_id, carrera.id]
+    );
+
+    if (!materia) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Materia no encontrada en su carrera' });
+    }
+
+    const [[existing]] = await conn.query(
+      'SELECT * FROM grade_reports WHERE materia_id = ?',
+      [materia_id]
+    );
+
+    let actaId = existing?.id;
+    let previousFile = existing?.archivo_url || null;
+
+    if (existing) {
+      await conn.query(
+        `UPDATE grade_reports
+         SET periodo = ?, observaciones = ?, archivo_url = ?, cargado_por = ?
+         WHERE id = ?`,
+        [periodo || null, observaciones || null, archivoUrl || existing.archivo_url, req.user.id, existing.id]
+      );
+    } else {
+      const [result] = await conn.query(
+        `INSERT INTO grade_reports (materia_id, periodo, observaciones, archivo_url, cargado_por)
+         VALUES (?, ?, ?, ?, ?)`,
+        [materia_id, periodo || null, observaciones || null, archivoUrl, req.user.id]
+      );
+      actaId = result.insertId;
+    }
+
+    await conn.query('DELETE FROM grade_report_details WHERE acta_id = ?', [actaId]);
+
+      for (const row of notas) {
+        const normalized = normalizeGradeDetail(row);
+        await conn.query(
+          `INSERT INTO grade_report_details
+           (acta_id, estudiante_id, modalidad, primer_parcial, segundo_parcial, examen_final, examen_recuperacion, nota_final, estado)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            actaId,
+            row.estudiante_id,
+            normalized.modalidad,
+            normalized.primer_parcial,
+            normalized.segundo_parcial,
+            normalized.examen_final,
+            normalized.examen_recuperacion,
+            normalized.nota_final,
+            normalized.estado
+          ]
+        );
+      }
+
+    await conn.commit();
+
+    if (archivoUrl && previousFile && previousFile !== archivoUrl) {
+      await removeUploadedFile(previousFile);
+    }
+
+    res.json({ message: 'Acta guardada', id: actaId });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+};
+
+export const indicadoresActas = async (req, res) => {
+  try {
+    await ensureGradeReportSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const [porMateria] = await pool.query(
+      `SELECT m.id, m.nombre, m.codigo, m.grupo,
+              du.nombre as docente_nombre, du.apellido as docente_apellido,
+              COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) as aprobados_primer_parcial,
+              COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial < 18 THEN 1 END) as reprobados_primer_parcial,
+              COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.segundo_parcial >= 18 THEN 1 END) as aprobados_segundo_parcial,
+              COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.segundo_parcial < 18 THEN 1 END) as reprobados_segundo_parcial,
+              COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.examen_final >= 15 THEN 1 END) as aprobados_final,
+              COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.examen_final < 15 THEN 1 END) as reprobados_final,
+              COUNT(CASE WHEN grd.estado = 'aprobado' THEN 1 END) as aprobados,
+              COUNT(CASE WHEN grd.estado = 'reprobado' THEN 1 END) as reprobados
+       FROM materias m
+       LEFT JOIN grade_reports gr ON gr.materia_id = m.id
+       LEFT JOIN grade_report_details grd ON grd.acta_id = gr.id
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios du ON d.usuario_id = du.id
+       WHERE m.carrera_id = ?
+       GROUP BY m.id, m.nombre, m.codigo, m.grupo, du.nombre, du.apellido
+       ORDER BY m.nombre, m.grupo`,
+      [carrera.id]
+    );
+
+    const [detalleReprobados] = await pool.query(
+      `SELECT m.id as materia_id, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
+              e.id as estudiante_id, e.codigo_estudiante, u.nombre, u.apellido,
+              grd.modalidad, grd.primer_parcial, grd.segundo_parcial, grd.examen_final, grd.nota_final, grd.estado
+       FROM materias m
+       JOIN grade_reports gr ON gr.materia_id = m.id
+       JOIN grade_report_details grd ON grd.acta_id = gr.id
+       JOIN estudiantes e ON grd.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE m.carrera_id = ?
+       ORDER BY m.nombre, m.grupo, u.apellido, u.nombre`,
+      [carrera.id]
+    );
+
+    const detallePorMateria = new Map();
+    detalleReprobados.forEach((row) => {
+      if (!detallePorMateria.has(row.materia_id)) {
+        detallePorMateria.set(row.materia_id, {
+          reprobados_primer_parcial_detalle: [],
+          reprobados_segundo_parcial_detalle: [],
+          reprobados_final_detalle: [],
+          reprobados_total_detalle: []
+        });
+      }
+
+      const bucket = detallePorMateria.get(row.materia_id);
+      const estudiante = {
+        estudiante_id: row.estudiante_id,
+        codigo_estudiante: row.codigo_estudiante,
+        nombre_completo: `${row.apellido} ${row.nombre}`,
+        modalidad: row.modalidad,
+        primer_parcial: row.primer_parcial,
+        segundo_parcial: row.segundo_parcial,
+        examen_final: row.examen_final,
+        nota_final: row.nota_final,
+        estado: row.estado
+      };
+
+      if (row.modalidad === 'regular' && Number(row.primer_parcial) < 18) {
+        bucket.reprobados_primer_parcial_detalle.push(estudiante);
+      }
+      if (row.modalidad === 'regular' && Number(row.segundo_parcial) < 18) {
+        bucket.reprobados_segundo_parcial_detalle.push(estudiante);
+      }
+      if (row.modalidad === 'regular' && Number(row.examen_final) < 15) {
+        bucket.reprobados_final_detalle.push(estudiante);
+      }
+      if (row.estado === 'reprobado') {
+        bucket.reprobados_total_detalle.push(estudiante);
+      }
+    });
+
+    const porMateriaConDetalle = porMateria.map((row) => ({
+      ...row,
+      ...(detallePorMateria.get(row.id) || {
+        reprobados_primer_parcial_detalle: [],
+        reprobados_segundo_parcial_detalle: [],
+        reprobados_final_detalle: [],
+        reprobados_total_detalle: []
+      })
+    }));
+
+    const [reprobadosMasDos] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, u.nombre, u.apellido,
+              COUNT(CASE WHEN grd.estado = 'reprobado' THEN 1 END) as materias_reprobadas,
+              GROUP_CONCAT(
+                CASE WHEN grd.estado = 'reprobado'
+                  THEN CONCAT(m.nombre, ' (', m.codigo, ' - G', m.grupo, ')')
+                  ELSE NULL
+                END
+                ORDER BY m.nombre SEPARATOR ' | '
+              ) as materias
+       FROM estudiantes e
+       JOIN usuarios u ON e.usuario_id = u.id
+       LEFT JOIN grade_report_details grd ON grd.estudiante_id = e.id
+       LEFT JOIN grade_reports gr ON grd.acta_id = gr.id
+       LEFT JOIN materias m ON gr.materia_id = m.id
+       WHERE e.carrera_id = ?
+       GROUP BY e.id, e.codigo_estudiante, u.nombre, u.apellido
+       HAVING materias_reprobadas > 2
+       ORDER BY materias_reprobadas DESC, u.apellido, u.nombre`,
+      [carrera.id]
+    );
+
+    const resumen = porMateria.reduce((acc, row) => {
+      acc.aprobados += Number(row.aprobados || 0);
+      acc.reprobados += Number(row.reprobados || 0);
+      return acc;
+    }, { aprobados: 0, reprobados: 0 });
+
+    res.json({
+      nota_aprobacion: PASSING_GRADE,
+      modalidades: GRADE_MODALITIES,
+      resumen,
+      porMateria: porMateriaConDetalle,
+      reprobadosMasDos
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
