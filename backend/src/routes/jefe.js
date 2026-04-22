@@ -14,7 +14,7 @@ import {
   inscribirEstudianteMateria, retirarEstudianteMateria,
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
-  listarHorarios, crearHorario, eliminarHorario,
+  listarHorarios, crearHorario, actualizarHorario, eliminarHorario,
   asignarDocente, listarMaterias, obtenerMateria, detalleMateriaEstudiantes, crearMateria, actualizarMateria, eliminarMateria, listarDocentes
 } from '../controllers/jefeController.js';
 
@@ -58,6 +58,7 @@ router.delete('/disciplina-docentes/:id', eliminarDisciplinaDocente);
 
 router.get('/horarios', listarHorarios);
 router.post('/horarios', crearHorario);
+router.put('/horarios/:id', actualizarHorario);
 router.delete('/horarios/:id', eliminarHorario);
 
 router.post('/asignar-docente', asignarDocente);
