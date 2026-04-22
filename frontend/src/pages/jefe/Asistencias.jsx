@@ -299,29 +299,33 @@ export default function JefeAsistencias() {
     rows.forEach((row) => {
       if (!byStudent.has(row.estudiante_id)) {
         byStudent.set(row.estudiante_id, {
+          id: row.id,
           estudiante_id: row.estudiante_id,
           codigo_estudiante: row.codigo_estudiante,
           nombre: row.nombre,
           apellido: row.apellido,
           materia_nombre: row.materia_nombre,
           materia_grupo: row.materia_grupo,
-          docente_nombre: row.docente_nombre,
-          docente_apellido: row.docente_apellido,
           presente: 0,
           falta: 0,
           permiso: 0,
           tarde: 0,
           total: 0,
           ultimo_estado: row.estado,
-          ultima_fecha: row.fecha
+          ultima_fecha: row.fecha,
+          justificacion: row.justificacion || '',
+          respaldo_url: row.respaldo_url || ''
         });
       }
       const current = byStudent.get(row.estudiante_id);
       current.total += 1;
       current[row.estado] += 1;
       if (!current.ultima_fecha || row.fecha >= current.ultima_fecha) {
+        current.id = row.id;
         current.ultima_fecha = row.fecha;
         current.ultimo_estado = row.estado;
+        current.justificacion = row.justificacion || '';
+        current.respaldo_url = row.respaldo_url || '';
       }
     });
 
@@ -331,6 +335,7 @@ export default function JefeAsistencias() {
           const found = rows.find((row) => Number(row.estudiante_id) === Number(student.id));
           if (found) {
             return {
+              id: found.id,
               ...byStudent.get(found.estudiante_id),
               display_estado: found.estado
             };
@@ -342,8 +347,6 @@ export default function JefeAsistencias() {
             apellido: student.apellido,
             materia_nombre: materias.find((m) => String(m.id) === String(filters.materia_id))?.nombre || '',
             materia_grupo: materias.find((m) => String(m.id) === String(filters.materia_id))?.grupo || '',
-            docente_nombre: '',
-            docente_apellido: '',
             presente: 0,
             falta: 0,
             permiso: 0,
@@ -351,7 +354,9 @@ export default function JefeAsistencias() {
             total: 0,
             ultimo_estado: 'sin_registro',
             ultima_fecha: filters.fecha,
-            display_estado: 'sin_registro'
+            display_estado: 'sin_registro',
+            justificacion: '',
+            respaldo_url: ''
           };
         })
         .filter((row) => {
@@ -565,7 +570,7 @@ export default function JefeAsistencias() {
                         {row.codigo_estudiante} · {formatDateEs(row.ultima_fecha || filters.fecha)} · {row.materia_nombre} - G{row.materia_grupo}
                       </div>
                       <div style={{ fontSize: '.85rem', color: 'var(--ink-light)', marginTop: '.35rem' }}>
-                        {filters.periodo === 'dia' ? 'Estado del estudiante para la fecha seleccionada' : `Resumen acumulado en ${row.total} registro(s)`}
+                        {filters.periodo === 'dia' ? 'Registro de asistencia del estudiante para la fecha seleccionada' : `Resumen acumulado en ${row.total} registro(s)`}
                       </div>
                     </div>
                     <div style={{ display: 'grid', gap: '.4rem' }}>
@@ -596,7 +601,7 @@ export default function JefeAsistencias() {
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       {row.id ? (
                         <button className="btn btn-secondary btn-sm" onClick={() => openEdit(row)}>
-                          Editar
+                          Cambiar a permiso/tarde
                         </button>
                       ) : (
                         <span className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
