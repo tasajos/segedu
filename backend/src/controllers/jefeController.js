@@ -650,6 +650,36 @@ export const crearSolicitudPermiso = async (req, res) => {
   }
 };
 
+export const eliminarSolicitudPermiso = async (req, res) => {
+  try {
+    await ensureStudentPermissionSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { id } = req.params;
+    const [[solicitud]] = await pool.query(
+      `SELECT spr.id, spr.documento_url
+       FROM student_permission_requests spr
+       JOIN estudiantes e ON spr.estudiante_id = e.id
+       WHERE spr.id = ? AND e.carrera_id = ?`,
+      [id, carrera.id]
+    );
+
+    if (!solicitud) {
+      return res.status(404).json({ error: 'Solicitud no encontrada en su carrera' });
+    }
+
+    await pool.query('DELETE FROM student_permission_requests WHERE id = ?', [id]);
+    if (solicitud.documento_url) {
+      await removeUploadedFile(solicitud.documento_url);
+    }
+
+    res.json({ message: 'Solicitud eliminada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const listarNotificaciones = async (req, res) => {
   try {
     await ensureNotificationSchema();

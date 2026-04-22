@@ -7,7 +7,16 @@ const ESTADO_LABEL = {
   presente: 'Presente',
   falta: 'Falta',
   permiso: 'Permiso',
-  tarde: 'Tarde'
+  tarde: 'Tarde',
+  sin_registro: 'Sin registro'
+};
+
+const ESTADO_COLOR = {
+  presente: 'chip-forest',
+  falta: 'chip-crimson',
+  permiso: 'chip-gold',
+  tarde: 'chip-ink',
+  sin_registro: 'chip-ink'
 };
 
 const SOLICITUD_TIPO = {
@@ -50,7 +59,6 @@ const today = new Date().toISOString().slice(0, 10);
 
 export default function JefeAsistencias() {
   const [tab, setTab] = useState('reportes');
-  const [docentes, setDocentes] = useState([]);
   const [materias, setMaterias] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
   const [estudiantesMateria, setEstudiantesMateria] = useState([]);
@@ -70,8 +78,9 @@ export default function JefeAsistencias() {
   const [savingRequest, setSavingRequest] = useState(false);
   const [error, setError] = useState('');
   const [requestError, setRequestError] = useState('');
+  const [detailSearch, setDetailSearch] = useState('');
+  const [inscritosReporte, setInscritosReporte] = useState([]);
   const [filters, setFilters] = useState({
-    docente_id: '',
     materia_id: '',
     estado: '',
     periodo: 'dia',
@@ -82,7 +91,6 @@ export default function JefeAsistencias() {
 
   const params = useMemo(() => {
     const next = {};
-    if (filters.docente_id) next.docente_id = filters.docente_id;
     if (filters.materia_id) next.materia_id = filters.materia_id;
     if (filters.estado) next.estado = filters.estado;
     if (filters.periodo === 'rango') {
@@ -97,12 +105,10 @@ export default function JefeAsistencias() {
   }, [filters]);
 
   const cargarBase = async () => {
-    const [docentesResp, materiasResp, estudiantesResp] = await Promise.all([
-      api.get('/jefe/docentes'),
+    const [materiasResp, estudiantesResp] = await Promise.all([
       api.get('/jefe/materias'),
       api.get('/jefe/estudiantes')
     ]);
-    setDocentes(docentesResp.data);
     setMaterias(materiasResp.data);
     setEstudiantes(estudiantesResp.data);
   };
@@ -134,6 +140,16 @@ export default function JefeAsistencias() {
   useEffect(() => {
     cargarReportes();
   }, [params]);
+
+  useEffect(() => {
+    if (!filters.materia_id) {
+      setInscritosReporte([]);
+      return;
+    }
+    api.get(`/jefe/materias/${filters.materia_id}/estudiantes`)
+      .then((resp) => setInscritosReporte(resp.data?.inscritos || []))
+      .catch(() => setInscritosReporte([]));
+  }, [filters.materia_id]);
 
   useEffect(() => {
     if (!requestForm.materia_id) {
@@ -244,6 +260,16 @@ export default function JefeAsistencias() {
     }
   };
 
+  const deleteRequest = async (id) => {
+    if (!confirm('Eliminar esta solicitud de permiso o justificacion?')) return;
+    try {
+      await api.delete(`/jefe/solicitudes-permiso/${id}`);
+      await cargarSolicitudes();
+    } catch (err) {
+      alert(err.response?.data?.error || 'No se pudo eliminar la solicitud');
+    }
+  };
+
   const estudiantesFiltrados = estudiantesMateria.filter((student) => {
     const target = studentSearch.trim().toLowerCase();
     if (!target) return true;
@@ -253,6 +279,104 @@ export default function JefeAsistencias() {
       String(student.email || '').toLowerCase().includes(target)
     );
   });
+
+  const registrosVisibles = useMemo(() => {
+    const rows = [...(reporte.registros || [])];
+    const query = detailSearch.trim().toLowerCase();
+    if (!query) return rows;
+    return rows.filter((row) => (
+      `${row.nombre} ${row.apellido}`.toLowerCase().includes(query) ||
+      `${row.apellido} ${row.nombre}`.toLowerCase().includes(query) ||
+      String(row.codigo_estudiante || '').toLowerCase().includes(query) ||
+      String(row.materia_nombre || '').toLowerCase().includes(query)
+    ));
+  }, [reporte.registros, detailSearch]);
+
+  const resumenEstudiantes = useMemo(() => {
+    const rows = reporte.registros || [];
+    const byStudent = new Map();
+
+    rows.forEach((row) => {
+      if (!byStudent.has(row.estudiante_id)) {
+        byStudent.set(row.estudiante_id, {
+          estudiante_id: row.estudiante_id,
+          codigo_estudiante: row.codigo_estudiante,
+          nombre: row.nombre,
+          apellido: row.apellido,
+          materia_nombre: row.materia_nombre,
+          materia_grupo: row.materia_grupo,
+          docente_nombre: row.docente_nombre,
+          docente_apellido: row.docente_apellido,
+          presente: 0,
+          falta: 0,
+          permiso: 0,
+          tarde: 0,
+          total: 0,
+          ultimo_estado: row.estado,
+          ultima_fecha: row.fecha
+        });
+      }
+      const current = byStudent.get(row.estudiante_id);
+      current.total += 1;
+      current[row.estado] += 1;
+      if (!current.ultima_fecha || row.fecha >= current.ultima_fecha) {
+        current.ultima_fecha = row.fecha;
+        current.ultimo_estado = row.estado;
+      }
+    });
+
+    if (filters.periodo === 'dia' && filters.materia_id && inscritosReporte.length) {
+      return inscritosReporte
+        .map((student) => {
+          const found = rows.find((row) => Number(row.estudiante_id) === Number(student.id));
+          if (found) {
+            return {
+              ...byStudent.get(found.estudiante_id),
+              display_estado: found.estado
+            };
+          }
+          return {
+            estudiante_id: student.id,
+            codigo_estudiante: student.codigo_estudiante,
+            nombre: student.nombre,
+            apellido: student.apellido,
+            materia_nombre: materias.find((m) => String(m.id) === String(filters.materia_id))?.nombre || '',
+            materia_grupo: materias.find((m) => String(m.id) === String(filters.materia_id))?.grupo || '',
+            docente_nombre: '',
+            docente_apellido: '',
+            presente: 0,
+            falta: 0,
+            permiso: 0,
+            tarde: 0,
+            total: 0,
+            ultimo_estado: 'sin_registro',
+            ultima_fecha: filters.fecha,
+            display_estado: 'sin_registro'
+          };
+        })
+        .filter((row) => {
+          const query = detailSearch.trim().toLowerCase();
+          if (!query) return true;
+          return (
+            `${row.nombre} ${row.apellido}`.toLowerCase().includes(query) ||
+            `${row.apellido} ${row.nombre}`.toLowerCase().includes(query) ||
+            String(row.codigo_estudiante || '').toLowerCase().includes(query)
+          );
+        });
+    }
+
+    const values = Array.from(byStudent.values());
+    const query = detailSearch.trim().toLowerCase();
+    return values.filter((row) => {
+      if (!query) return true;
+      return (
+        `${row.nombre} ${row.apellido}`.toLowerCase().includes(query) ||
+        `${row.apellido} ${row.nombre}`.toLowerCase().includes(query) ||
+        String(row.codigo_estudiante || '').toLowerCase().includes(query) ||
+        String(row.materia_nombre || '').toLowerCase().includes(query)
+      );
+    });
+  }, [reporte.registros, inscritosReporte, filters.periodo, filters.materia_id, filters.fecha, materias, detailSearch]);
 
   return (
     <>
@@ -274,16 +398,7 @@ export default function JefeAsistencias() {
 
       {tab === 'reportes' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-            <div>
-              <label className="form-label">Docente</label>
-              <select className="form-input" value={filters.docente_id} onChange={(e) => setFilters((p) => ({ ...p, docente_id: e.target.value }))}>
-                <option value="">Todos</option>
-                {docentes.map((doc) => (
-                  <option key={doc.id} value={doc.id}>{doc.nombre} {doc.apellido}</option>
-                ))}
-              </select>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
             <div>
               <label className="form-label">Materia</label>
               <select className="form-input" value={filters.materia_id} onChange={(e) => setFilters((p) => ({ ...p, materia_id: e.target.value }))}>
@@ -344,90 +459,159 @@ export default function JefeAsistencias() {
             })}
           </div>
 
-          <div className="section-head" style={{ marginBottom: '1rem' }}>
-            <h2>Sesiones consolidadas</h2>
-            <span className="count">{reporte.sesiones?.length || 0} sesiones</span>
+          <div
+            className="card"
+            style={{
+              padding: '1.25rem',
+              marginBottom: '1.5rem',
+              background: 'linear-gradient(135deg, rgba(18, 50, 89, 0.98), rgba(28, 74, 128, 0.94))',
+              color: 'white',
+              borderRadius: '18px',
+              boxShadow: '0 20px 40px rgba(18, 50, 89, 0.14)'
+            }}
+          >
+            <div className="text-mono" style={{ fontSize: '.7rem', letterSpacing: '.14em', opacity: 0.75 }}>
+              REPORTE DE ASISTENCIA ESTUDIANTIL
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr repeat(3, .8fr)', gap: '1rem', alignItems: 'end', marginTop: '.55rem' }}>
+              <div>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: '1.7rem', lineHeight: 1.05 }}>
+                  {filters.periodo === 'rango'
+                    ? `${formatDateEs(filters.desde)} al ${formatDateEs(filters.hasta)}`
+                    : formatDateEs(filters.fecha, true)}
+                </div>
+                <div style={{ marginTop: '.35rem', opacity: 0.86, fontSize: '.95rem' }}>
+                  Visualizacion clara por sesiones, estados y estudiantes con opcion de edicion inmediata.
+                </div>
+              </div>
+              <div>
+                <div className="text-serif" style={{ fontSize: '1.8rem' }}>{reporte.resumen?.total || 0}</div>
+                <div className="text-mono" style={{ fontSize: '.68rem', opacity: 0.72 }}>ASISTENCIAS REGISTRADAS</div>
+              </div>
+              <div>
+                <div className="text-serif" style={{ fontSize: '1.8rem' }}>{inscritosReporte.length || 0}</div>
+                <div className="text-mono" style={{ fontSize: '.68rem', opacity: 0.72 }}>ESTUDIANTES DE LA MATERIA</div>
+              </div>
+              <div>
+                <div className="text-serif" style={{ fontSize: '1.8rem' }}>
+                  {reporte.resumen?.total ? `${Math.round(((reporte.resumen?.presente || 0) / reporte.resumen.total) * 100)}%` : '0%'}
+                </div>
+                <div className="text-mono" style={{ fontSize: '.68rem', opacity: 0.72 }}>ASISTENCIA</div>
+              </div>
+            </div>
           </div>
 
           {loading ? (
             <div className="loading-dots"><span /><span /><span /></div>
           ) : (
             <>
-              <table className="data-table" style={{ marginBottom: '1.5rem' }}>
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Docente</th>
-                    <th>Materia</th>
-                    <th>Total</th>
-                    <th>Presentes</th>
-                    <th>Faltas</th>
-                    <th>Permisos</th>
-                    <th>Tardes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(reporte.sesiones || []).map((row, index) => (
-                    <tr key={`${row.materia_id}-${row.fecha}-${index}`}>
-                      <td className="text-mono" style={{ fontSize: '.8rem' }}>{formatDateEs(row.fecha, true)}</td>
-                      <td style={{ fontSize: '.9rem' }}>{row.docente_nombre} {row.docente_apellido}</td>
-                      <td style={{ fontSize: '.9rem' }}>{row.materia_nombre} - G{row.materia_grupo}</td>
-                      <td>{row.total_registros}</td>
-                      <td><span className="chip chip-forest">{row.presentes}</span></td>
-                      <td><span className="chip chip-crimson">{row.faltas}</span></td>
-                      <td><span className="chip chip-gold">{row.permisos}</span></td>
-                      <td><span className="chip chip-ink">{row.tardes}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
               <div className="section-head" style={{ marginBottom: '1rem' }}>
-                <h2>Detalle editable de estudiantes</h2>
-                <span className="count">{reporte.registros?.length || 0} registros</span>
+                <h2>Asistencia de estudiantes</h2>
+                <span className="count">{resumenEstudiantes.length || 0} estudiantes</span>
               </div>
 
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Estudiante</th>
-                    <th>Docente</th>
-                    <th>Materia</th>
-                    <th>Estado</th>
-                    <th>Justificativo</th>
-                    <th>Respaldo</th>
-                    <th style={{ textAlign: 'right' }}>Accion</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(reporte.registros || []).map((row) => (
-                    <tr key={row.id}>
-                      <td className="text-mono" style={{ fontSize: '.8rem' }}>{formatDateEs(row.fecha)}</td>
-                      <td style={{ fontSize: '.9rem' }}>
+              <div className="card" style={{ padding: '1rem', marginBottom: '1rem', background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,248,250,0.96))' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div>
+                    <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)', letterSpacing: '.08em' }}>
+                      MATERIA Y FECHA
+                    </div>
+                    <div style={{ fontSize: '.95rem', marginTop: '.2rem' }}>
+                      {filters.materia_id
+                        ? `${materias.find((m) => String(m.id) === String(filters.materia_id))?.nombre || 'Materia seleccionada'} - ${filters.periodo === 'rango' ? `${formatDateEs(filters.desde)} al ${formatDateEs(filters.hasta)}` : formatDateEs(filters.fecha, true)}`
+                        : 'Seleccione una materia para ver la asistencia de sus estudiantes.'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '.75rem', flexWrap: 'wrap' }}>
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={detailSearch}
+                      onChange={(e) => setDetailSearch(e.target.value)}
+                      placeholder="Buscar estudiante, codigo o materia..."
+                      style={{ minWidth: '280px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gap: '.85rem' }}>
+                {resumenEstudiantes.map((row) => (
+                  <div
+                    key={row.estudiante_id}
+                    className="card"
+                    style={{
+                      padding: '1rem',
+                      display: 'grid',
+                      gridTemplateColumns: '1.4fr 1fr auto',
+                      gap: '1rem',
+                      alignItems: 'center',
+                      borderLeft: `4px solid ${
+                        (row.display_estado || row.ultimo_estado) === 'presente'
+                          ? 'var(--forest)'
+                          : (row.display_estado || row.ultimo_estado) === 'falta'
+                            ? 'var(--crimson)'
+                            : (row.display_estado || row.ultimo_estado) === 'permiso'
+                              ? 'var(--gold)'
+                              : 'var(--blue-600)'
+                      }`
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontFamily: 'var(--serif)', fontSize: '1rem' }}>
                         {row.apellido} {row.nombre}
-                        <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)' }}>{row.codigo_estudiante}</div>
-                      </td>
-                      <td style={{ fontSize: '.9rem' }}>{row.docente_nombre} {row.docente_apellido}</td>
-                      <td style={{ fontSize: '.9rem' }}>{row.materia_nombre} - G{row.materia_grupo}</td>
-                      <td>
-                        <span className={`chip ${row.estado === 'presente' ? 'chip-forest' : row.estado === 'falta' ? 'chip-crimson' : row.estado === 'permiso' ? 'chip-gold' : 'chip-ink'}`}>
-                          {ESTADO_LABEL[row.estado] || row.estado}
+                      </div>
+                      <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)', marginTop: '.15rem' }}>
+                        {row.codigo_estudiante} · {formatDateEs(row.ultima_fecha || filters.fecha)} · {row.materia_nombre} - G{row.materia_grupo}
+                      </div>
+                      <div style={{ fontSize: '.85rem', color: 'var(--ink-light)', marginTop: '.35rem' }}>
+                        {filters.periodo === 'dia' ? 'Estado del estudiante para la fecha seleccionada' : `Resumen acumulado en ${row.total} registro(s)`}
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gap: '.4rem' }}>
+                      <div>
+                        <span className={`chip ${ESTADO_COLOR[row.display_estado || row.ultimo_estado] || 'chip-ink'}`}>
+                          {ESTADO_LABEL[row.display_estado || row.ultimo_estado] || row.display_estado || row.ultimo_estado}
                         </span>
-                      </td>
-                      <td style={{ fontSize: '.85rem' }}>{row.justificacion || 'Sin justificativo'}</td>
-                      <td style={{ fontSize: '.8rem' }}>
-                        {row.respaldo_url ? <a href={row.respaldo_url} target="_blank" rel="noreferrer">Ver archivo</a> : 'Sin respaldo'}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
+                      </div>
+                      {filters.periodo === 'dia' ? (
+                        <>
+                          <div style={{ fontSize: '.85rem' }}>
+                            <strong>Justificativo:</strong> {row.justificacion || 'Sin justificativo'}
+                          </div>
+                          <div style={{ fontSize: '.82rem' }}>
+                            <strong>Respaldo:</strong>{' '}
+                            {row.respaldo_url ? <a href={row.respaldo_url} target="_blank" rel="noreferrer">Ver archivo</a> : 'Sin respaldo'}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                          <span className="chip chip-forest">{row.presente} presentes</span>
+                          <span className="chip chip-crimson">{row.falta} faltas</span>
+                          <span className="chip chip-gold">{row.permiso} permisos</span>
+                          <span className="chip chip-ink">{row.tarde} tardes</span>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      {row.id ? (
                         <button className="btn btn-secondary btn-sm" onClick={() => openEdit(row)}>
                           Editar
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      ) : (
+                        <span className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
+                          Aun no registrado
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {resumenEstudiantes.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>
+                    No hay estudiantes o registros que coincidan con el filtro aplicado.
+                  </div>
+                )}
+              </div>
             </>
           )}
         </>
@@ -589,7 +773,12 @@ export default function JefeAsistencias() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '.6rem', fontSize: '.8rem' }}>
                         <span>Registrado por {item.registrado_nombre} {item.registrado_apellido}</span>
-                        {item.documento_url ? <a href={item.documento_url} target="_blank" rel="noreferrer">Ver documento</a> : <span>Sin documento</span>}
+                        <div style={{ display: 'flex', gap: '.75rem', alignItems: 'center' }}>
+                          {item.documento_url ? <a href={item.documento_url} target="_blank" rel="noreferrer">Ver documento</a> : <span>Sin documento</span>}
+                          <button className="btn btn-danger btn-sm" onClick={() => deleteRequest(item.id)}>
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
