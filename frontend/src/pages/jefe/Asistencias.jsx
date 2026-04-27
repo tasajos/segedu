@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
+import mammoth from 'mammoth';
 
 const ESTADO_LABEL = {
   presente: 'Presente',
@@ -71,6 +72,10 @@ export default function JefeAsistencias() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
+  const [modalDoc, setModalDoc] = useState(null); // { url, nombre }
+  const [modalEstado, setModalEstado] = useState(null); // { solicitud, accion: 'aprobado'|'rechazado' }
+  const [obsJefe, setObsJefe] = useState('');
+  const [savingEstado, setSavingEstado] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_EDIT);
   const [requestForm, setRequestForm] = useState(EMPTY_REQUEST);
@@ -270,6 +275,28 @@ export default function JefeAsistencias() {
     }
   };
 
+  const confirmarEstado = (solicitud, accion) => {
+    setObsJefe('');
+    setModalEstado({ solicitud, accion });
+  };
+
+  const guardarEstado = async () => {
+    if (!modalEstado) return;
+    setSavingEstado(true);
+    try {
+      await api.put(`/jefe/solicitudes-permiso/${modalEstado.solicitud.id}/estado`, {
+        estado: modalEstado.accion,
+        observacion_jefe: obsJefe
+      });
+      setModalEstado(null);
+      await cargarSolicitudes();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al actualizar la solicitud');
+    } finally {
+      setSavingEstado(false);
+    }
+  };
+
   const estudiantesFiltrados = estudiantesMateria.filter((student) => {
     const target = studentSearch.trim().toLowerCase();
     if (!target) return true;
@@ -452,7 +479,7 @@ export default function JefeAsistencias() {
 
           <div className="grid-4 mb-6">
             {['presente', 'falta', 'permiso', 'tarde'].map((estado, index) => {
-              const colors = ['var(--forest)', 'var(--crimson)', 'var(--gold)', 'var(--blue-600)'];
+              const colors = ['var(--success)', 'var(--danger)', 'var(--warning)', 'var(--blue-600)'];
               return (
                 <div key={estado} className="card" style={{ padding: '1rem', borderTop: `4px solid ${colors[index]}` }}>
                   <div className="text-serif" style={{ fontSize: '2rem', lineHeight: 1 }}>{reporte.resumen?.[estado] || 0}</div>
@@ -553,11 +580,11 @@ export default function JefeAsistencias() {
                       alignItems: 'center',
                       borderLeft: `4px solid ${
                         (row.display_estado || row.ultimo_estado) === 'presente'
-                          ? 'var(--forest)'
+                          ? 'var(--success)'
                           : (row.display_estado || row.ultimo_estado) === 'falta'
-                            ? 'var(--crimson)'
+                            ? 'var(--danger)'
                             : (row.display_estado || row.ultimo_estado) === 'permiso'
-                              ? 'var(--gold)'
+                              ? 'var(--warning)'
                               : 'var(--blue-600)'
                       }`
                     }}
@@ -754,20 +781,33 @@ export default function JefeAsistencias() {
                 <div className="loading-dots" style={{ marginTop: '2rem' }}><span /><span /><span /></div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem', marginTop: '1rem', maxHeight: '560px', overflowY: 'auto' }}>
-                  {solicitudes.map((item) => (
-                    <div key={item.id} style={{ padding: '.9rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', borderLeft: `4px solid ${item.tipo === 'carta_permiso' ? 'var(--gold)' : 'var(--blue-600)'}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                  {solicitudes.map((item) => {
+                    const esEstudiante = item.registrado_rol === 'estudiante';
+                    const estadoBorderColor = item.estado === 'aprobado' ? 'var(--success)' : item.estado === 'rechazado' ? 'var(--danger)' : 'var(--warning)';
+                    return (
+                    <div key={item.id} style={{ padding: '.9rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', borderLeft: `4px solid ${estadoBorderColor}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                         <div>
-                          <div style={{ fontFamily: 'var(--serif)', fontSize: '1rem' }}>
-                            {item.estudiante_nombre} {item.estudiante_apellido}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
+                            <div style={{ fontFamily: 'var(--serif)', fontSize: '1rem' }}>
+                              {item.estudiante_nombre} {item.estudiante_apellido}
+                            </div>
+                            {esEstudiante && (
+                              <span className="chip chip-forest" style={{ fontSize: '.65rem' }}>Enviada por estudiante</span>
+                            )}
                           </div>
                           <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
                             {item.codigo_estudiante} · {item.materia_nombre} ({item.materia_codigo}) - G{item.materia_grupo}
                           </div>
                         </div>
-                        <span className={`chip ${item.tipo === 'carta_permiso' ? 'chip-gold' : 'chip-ink'}`}>
-                          {SOLICITUD_TIPO[item.tipo] || item.tipo}
-                        </span>
+                        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span className={`chip ${item.estado === 'aprobado' ? 'chip-forest' : item.estado === 'rechazado' ? 'chip-crimson' : 'chip-gold'}`} style={{ fontSize: '.7rem' }}>
+                            {item.estado === 'aprobado' ? 'Aprobado' : item.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
+                          </span>
+                          <span className={`chip ${item.tipo === 'carta_permiso' ? 'chip-gold' : 'chip-ink'}`}>
+                            {SOLICITUD_TIPO[item.tipo] || item.tipo}
+                          </span>
+                        </div>
                       </div>
                       <div style={{ fontSize: '.84rem', marginTop: '.55rem' }}>
                         {formatDateEs(item.fecha_desde)} {item.fecha_desde !== item.fecha_hasta ? `al ${formatDateEs(item.fecha_hasta)}` : ''}
@@ -776,17 +816,46 @@ export default function JefeAsistencias() {
                       <div style={{ fontSize: '.84rem', color: 'var(--ink-light)', marginTop: '.45rem' }}>
                         {item.detalle || 'Sin detalle adicional'}
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '.6rem', fontSize: '.8rem' }}>
+                      {item.observacion_jefe && (
+                        <div style={{ fontSize: '.82rem', marginTop: '.4rem', padding: '.4rem .6rem', background: 'rgba(0,0,0,.06)', borderRadius: '2px', fontStyle: 'italic', color: 'var(--ink-light)' }}>
+                          Obs. jefe: {item.observacion_jefe}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '.6rem', fontSize: '.8rem', flexWrap: 'wrap', gap: '.5rem' }}>
                         <span>Registrado por {item.registrado_nombre} {item.registrado_apellido}</span>
-                        <div style={{ display: 'flex', gap: '.75rem', alignItems: 'center' }}>
-                          {item.documento_url ? <a href={item.documento_url} target="_blank" rel="noreferrer">Ver documento</a> : <span>Sin documento</span>}
+                        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {item.documento_url
+                            ? <button className="btn btn-outline btn-sm" style={{ fontSize: '.76rem' }}
+                                onClick={() => setModalDoc({ url: item.documento_url, nombre: `Permiso — ${item.estudiante_nombre} ${item.estudiante_apellido}` })}>
+                                Ver carta
+                              </button>
+                            : <span style={{ color: 'var(--ink-light)' }}>Sin documento</span>
+                          }
+                          {item.estado !== 'aprobado' && (
+                            <button className="btn btn-sm" style={{ fontSize: '.76rem', background: 'var(--success)', color: '#fff', border: 'none' }}
+                              onClick={() => confirmarEstado(item, 'aprobado')}>
+                              Aprobar
+                            </button>
+                          )}
+                          {item.estado !== 'rechazado' && (
+                            <button className="btn btn-sm" style={{ fontSize: '.76rem', background: 'var(--danger)', color: '#fff', border: 'none' }}
+                              onClick={() => confirmarEstado(item, 'rechazado')}>
+                              Rechazar
+                            </button>
+                          )}
+                          {item.estado !== 'pendiente' && (
+                            <button className="btn btn-outline btn-sm" style={{ fontSize: '.76rem' }}
+                              onClick={() => confirmarEstado(item, 'pendiente')}>
+                              Pendiente
+                            </button>
+                          )}
                           <button className="btn btn-danger btn-sm" onClick={() => deleteRequest(item.id)}>
                             Eliminar
                           </button>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                   {solicitudes.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>
                       No hay solicitudes registradas
@@ -840,6 +909,113 @@ export default function JefeAsistencias() {
           </div>
         </div>
       </Modal>
+
+      {/* Modal: visor inline de carta de permiso (Word) */}
+      <Modal open={!!modalDoc} onClose={() => setModalDoc(null)} title={modalDoc?.nombre || 'Carta de permiso'} maxWidth="820px">
+        {modalDoc && <VisorCartaWord url={modalDoc.url} nombre={modalDoc.nombre} />}
+      </Modal>
+
+      {/* Modal: confirmar aprobacion / rechazo de solicitud */}
+      <Modal
+        open={!!modalEstado}
+        onClose={() => setModalEstado(null)}
+        title={modalEstado?.accion === 'aprobado' ? 'Aprobar solicitud' : modalEstado?.accion === 'rechazado' ? 'Rechazar solicitud' : 'Restablecer a pendiente'}
+        maxWidth="480px"
+      >
+        {modalEstado && (
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{ fontSize: '.9rem', color: 'var(--ink-light)' }}>
+              {modalEstado.accion === 'aprobado'
+                ? 'Al aprobar, el docente podrá ver este permiso al registrar asistencia.'
+                : modalEstado.accion === 'rechazado'
+                ? 'La solicitud quedará rechazada y el docente no la verá al registrar asistencia.'
+                : 'La solicitud volverá a estado pendiente.'}
+            </div>
+            <div>
+              <label className="form-label">Observacion (opcional)</label>
+              <textarea
+                className="form-input"
+                rows="3"
+                value={obsJefe}
+                onChange={(e) => setObsJefe(e.target.value)}
+                placeholder="Comentario para el registro..."
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => setModalEstado(null)} disabled={savingEstado}>Cancelar</button>
+              <button
+                className="btn"
+                style={{
+                  background: modalEstado.accion === 'aprobado' ? 'var(--success)' : modalEstado.accion === 'rechazado' ? 'var(--danger)' : 'var(--warning)',
+                  color: '#fff', border: 'none'
+                }}
+                onClick={guardarEstado}
+                disabled={savingEstado}
+              >
+                {savingEstado ? 'Guardando...' : modalEstado.accion === 'aprobado' ? 'Confirmar aprobacion' : modalEstado.accion === 'rechazado' ? 'Confirmar rechazo' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
+  );
+}
+
+function VisorCartaWord({ url, nombre }) {
+  const [html, setHtml] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setHtml(''); setError(''); setLoading(true);
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error('No se pudo cargar el archivo');
+        return r.arrayBuffer();
+      })
+      .then(buf => mammoth.convertToHtml({ arrayBuffer: buf }))
+      .then(result => setHtml(result.value))
+      .catch(() => setError('No se pudo cargar el documento. Verifique que el archivo existe.'))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  if (loading) return (
+    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--ink-light)' }}>
+      Cargando documento...
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ padding: '1.5rem', color: 'var(--danger)', background: 'rgba(220,38,38,.06)', borderRadius: '2px', borderLeft: '3px solid var(--danger)' }}>
+      {error}
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Barra con botón de descarga */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '.75rem' }}>
+        <a
+          href={url}
+          download={nombre + '.docx'}
+          className="btn btn-outline"
+          style={{ fontSize: '.78rem' }}
+        >
+          Descargar documento
+        </a>
+      </div>
+      {/* Contenido Word renderizado */}
+      <div
+        style={{
+          maxHeight: '65vh', overflowY: 'auto',
+          padding: '1.5rem 2rem',
+          background: '#fff', borderRadius: '2px',
+          border: '1px solid var(--line)',
+          lineHeight: 1.75, color: '#111', fontSize: '.95rem'
+        }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   );
 }

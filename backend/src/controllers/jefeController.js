@@ -567,7 +567,7 @@ export const listarSolicitudesPermiso = async (req, res) => {
     let query = `
       SELECT spr.*, e.codigo_estudiante, u.nombre as estudiante_nombre, u.apellido as estudiante_apellido,
              m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
-             ru.nombre as registrado_nombre, ru.apellido as registrado_apellido
+             ru.nombre as registrado_nombre, ru.apellido as registrado_apellido, ru.rol as registrado_rol
       FROM student_permission_requests spr
       JOIN estudiantes e ON spr.estudiante_id = e.id
       JOIN usuarios u ON e.usuario_id = u.id
@@ -645,6 +645,38 @@ export const crearSolicitudPermiso = async (req, res) => {
     );
 
     res.status(201).json({ id: result.insertId, message: 'Solicitud registrada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const cambiarEstadoSolicitudPermiso = async (req, res) => {
+  try {
+    await ensureStudentPermissionSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { id } = req.params;
+    const { estado, observacion_jefe } = req.body;
+
+    if (!['aprobado', 'rechazado', 'pendiente'].includes(estado)) {
+      return res.status(400).json({ error: 'Estado no válido' });
+    }
+
+    const [[solicitud]] = await pool.query(
+      `SELECT spr.id FROM student_permission_requests spr
+       JOIN estudiantes e ON spr.estudiante_id = e.id
+       WHERE spr.id = ? AND e.carrera_id = ?`,
+      [id, carrera.id]
+    );
+    if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    await pool.query(
+      `UPDATE student_permission_requests SET estado = ?, observacion_jefe = ? WHERE id = ?`,
+      [estado, observacion_jefe || null, id]
+    );
+
+    res.json({ message: `Solicitud ${estado} correctamente` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

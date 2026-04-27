@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
 
 // ============ CURSOS DE CAPACITACIÓN ============
 export const listarCursos = async (req, res) => {
@@ -93,16 +94,57 @@ export const listarAsistenciasEstudiante = async (req, res) => {
   }
 };
 
-export const registrarAsistencia = async (req, res) => {
+// ============ SOLICITUDES DE PERMISO ============
+export const solicitarPermiso = async (req, res) => {
   try {
+    await ensureStudentPermissionSchema();
     const estudianteId = req.user.estudiante_id;
-    const { materia_id, fecha, estado, justificacion } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO asistencias (estudiante_id, materia_id, fecha, estado, justificacion)
-       VALUES (?, ?, ?, ?, ?)`,
-      [estudianteId, materia_id, fecha, estado, justificacion]
+    const { materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle, detalle } = req.body;
+
+    if (!materia_id || !tipo || !fecha_desde || !fecha_hasta) {
+      return res.status(400).json({ error: 'Materia, tipo y rango de fechas son requeridos' });
+    }
+
+    const [inscr] = await pool.query(
+      'SELECT id FROM inscripciones WHERE estudiante_id = ? AND materia_id = ?',
+      [estudianteId, materia_id]
     );
-    res.status(201).json({ id: result.insertId, message: 'Asistencia registrada' });
+    if (!inscr.length) return res.status(403).json({ error: 'No estás inscrito en esta materia' });
+
+    const documentoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (tipo === 'carta_permiso' && !documentoUrl) {
+      return res.status(400).json({ error: 'Debe adjuntar la carta de permiso en formato Word (.docx)' });
+    }
+    if (tipo === 'justificacion' && !String(detalle || '').trim()) {
+      return res.status(400).json({ error: 'Debe escribir la justificación' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO student_permission_requests
+       (estudiante_id, materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle, detalle, documento_url, registrado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [estudianteId, materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle || null, detalle || null, documentoUrl, req.user.id]
+    );
+    res.status(201).json({ id: result.insertId, message: 'Solicitud enviada al jefe de carrera' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarMisPermisos = async (req, res) => {
+  try {
+    await ensureStudentPermissionSchema();
+    const estudianteId = req.user.estudiante_id;
+    const [rows] = await pool.query(
+      `SELECT spr.*, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo
+       FROM student_permission_requests spr
+       JOIN materias m ON spr.materia_id = m.id
+       WHERE spr.estudiante_id = ?
+       ORDER BY spr.created_at DESC`,
+      [estudianteId]
+    );
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

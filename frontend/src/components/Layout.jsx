@@ -8,7 +8,7 @@ const menuByRole = {
     { to: '/estudiante', label: 'Inicio', num: '01' },
     { to: '/estudiante/cursos', label: 'Capacitaciones', num: '02' },
     { to: '/estudiante/info', label: 'Datos personales', num: '03' },
-    { to: '/estudiante/asistencias', label: 'Mi expediente', num: '04' },
+    { to: '/estudiante/asistencias', label: 'Asistencias y permisos', num: '04' },
     { to: '/estudiante/tareas', label: 'Mis tareas', num: '05' },
     { to: '/estudiante/grupos', label: 'Grupos de trabajo', num: '06' }
   ],

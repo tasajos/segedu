@@ -5,8 +5,9 @@ import {
   listarCursos, crearCurso, eliminarCurso,
   actualizarInfoPersonal,
   listarMateriasEstudiante, listarAsistenciasEstudiante,
-  registrarAsistencia, resumenAsistencias,
-  miExpediente
+  resumenAsistencias,
+  miExpediente,
+  solicitarPermiso, listarMisPermisos
 } from '../controllers/estudianteController.js';
 import {
   listarTareasEstudiante, verArchivoTareaEstudiante, extractSlidesEstudiante,
@@ -26,9 +27,12 @@ router.put('/info-personal', actualizarInfoPersonal);
 router.get('/materias', listarMateriasEstudiante);
 router.get('/asistencias/resumen', resumenAsistencias);
 router.get('/asistencias', listarAsistenciasEstudiante);
-router.post('/asistencias', registrarAsistencia);
 
 router.get('/expediente', miExpediente);
+
+// Permisos — el estudiante solicita, el jefe autoriza
+router.get('/permisos', listarMisPermisos);
+router.post('/permisos', uploadEntrega.single('documento'), solicitarPermiso);
 
 // Tareas
 router.get('/tareas', listarTareasEstudiante);

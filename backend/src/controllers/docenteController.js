@@ -488,6 +488,7 @@ export const listarSolicitudesPermisoDocente = async (req, res) => {
        JOIN estudiantes e ON spr.estudiante_id = e.id
        JOIN usuarios u ON e.usuario_id = u.id
        WHERE m.docente_id = ? AND spr.materia_id = ? AND ? BETWEEN spr.fecha_desde AND spr.fecha_hasta
+         AND spr.estado = 'aprobado'
        ORDER BY spr.created_at DESC, u.apellido, u.nombre`,
       [docenteId, materia_id, fecha]
     );

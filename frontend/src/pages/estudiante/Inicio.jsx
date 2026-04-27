@@ -99,7 +99,15 @@ export default function EstudianteInicio() {
               <span className="ql-num">03</span>
               <div>
                 <div className="ql-title">Asistencias</div>
-                <div className="ql-desc">Registrar asistencias, faltas y permisos</div>
+                <div className="ql-desc">Consultar asistencias y solicitar permiso</div>
+              </div>
+              <span className="ql-arrow">→</span>
+            </Link>
+            <Link to="/estudiante/tareas" className="quick-link">
+              <span className="ql-num">04</span>
+              <div>
+                <div className="ql-title">Mis tareas</div>
+                <div className="ql-desc">Ver materiales y entregar trabajos</div>
               </div>
               <span className="ql-arrow">→</span>
             </Link>
