@@ -420,7 +420,8 @@ CREATE TABLE IF NOT EXISTS presentaciones (
   descripcion TEXT,
   archivo_nombre VARCHAR(300),
   archivo_path VARCHAR(500),
-  tipo_archivo ENUM('pdf', 'pptx') NOT NULL,
+  enlace_url VARCHAR(1000),
+  tipo_archivo ENUM('pdf', 'pptx', 'link') NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (docente_id) REFERENCES docentes(id) ON DELETE CASCADE
 );
