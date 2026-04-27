@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, uploadTarea } from '../middleware/upload.js';
 import {
   listarMateriasDocente, listarEstudiantesPorMateria,
   listarPGO, crearPGO, eliminarPGO,
@@ -11,6 +11,11 @@ import {
   listarNotificacionesPendientesDocente, revisarNotificacionesDocente,
   misDisciplina
 } from '../controllers/docenteController.js';
+import {
+  listarTareasDocente, crearTarea, eliminarTarea,
+  listarEntregasDocente, calificarEntrega,
+  verArchivoTareaDocente, extractSlidesDocente, verEntregaDocente
+} from '../controllers/tareaController.js';
 
 const router = Router();
 router.use(verifyToken, requireRole('docente'));
@@ -39,5 +44,15 @@ router.get('/notificaciones/pendientes', listarNotificacionesPendientesDocente);
 router.post('/notificaciones/revisar', revisarNotificacionesDocente);
 
 router.get('/mi-disciplina', misDisciplina);
+
+// Tareas
+router.get('/tareas', listarTareasDocente);
+router.post('/tareas', uploadTarea.single('archivo'), crearTarea);
+router.delete('/tareas/:id', eliminarTarea);
+router.get('/tareas/:id/entregas', listarEntregasDocente);
+router.put('/entregas/:id/calificar', calificarEntrega);
+router.get('/tareas/:id/ver', verArchivoTareaDocente);
+router.get('/tareas/:id/slides', extractSlidesDocente);
+router.get('/entregas/:id/ver', verEntregaDocente);
 
 export default router;

@@ -8,7 +8,9 @@ const menuByRole = {
     { to: '/estudiante', label: 'Inicio', num: '01' },
     { to: '/estudiante/cursos', label: 'Capacitaciones', num: '02' },
     { to: '/estudiante/info', label: 'Datos personales', num: '03' },
-    { to: '/estudiante/asistencias', label: 'Mi expediente', num: '04' }
+    { to: '/estudiante/asistencias', label: 'Mi expediente', num: '04' },
+    { to: '/estudiante/tareas', label: 'Mis tareas', num: '05' },
+    { to: '/estudiante/grupos', label: 'Grupos de trabajo', num: '06' }
   ],
   docente: [
     { to: '/docente', label: 'Inicio', num: '01' },
@@ -16,7 +18,8 @@ const menuByRole = {
     { to: '/docente/avance', label: 'Avance de materia', num: '03' },
     { to: '/docente/comentarios', label: 'Comentarios', num: '04' },
     { to: '/docente/asistencia', label: 'Lista asistencia', num: '05' },
-    { to: '/docente/disciplina', label: 'Mi disciplina', num: '06' }
+    { to: '/docente/disciplina', label: 'Mi disciplina', num: '06' },
+    { to: '/docente/tareas', label: 'Tareas del curso', num: '07' }
   ],
   jefe: [
     { to: '/jefe', label: 'Dashboard', num: '01' },

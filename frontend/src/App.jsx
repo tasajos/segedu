@@ -8,10 +8,13 @@ import EstudianteInicio from './pages/estudiante/Inicio';
 import EstudianteCursos from './pages/estudiante/Cursos';
 import EstudianteInfoPersonal from './pages/estudiante/InfoPersonal';
 import EstudianteAsistencias from './pages/estudiante/Asistencias';
+import EstudianteTareas from './pages/estudiante/TareasEstudiante';
+import EstudianteGrupos from './pages/estudiante/GruposEstudiante';
 
 // Docente
 import DocenteInicio from './pages/docente/Inicio';
 import DocentePGO from './pages/docente/PGO';
+import DocenteTareas from './pages/docente/Tareas';
 import DocenteAvance from './pages/docente/Avance';
 import DocenteComentarios from './pages/docente/Comentarios';
 import DocenteAsistencia from './pages/docente/Asistencia';
@@ -71,6 +74,8 @@ export default function App() {
         <Route path="cursos" element={<EstudianteCursos />} />
         <Route path="info" element={<EstudianteInfoPersonal />} />
         <Route path="asistencias" element={<EstudianteAsistencias />} />
+        <Route path="tareas" element={<EstudianteTareas />} />
+        <Route path="grupos" element={<EstudianteGrupos />} />
       </Route>
 
       {/* Docente */}
@@ -81,6 +86,7 @@ export default function App() {
         <Route path="comentarios" element={<DocenteComentarios />} />
         <Route path="asistencia" element={<DocenteAsistencia />} />
         <Route path="disciplina" element={<DocenteDisciplina />} />
+        <Route path="tareas" element={<DocenteTareas />} />
       </Route>
 
       {/* Jefe */}
