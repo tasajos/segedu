@@ -11,7 +11,8 @@ const menuByRole = {
     { to: '/estudiante/asistencias', label: 'Asistencias y permisos', num: '04' },
     { to: '/estudiante/tareas', label: 'Mis tareas', num: '05' },
     { to: '/estudiante/grupos', label: 'Grupos de trabajo', num: '06' },
-    { to: '/estudiante/unidades', label: 'Unidades instrucción', num: '07' }
+    { to: '/estudiante/unidades', label: 'Unidades instrucción', num: '07' },
+    { to: '/estudiante/presentaciones', label: 'Presentaciones', num: '08' }
   ],
   docente: [
     { to: '/docente', label: 'Inicio', num: '01' },
@@ -21,7 +22,8 @@ const menuByRole = {
     { to: '/docente/asistencia', label: 'Lista asistencia', num: '05' },
     { to: '/docente/disciplina', label: 'Mi disciplina', num: '06' },
     { to: '/docente/tareas', label: 'Tareas del curso', num: '07' },
-    { to: '/docente/unidades', label: 'Unidades instrucción', num: '08' }
+    { to: '/docente/unidades', label: 'Unidades instrucción', num: '08' },
+    { to: '/docente/presentaciones', label: 'Presentaciones', num: '09' }
   ],
   jefe: [
     { to: '/jefe', label: 'Dashboard', num: '01' },
@@ -36,7 +38,8 @@ const menuByRole = {
     { to: '/jefe/materias', label: 'Materias', num: '10' },
     { to: '/jefe/notificaciones', label: 'Notificaciones', num: '11' },
     { to: '/jefe/actas', label: 'Actas', num: '12' },
-    { to: '/jefe/unidades', label: 'Unidades instrucción', num: '13' }
+    { to: '/jefe/unidades', label: 'Unidades instrucción', num: '13' },
+    { to: '/jefe/presentaciones', label: 'Presentaciones', num: '14' }
   ],
   admin: [
     { to: '/admin', label: 'Dashboard', num: '01' },

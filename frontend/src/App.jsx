@@ -39,9 +39,13 @@ import JefeActas from './pages/jefe/Actas';
 // Compartido
 import UnidadesLista from './pages/compartido/UnidadesLista';
 import CircuitosLogicos from './pages/compartido/CircuitosLogicos';
+import PresentacionesVista from './pages/compartido/PresentacionesVista';
 
 // Jefe — unidades
 import JefeUnidades from './pages/jefe/UnidadesInstruccion';
+
+// Docente — presentaciones
+import DocentePresentaciones from './pages/docente/Presentaciones';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
@@ -85,6 +89,7 @@ export default function App() {
         <Route path="grupos" element={<EstudianteGrupos />} />
         <Route path="unidades" element={<UnidadesLista />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="presentaciones" element={<PresentacionesVista />} />
       </Route>
 
       {/* Docente */}
@@ -98,6 +103,7 @@ export default function App() {
         <Route path="tareas" element={<DocenteTareas />} />
         <Route path="unidades" element={<UnidadesLista />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="presentaciones" element={<DocentePresentaciones />} />
       </Route>
 
       {/* Jefe */}
@@ -116,6 +122,7 @@ export default function App() {
         <Route path="actas" element={<JefeActas />} />
         <Route path="unidades" element={<JefeUnidades />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="presentaciones" element={<PresentacionesVista />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
         <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />
