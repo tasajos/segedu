@@ -8,13 +8,13 @@ import {
   analisisComportamiento, listarReportesAsistenciaDocentes, actualizarAsistenciaDocente,
   dashboard, detalleEstudiante, listarEstudiantes,
   indicadoresEstudiantes,
-  listarSolicitudesPermiso, crearSolicitudPermiso,
+  listarSolicitudesPermiso, crearSolicitudPermiso, eliminarSolicitudPermiso,
   listarNotificaciones, crearNotificacion,
   obtenerActaMateria, guardarActaMateria, indicadoresActas,
   inscribirEstudianteMateria, retirarEstudianteMateria,
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
-  listarHorarios, crearHorario, eliminarHorario,
+  listarHorarios, crearHorario, actualizarHorario, eliminarHorario,
   asignarDocente, listarMaterias, obtenerMateria, detalleMateriaEstudiantes, crearMateria, actualizarMateria, eliminarMateria, listarDocentes
 } from '../controllers/jefeController.js';
 
@@ -36,6 +36,7 @@ router.get('/asistencias', listarReportesAsistenciaDocentes);
 router.put('/asistencias/:id', upload.single('respaldo'), actualizarAsistenciaDocente);
 router.get('/solicitudes-permiso', listarSolicitudesPermiso);
 router.post('/solicitudes-permiso', upload.single('documento'), crearSolicitudPermiso);
+router.delete('/solicitudes-permiso/:id', eliminarSolicitudPermiso);
 router.get('/notificaciones', listarNotificaciones);
 router.post('/notificaciones', crearNotificacion);
 router.get('/actas/indicadores', indicadoresActas);
@@ -58,6 +59,7 @@ router.delete('/disciplina-docentes/:id', eliminarDisciplinaDocente);
 
 router.get('/horarios', listarHorarios);
 router.post('/horarios', crearHorario);
+router.put('/horarios/:id', actualizarHorario);
 router.delete('/horarios/:id', eliminarHorario);
 
 router.post('/asignar-docente', asignarDocente);

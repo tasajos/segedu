@@ -650,6 +650,36 @@ export const crearSolicitudPermiso = async (req, res) => {
   }
 };
 
+export const eliminarSolicitudPermiso = async (req, res) => {
+  try {
+    await ensureStudentPermissionSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { id } = req.params;
+    const [[solicitud]] = await pool.query(
+      `SELECT spr.id, spr.documento_url
+       FROM student_permission_requests spr
+       JOIN estudiantes e ON spr.estudiante_id = e.id
+       WHERE spr.id = ? AND e.carrera_id = ?`,
+      [id, carrera.id]
+    );
+
+    if (!solicitud) {
+      return res.status(404).json({ error: 'Solicitud no encontrada en su carrera' });
+    }
+
+    await pool.query('DELETE FROM student_permission_requests WHERE id = ?', [id]);
+    if (solicitud.documento_url) {
+      await removeUploadedFile(solicitud.documento_url);
+    }
+
+    res.json({ message: 'Solicitud eliminada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const listarNotificaciones = async (req, res) => {
   try {
     await ensureNotificationSchema();
@@ -1380,7 +1410,7 @@ export const listarHorarios = async (req, res) => {
     const whereCarrera = carrera ? 'WHERE m.carrera_id = ?' : '';
     const params = carrera ? [carrera.id] : [];
     const [rows] = await pool.query(
-      `SELECT h.*, m.nombre as materia_nombre, m.codigo as materia_codigo,
+      `SELECT h.*, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
               u.nombre as docente_nombre, u.apellido as docente_apellido
        FROM horarios h
        JOIN materias m ON h.materia_id = m.id
@@ -1404,6 +1434,22 @@ export const crearHorario = async (req, res) => {
       [materia_id, docente_id, dia_semana, hora_inicio, hora_fin, aula, periodo, req.user.id]
     );
     res.status(201).json({ id: result.insertId, message: 'Horario creado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const actualizarHorario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { materia_id, docente_id, dia_semana, hora_inicio, hora_fin, aula, periodo } = req.body;
+    await pool.query(
+      `UPDATE horarios
+       SET materia_id = ?, docente_id = ?, dia_semana = ?, hora_inicio = ?, hora_fin = ?, aula = ?, periodo = ?
+       WHERE id = ?`,
+      [materia_id, docente_id, dia_semana, hora_inicio, hora_fin, aula, periodo, id]
+    );
+    res.json({ message: 'Horario actualizado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
