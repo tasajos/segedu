@@ -36,6 +36,13 @@ import JefeMateriaForm from './pages/jefe/MateriaForm';
 import JefeNotificaciones from './pages/jefe/Notificaciones';
 import JefeActas from './pages/jefe/Actas';
 
+// Compartido
+import UnidadesLista from './pages/compartido/UnidadesLista';
+import CircuitosLogicos from './pages/compartido/CircuitosLogicos';
+
+// Jefe — unidades
+import JefeUnidades from './pages/jefe/UnidadesInstruccion';
+
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsuarios from './pages/admin/Usuarios';
@@ -76,6 +83,8 @@ export default function App() {
         <Route path="asistencias" element={<EstudianteAsistencias />} />
         <Route path="tareas" element={<EstudianteTareas />} />
         <Route path="grupos" element={<EstudianteGrupos />} />
+        <Route path="unidades" element={<UnidadesLista />} />
+        <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
       </Route>
 
       {/* Docente */}
@@ -87,6 +96,8 @@ export default function App() {
         <Route path="asistencia" element={<DocenteAsistencia />} />
         <Route path="disciplina" element={<DocenteDisciplina />} />
         <Route path="tareas" element={<DocenteTareas />} />
+        <Route path="unidades" element={<UnidadesLista />} />
+        <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
       </Route>
 
       {/* Jefe */}
@@ -103,6 +114,8 @@ export default function App() {
         <Route path="materias" element={<JefeMaterias />} />
         <Route path="notificaciones" element={<JefeNotificaciones />} />
         <Route path="actas" element={<JefeActas />} />
+        <Route path="unidades" element={<JefeUnidades />} />
+        <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
         <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />

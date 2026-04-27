@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { listarUnidades, crearUnidad, actualizarUnidad, eliminarUnidad } from '../controllers/unidadesController.js';
 import {
   miCarrera,
   listarTodosPGO, revisarPGO, eliminarPGO,
@@ -71,5 +72,10 @@ router.post('/materias', crearMateria);
 router.put('/materias/:id', actualizarMateria);
 router.delete('/materias/:id', eliminarMateria);
 router.get('/docentes', listarDocentes);
+
+router.get('/unidades', listarUnidades);
+router.post('/unidades', crearUnidad);
+router.put('/unidades/:id', actualizarUnidad);
+router.delete('/unidades/:id', eliminarUnidad);
 
 export default router;
