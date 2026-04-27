@@ -1,4 +1,6 @@
-# 🎓 Academia — Sistema de Seguimiento Universitario
+# Chakuy Software - Sistema de Seguimiento Universitario
+
+Desarrollado por Carlos Azcarraga Esquivel.
 
 Sistema fullstack de seguimiento académico con tres perfiles (estudiante, docente, jefe de carrera).
 

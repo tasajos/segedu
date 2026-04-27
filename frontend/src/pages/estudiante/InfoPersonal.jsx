@@ -57,8 +57,8 @@ export default function EstudianteInfoPersonal() {
 
           <div className="ficha-stamp">
             <div className="stamp-inner">
-              <span>Academia</span>
-              <span className="stamp-year">MMXXVI</span>
+              <span>Chakuy Software</span>
+              <span className="stamp-year">Desarrollado por Carlos Azcarraga Esquivel</span>
             </div>
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function EstudianteInfoPersonal() {
         .ficha-stamp {
           position: absolute;
           right: 2rem; bottom: 2rem;
-          width: 110px; height: 110px;
+          width: 150px; height: 150px;
           border: 2px solid var(--crimson);
           border-radius: 50%;
           display: grid; place-items: center;
@@ -149,7 +149,7 @@ export default function EstudianteInfoPersonal() {
           opacity: 0.6;
         }
         .stamp-inner {
-          width: 90px; height: 90px;
+          width: 124px; height: 124px;
           border: 1px dashed var(--crimson);
           border-radius: 50%;
           display: flex; flex-direction: column;
@@ -157,10 +157,11 @@ export default function EstudianteInfoPersonal() {
           font-family: var(--serif);
           color: var(--crimson);
           text-align: center;
-          line-height: 1;
+          line-height: 1.15;
+          padding: .8rem;
         }
-        .stamp-inner span:first-child { font-size: .95rem; font-weight: 500; }
-        .stamp-year { font-family: var(--mono); font-size: .65rem; letter-spacing: .15em; margin-top: 4px; }
+        .stamp-inner span:first-child { font-size: .95rem; font-weight: 700; }
+        .stamp-year { font-family: var(--mono); font-size: .5rem; letter-spacing: .04em; margin-top: 7px; text-transform: uppercase; }
       `}</style>
     </>
   );
