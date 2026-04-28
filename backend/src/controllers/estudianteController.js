@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import bcrypt from 'bcryptjs';
 import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
 
 // ============ CURSOS DE CAPACITACIÓN ============
@@ -50,6 +51,39 @@ export const actualizarInfoPersonal = async (req, res) => {
       [ci, telefono, nombre, apellido, req.user.id]
     );
     res.json({ message: 'Información actualizada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const cambiarContrasena = async (req, res) => {
+  try {
+    const { actual, nueva, confirmar } = req.body;
+
+    if (!actual || !nueva || !confirmar) {
+      return res.status(400).json({ error: 'Complete todos los campos de contrasena' });
+    }
+
+    if (nueva.length < 6) {
+      return res.status(400).json({ error: 'La nueva contrasena debe tener al menos 6 caracteres' });
+    }
+
+    if (nueva !== confirmar) {
+      return res.status(400).json({ error: 'La confirmacion no coincide con la nueva contrasena' });
+    }
+
+    const [[user]] = await pool.query('SELECT password FROM usuarios WHERE id = ?', [req.user.id]);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const valid = await bcrypt.compare(actual, user.password);
+    if (!valid) {
+      return res.status(400).json({ error: 'La contrasena actual es incorrecta' });
+    }
+
+    const hash = await bcrypt.hash(nueva, 10);
+    await pool.query('UPDATE usuarios SET password = ? WHERE id = ?', [hash, req.user.id]);
+
+    res.json({ message: 'Contrasena actualizada correctamente' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

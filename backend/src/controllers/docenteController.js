@@ -78,14 +78,17 @@ const removeUploadedFile = async (archivoUrl) => {
 // ============ MATERIAS DEL DOCENTE ============
 export const listarMateriasDocente = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    // Join via usuario_id so the query works regardless of what the JWT carries.
     const [rows] = await pool.query(
-      `SELECT m.*, c.nombre as carrera_nombre,
-        (SELECT COUNT(*) FROM inscripciones WHERE materia_id = m.id) as total_estudiantes
+      `SELECT m.id, m.nombre, m.codigo, m.grupo, m.semestre, m.creditos,
+              m.carrera_id, c.nombre as carrera_nombre,
+              (SELECT COUNT(*) FROM inscripciones WHERE materia_id = m.id) as total_estudiantes
        FROM materias m
+       JOIN docentes d ON m.docente_id = d.id
        LEFT JOIN carreras c ON m.carrera_id = c.id
-       WHERE m.docente_id = ?`,
-      [docenteId]
+       WHERE d.usuario_id = ?
+       ORDER BY m.nombre, m.grupo`,
+      [req.user.id]
     );
     res.json(rows);
   } catch (err) {

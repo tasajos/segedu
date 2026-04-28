@@ -27,17 +27,12 @@
 }
 
 .brand-mark {
-  width: 40px;
-  height: 40px;
-  background: var(--blue-500);
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  width: 44px;
+  height: 44px;
+  display: block;
+  object-fit: contain;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(37,99,235,.4);
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
 }
 
 .brand-title {

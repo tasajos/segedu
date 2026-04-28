@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 185">
+  <!-- Wing shadow back layer -->
+  <ellipse cx="80" cy="118" rx="74" ry="70" fill="#0D47A1"/>
+
+  <!-- Ear tufts -->
+  <polygon points="42,44 32,12 60,38" fill="#1565C0"/>
+  <polygon points="118,44 128,12 100,38" fill="#1565C0"/>
+
+  <!-- Main body -->
+  <ellipse cx="80" cy="120" rx="62" ry="64" fill="#1976D2"/>
+
+  <!-- Head -->
+  <circle cx="80" cy="66" r="56" fill="#1976D2"/>
+
+  <!-- White face disk -->
+  <ellipse cx="80" cy="68" rx="46" ry="44" fill="white"/>
+
+  <!-- White belly -->
+  <ellipse cx="80" cy="130" rx="44" ry="54" fill="white"/>
+
+  <!-- Teal belly feather stripes -->
+  <path d="M56,112 Q80,105 104,112 Q80,119 56,112Z" fill="#26A69A"/>
+  <path d="M54,130 Q80,123 106,130 Q80,137 54,130Z" fill="#26A69A"/>
+  <path d="M57,148 Q80,141 103,148 Q80,155 57,148Z" fill="#26A69A"/>
+
+  <!-- Left eye -->
+  <circle cx="62" cy="66" r="21" fill="white"/>
+  <circle cx="62" cy="66" r="16" fill="#26A69A"/>
+  <circle cx="62" cy="66" r="9"  fill="#111"/>
+  <circle cx="57" cy="60" r="3.5" fill="white"/>
+
+  <!-- Right eye -->
+  <circle cx="98" cy="66" r="21" fill="white"/>
+  <circle cx="98" cy="66" r="16" fill="#26A69A"/>
+  <circle cx="98" cy="66" r="9"  fill="#111"/>
+  <circle cx="93" cy="60" r="3.5" fill="white"/>
+
+  <!-- Beak -->
+  <polygon points="74,88 80,102 86,88" fill="#FDD835"/>
+
+  <!-- Left foot -->
+  <rect x="50" y="174" width="22" height="9" rx="4.5" fill="#FDD835"/>
+  <rect x="43" y="180" width="14" height="7" rx="3.5" fill="#FDD835"/>
+  <rect x="57" y="180" width="14" height="7" rx="3.5" fill="#FDD835"/>
+
+  <!-- Right foot -->
+  <rect x="88" y="174" width="22" height="9" rx="4.5" fill="#FDD835"/>
+  <rect x="81" y="180" width="14" height="7" rx="3.5" fill="#FDD835"/>
+  <rect x="95" y="180" width="14" height="7" rx="3.5" fill="#FDD835"/>
+</svg>

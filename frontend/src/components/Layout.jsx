@@ -75,7 +75,7 @@ export default function Layout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">S</div>
+          <img src="/ch_tr.png" className="brand-mark" alt="SEGEDU" />
           <div>
             <div className="brand-title">SEGEDU</div>
             <div className="brand-sub">Seguimiento Universitario</div>

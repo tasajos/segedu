@@ -6,8 +6,11 @@ import { useAuth } from '../../context/AuthContext';
 export default function EstudianteInfoPersonal() {
   const { user } = useAuth();
   const [form, setForm] = useState({ nombre: '', apellido: '', ci: '', telefono: '' });
+  const [passwordForm, setPasswordForm] = useState({ actual: '', nueva: '', confirmar: '' });
   const [msg, setMsg] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -25,6 +28,22 @@ export default function EstudianteInfoPersonal() {
       setTimeout(() => setMsg(''), 3000);
     } catch { setMsg('Error al guardar'); }
     finally { setLoading(false); }
+  };
+
+  const cambiarContrasena = async (e) => {
+    e.preventDefault();
+    setPasswordLoading(true);
+    setPasswordMsg('');
+    try {
+      await api.put('/estudiante/cambiar-contrasena', passwordForm);
+      setPasswordForm({ actual: '', nueva: '', confirmar: '' });
+      setPasswordMsg('OK Contrasena actualizada correctamente');
+      setTimeout(() => setPasswordMsg(''), 3000);
+    } catch (err) {
+      setPasswordMsg(err.response?.data?.error || 'Error al cambiar la contrasena');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -97,6 +116,59 @@ export default function EstudianteInfoPersonal() {
 
             <button className="btn btn-primary" disabled={loading}>
               {loading ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </form>
+
+          <div className="rule-thin" style={{ margin: '1.5rem 0' }} />
+
+          <h3 style={{ marginBottom: '1.5rem' }}>Cambiar contrasena</h3>
+          <form onSubmit={cambiarContrasena}>
+            <div className="form-field">
+              <label>Contrasena actual</label>
+              <input
+                type="password"
+                value={passwordForm.actual}
+                onChange={e => setPasswordForm({ ...passwordForm, actual: e.target.value })}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            <div className="grid-2" style={{ gap: '1rem' }}>
+              <div className="form-field">
+                <label>Nueva contrasena</label>
+                <input
+                  type="password"
+                  value={passwordForm.nueva}
+                  onChange={e => setPasswordForm({ ...passwordForm, nueva: e.target.value })}
+                  autoComplete="new-password"
+                  minLength={6}
+                  required
+                />
+              </div>
+              <div className="form-field">
+                <label>Confirmar contrasena</label>
+                <input
+                  type="password"
+                  value={passwordForm.confirmar}
+                  onChange={e => setPasswordForm({ ...passwordForm, confirmar: e.target.value })}
+                  autoComplete="new-password"
+                  minLength={6}
+                  required
+                />
+              </div>
+            </div>
+
+            {passwordMsg && (
+              <div style={{
+                padding: '.75rem 1rem', marginBottom: '1rem', borderRadius: '2px',
+                background: passwordMsg.startsWith('OK') ? 'rgba(58,90,63,0.08)' : 'rgba(139,42,42,0.08)',
+                borderLeft: `3px solid ${passwordMsg.startsWith('OK') ? 'var(--forest)' : 'var(--crimson)'}`,
+                fontSize: '.85rem', color: passwordMsg.startsWith('OK') ? 'var(--forest)' : 'var(--crimson)'
+              }}>{passwordMsg.replace(/^OK\s*/, '')}</div>
+            )}
+
+            <button className="btn btn-secondary" disabled={passwordLoading}>
+              {passwordLoading ? 'Actualizando...' : 'Actualizar contrasena'}
             </button>
           </form>
         </div>

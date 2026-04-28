@@ -3,13 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
-const demos = [
-  { rol: 'Admin',      email: 'admin@uni.edu',       color: 'ink' },
-  { rol: 'Jefatura',  email: 'jefe@uni.edu',         color: 'crimson' },
-  { rol: 'Docente',    email: 'docente@uni.edu',     color: 'forest' },
-  { rol: 'Estudiante', email: 'estudiante@uni.edu',  color: 'gold' }
-];
-
 export default function Login() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('password123');
@@ -35,7 +28,7 @@ export default function Login() {
       <aside className="login-hero">
         <div className="hero-top">
           <div className="hero-brand">
-            <div className="hero-mark">S</div>
+            <img src="/ch_tr.png" className="hero-mark" alt="SEGEDU" />
             <span className="hero-brandname">SEGEDU</span>
           </div>
           <span className="hero-year">2026</span>
@@ -110,21 +103,8 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="login-divider"><span>Cuentas de demostración</span></div>
-
-          <div className="login-demos">
-            {demos.map(d => (
-              <button key={d.email} type="button"
-                className={`demo-chip demo-${d.color}`}
-                onClick={() => setEmail(d.email)}>
-                <span className="demo-label">{d.rol}</span>
-                <span className="demo-email">{d.email}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="login-foot">
-            Contraseña demo: <code>password123</code>
+          <div className="login-credit">
+            Desarrollado por <strong>Carlos Andrés Azcarraga Esquivel</strong> · Chakuy Software
           </div>
         </div>
       </section>

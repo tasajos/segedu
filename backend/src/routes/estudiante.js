@@ -3,7 +3,7 @@ import { verifyToken, requireRole } from '../middleware/auth.js';
 import { upload, uploadEntrega } from '../middleware/upload.js';
 import {
   listarCursos, crearCurso, eliminarCurso,
-  actualizarInfoPersonal,
+  actualizarInfoPersonal, cambiarContrasena,
   listarMateriasEstudiante, listarAsistenciasEstudiante,
   resumenAsistencias,
   miExpediente,
@@ -23,6 +23,7 @@ router.post('/cursos', upload.single('certificado'), crearCurso);
 router.delete('/cursos/:id', eliminarCurso);
 
 router.put('/info-personal', actualizarInfoPersonal);
+router.put('/cambiar-contrasena', cambiarContrasena);
 
 router.get('/materias', listarMateriasEstudiante);
 router.get('/asistencias/resumen', resumenAsistencias);

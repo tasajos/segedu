@@ -17,6 +17,13 @@ const resolveFilePath = (archivoPath) => {
   return candidates.find(c => fs.existsSync(c)) || null;
 };
 
+// Always resolves docente_id fresh from DB using usuario_id (always present in JWT).
+// This is safer than relying on the JWT's docente_id field which can be stale or missing.
+const resolveDocenteId = async (user) => {
+  const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [user.id]);
+  return doc?.id ?? null;
+};
+
 // ===== HELPER: extract slides from PPTX (ES modules) =====
 const extractSlidesAsync = async (filePath) => {
   try {
@@ -52,7 +59,8 @@ const extractSlidesAsync = async (filePath) => {
 
 export const listarTareasDocente = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.json([]);
     const { materia_id } = req.query;
     let query = `
       SELECT t.*, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
@@ -76,7 +84,8 @@ export const listarTareasDocente = async (req, res) => {
 
 export const crearTarea = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
     const { materia_id, titulo, descripcion, fecha_entrega } = req.body;
 
     // Verify the materia belongs to this docente
@@ -107,7 +116,8 @@ export const crearTarea = async (req, res) => {
 
 export const eliminarTarea = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
     const { id } = req.params;
     const [rows] = await pool.query('SELECT * FROM tareas WHERE id = ? AND docente_id = ?', [id, docenteId]);
     if (!rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
@@ -125,7 +135,8 @@ export const eliminarTarea = async (req, res) => {
 
 export const listarEntregasDocente = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
     const { id } = req.params;
 
     const [tareas] = await pool.query('SELECT id FROM tareas WHERE id = ? AND docente_id = ?', [id, docenteId]);
@@ -155,7 +166,8 @@ export const listarEntregasDocente = async (req, res) => {
 
 export const calificarEntrega = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
     const { id } = req.params;
     const { calificacion, comentario_calificacion } = req.body;
 
@@ -180,7 +192,8 @@ export const calificarEntrega = async (req, res) => {
 // Stream task material file inline (docente)
 export const verArchivoTareaDocente = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
     const { id } = req.params;
     const [rows] = await pool.query(
       'SELECT * FROM tareas WHERE id = ? AND docente_id = ?',
@@ -209,7 +222,8 @@ export const verArchivoTareaDocente = async (req, res) => {
 // Extract PPTX slides for docente
 export const extractSlidesDocente = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
     const { id } = req.params;
     const [rows] = await pool.query(
       'SELECT * FROM tareas WHERE id = ? AND docente_id = ?',
@@ -230,7 +244,8 @@ export const extractSlidesDocente = async (req, res) => {
 // Stream student submission Word file (docente view)
 export const verEntregaDocente = async (req, res) => {
   try {
-    const docenteId = req.user.docente_id;
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
     const { id } = req.params;
     const [rows] = await pool.query(`
       SELECT et.* FROM entregas_tareas et

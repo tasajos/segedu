@@ -138,7 +138,7 @@ export const listarUsuarios = async (req, res) => {
                )
                ELSE NULL
              END as perfil
-      FROM usuarios u WHERE u.rol != 'admin'`;
+      FROM usuarios u WHERE 1=1`;
     const params = [];
     if (rol) { query += ' AND u.rol = ?'; params.push(rol); }
     query += ' ORDER BY u.rol, u.apellido';
@@ -160,7 +160,7 @@ export const crearUsuario = async (req, res) => {
             especialidad, titulo,
             carrera_id, semestre, codigo_estudiante, fecha_ingreso } = req.body;
 
-    if (!['estudiante', 'docente', 'jefe'].includes(rol)) {
+    if (!['estudiante', 'docente', 'jefe', 'admin'].includes(rol)) {
       return res.status(400).json({ error: 'Rol inválido' });
     }
 

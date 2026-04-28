@@ -29,8 +29,8 @@ const EMPTY_IMPORT = {
   fecha_ingreso: ''
 };
 
-const rolLabel = { estudiante: 'Estudiante', docente: 'Docente', jefe: 'Jefe de carrera' };
-const rolChip = { estudiante: 'chip-gold', docente: 'chip-forest', jefe: 'chip-ink' };
+const rolLabel = { estudiante: 'Estudiante', docente: 'Docente', jefe: 'Jefe de carrera', admin: 'Administrador' };
+const rolChip = { estudiante: 'chip-gold', docente: 'chip-forest', jefe: 'chip-ink', admin: 'chip-crimson' };
 
 export default function AdminUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -216,6 +216,7 @@ export default function AdminUsuarios() {
           <option value="estudiante">Estudiantes</option>
           <option value="docente">Docentes</option>
           <option value="jefe">Jefes de carrera</option>
+          <option value="admin">Administradores</option>
         </select>
         <button className="btn btn-secondary" onClick={abrirImportar}>Importar Excel</button>
         <button className="btn btn-primary" onClick={abrirNuevo}>+ Nuevo usuario</button>
@@ -309,6 +310,7 @@ export default function AdminUsuarios() {
                 <option value="estudiante">Estudiante</option>
                 <option value="docente">Docente</option>
                 <option value="jefe">Jefe de carrera</option>
+                <option value="admin">Administrador</option>
               </select>
             </div>
           )}
