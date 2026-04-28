@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
+import mammoth from 'mammoth';
 
 const formatFecha = (val) => {
   if (!val) return '—';
@@ -23,27 +24,30 @@ const diasRestantes = (fechaEntrega) => {
 function VisorMaterial({ tareaId, tipoArchivo }) {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [slides, setSlides] = useState(null);
+  const [wordHtml, setWordHtml] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let revoked = false;
-    setPdfUrl(null);
-    setSlides(null);
-    setLoading(true);
-    setError('');
+    setPdfUrl(null); setSlides(null); setWordHtml(null);
+    setLoading(true); setError('');
 
     if (tipoArchivo === 'pdf') {
       api.get(`/estudiante/tareas/${tareaId}/ver`, { responseType: 'blob' })
-        .then(r => {
-          if (!revoked) setPdfUrl(URL.createObjectURL(r.data));
-        })
+        .then(r => { if (!revoked) setPdfUrl(URL.createObjectURL(r.data)); })
         .catch(() => { if (!revoked) setError('No se pudo cargar el archivo PDF.'); })
         .finally(() => { if (!revoked) setLoading(false); });
     } else if (tipoArchivo === 'pptx') {
       api.get(`/estudiante/tareas/${tareaId}/slides`)
         .then(r => { if (!revoked) setSlides(r.data.slides); })
         .catch(() => { if (!revoked) setError('No se pudieron extraer las diapositivas.'); })
+        .finally(() => { if (!revoked) setLoading(false); });
+    } else if (tipoArchivo === 'word') {
+      api.get(`/estudiante/tareas/${tareaId}/ver`, { responseType: 'arraybuffer' })
+        .then(r => mammoth.convertToHtml({ arrayBuffer: r.data }))
+        .then(result => { if (!revoked) setWordHtml(result.value); })
+        .catch(() => { if (!revoked) setError('No se pudo cargar el documento Word.'); })
         .finally(() => { if (!revoked) setLoading(false); });
     } else {
       setLoading(false);
@@ -58,6 +62,16 @@ function VisorMaterial({ tareaId, tipoArchivo }) {
 
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--ink-light)' }}>Cargando material...</div>;
   if (error) return <div style={{ padding: '2rem', color: 'var(--crimson)' }}>{error}</div>;
+
+  if (tipoArchivo === 'word' && wordHtml) {
+    return (
+      <div
+        dangerouslySetInnerHTML={{ __html: wordHtml }}
+        onContextMenu={e => e.preventDefault()}
+        style={{ maxHeight: '72vh', overflowY: 'auto', padding: '1.5rem 2rem', background: '#fff', borderRadius: '4px', lineHeight: 1.8, color: '#111' }}
+      />
+    );
+  }
 
   if (tipoArchivo === 'pdf' && pdfUrl) {
     return (
@@ -131,10 +145,10 @@ function ModalEntrega({ tarea, onClose, onSuccess }) {
         {tarea.fecha_entrega && <div style={{ color: 'var(--ink-light)', fontSize: '.8rem', marginTop: '.25rem' }}>Fecha límite: {formatFecha(tarea.fecha_entrega)}</div>}
       </div>
       <div>
-        <label className="label">Archivo Word (.docx) *</label>
-        <input type="file" accept=".docx" onChange={e => setArchivo(e.target.files[0])} style={{ fontSize: '.85rem' }} required />
+        <label className="label">Archivo Word (.doc / .docx) *</label>
+        <input type="file" accept=".doc,.docx" onChange={e => setArchivo(e.target.files[0])} style={{ fontSize: '.85rem' }} required />
         <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)', marginTop: '.4rem' }}>
-          Solo se aceptan archivos en formato Word (.docx). Si ya entregaste antes, este archivo reemplazará el anterior.
+          Solo se aceptan archivos Word (.doc o .docx). Si ya entregaste antes, este archivo reemplazará el anterior.
         </div>
       </div>
       {error && <div style={{ color: 'var(--crimson)', fontSize: '.85rem' }}>{error}</div>}

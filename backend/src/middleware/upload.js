@@ -18,24 +18,24 @@ export const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
-// Para tareas del docente: solo PDF y PPTX
+// Para tareas del docente: PDF, PPTX y Word
 export const uploadTarea = multer({
   storage,
   limits: { fileSize: 30 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (['.pdf', '.pptx'].includes(ext)) cb(null, true);
-    else cb(new Error('Solo se permiten archivos PDF o PPTX'), false);
+    if (['.pdf', '.pptx', '.doc', '.docx'].includes(ext)) cb(null, true);
+    else cb(new Error('Solo se permiten archivos PDF, PPTX o Word (DOC/DOCX)'), false);
   }
 });
 
-// Para entregas de estudiantes: solo DOCX
+// Para entregas de estudiantes: Word (doc / docx)
 export const uploadEntrega = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (ext === '.docx') cb(null, true);
-    else cb(new Error('Solo se permiten archivos Word (.docx)'), false);
+    if (['.doc', '.docx'].includes(ext)) cb(null, true);
+    else cb(new Error('Solo se permiten archivos Word (.doc o .docx)'), false);
   }
 });

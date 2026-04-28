@@ -65,6 +65,7 @@ export const listarTareasDocente = async (req, res) => {
     let query = `
       SELECT t.*, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
              (SELECT COUNT(*) FROM entregas_tareas et WHERE et.tarea_id = t.id) as total_entregas,
+             (SELECT COUNT(*) FROM entregas_tareas et WHERE et.tarea_id = t.id AND et.visto_por_docente = 0) as total_nuevas,
              (SELECT COUNT(*) FROM inscripciones i WHERE i.materia_id = t.materia_id) as total_inscritos
       FROM tareas t
       JOIN materias m ON t.materia_id = m.id
@@ -100,7 +101,9 @@ export const crearTarea = async (req, res) => {
       archivo_nombre = req.file.originalname;
       archivo_path = `/uploads/${req.file.filename}`;
       const ext = path.extname(req.file.originalname).toLowerCase();
-      tipo_archivo = ext === '.pdf' ? 'pdf' : 'pptx';
+      if (ext === '.pdf') tipo_archivo = 'pdf';
+      else if (ext === '.pptx') tipo_archivo = 'pptx';
+      else if (['.doc', '.docx'].includes(ext)) tipo_archivo = 'word';
     }
 
     const [result] = await pool.query(
@@ -158,6 +161,8 @@ export const listarEntregasDocente = async (req, res) => {
       WHERE et.tarea_id = ?
       ORDER BY et.fecha_entrega DESC
     `, [id]);
+    // Marcar como vistas por el docente
+    await pool.query('UPDATE entregas_tareas SET visto_por_docente = 1 WHERE tarea_id = ?', [id]);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -206,9 +211,11 @@ export const verArchivoTareaDocente = async (req, res) => {
     if (!filePath) return res.status(404).json({ error: 'Archivo no disponible en el servidor' });
 
     const ext = path.extname(tarea.archivo_nombre).toLowerCase();
-    const mime = ext === '.pdf'
-      ? 'application/pdf'
-      : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : ext === '.doc'  ? 'application/msword'
+      : 'application/octet-stream';
 
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(tarea.archivo_nombre)}"`);
@@ -258,9 +265,44 @@ export const verEntregaDocente = async (req, res) => {
     const filePath = resolveFilePath(entrega.archivo_path);
     if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
 
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    const ext = path.extname(entrega.archivo_nombre).toLowerCase();
+    const mime = ext === '.docx'
+      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/msword';
+
+    res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(entrega.archivo_nombre)}"`);
     res.setHeader('Cache-Control', 'private, no-cache');
+    fs.createReadStream(filePath).pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Descarga la entrega del estudiante como attachment (para que el docente guarde el archivo)
+export const descargarEntregaDocente = async (req, res) => {
+  try {
+    const docenteId = await resolveDocenteId(req.user);
+    if (!docenteId) return res.status(403).json({ error: 'Perfil de docente no encontrado' });
+    const { id } = req.params;
+    const [rows] = await pool.query(`
+      SELECT et.* FROM entregas_tareas et
+      JOIN tareas t ON et.tarea_id = t.id
+      WHERE et.id = ? AND t.docente_id = ?
+    `, [id, docenteId]);
+    if (!rows.length) return res.status(403).json({ error: 'No autorizado' });
+
+    const entrega = rows[0];
+    const filePath = resolveFilePath(entrega.archivo_path);
+    if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
+
+    const ext = path.extname(entrega.archivo_nombre).toLowerCase();
+    const mime = ext === '.docx'
+      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/msword';
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(entrega.archivo_nombre)}"`);
     fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -311,9 +353,11 @@ export const verArchivoTareaEstudiante = async (req, res) => {
     if (!filePath) return res.status(404).json({ error: 'Archivo no disponible en el servidor' });
 
     const ext = path.extname(tarea.archivo_nombre).toLowerCase();
-    const mime = ext === '.pdf'
-      ? 'application/pdf'
-      : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : ext === '.doc'  ? 'application/msword'
+      : 'application/octet-stream';
 
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(tarea.archivo_nombre)}"`);
@@ -366,9 +410,13 @@ export const entregarTarea = async (req, res) => {
     const archivo_path = `/uploads/${req.file.filename}`;
 
     await pool.query(
-      `INSERT INTO entregas_tareas (tarea_id, estudiante_id, archivo_nombre, archivo_path)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE archivo_nombre = VALUES(archivo_nombre), archivo_path = VALUES(archivo_path), fecha_entrega = NOW()`,
+      `INSERT INTO entregas_tareas (tarea_id, estudiante_id, archivo_nombre, archivo_path, visto_por_docente)
+       VALUES (?, ?, ?, ?, 0)
+       ON DUPLICATE KEY UPDATE
+         archivo_nombre = VALUES(archivo_nombre),
+         archivo_path   = VALUES(archivo_path),
+         fecha_entrega  = NOW(),
+         visto_por_docente = 0`,
       [id, estudianteId, archivo_nombre, archivo_path]
     );
     res.status(201).json({ message: 'Tarea entregada correctamente' });

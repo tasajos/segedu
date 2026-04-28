@@ -14,7 +14,7 @@ import {
 import {
   listarTareasDocente, crearTarea, eliminarTarea,
   listarEntregasDocente, calificarEntrega,
-  verArchivoTareaDocente, extractSlidesDocente, verEntregaDocente
+  verArchivoTareaDocente, extractSlidesDocente, verEntregaDocente, descargarEntregaDocente
 } from '../controllers/tareaController.js';
 import { crearPresentacion, eliminarPresentacion } from '../controllers/presentacionesController.js';
 
@@ -55,6 +55,7 @@ router.put('/entregas/:id/calificar', calificarEntrega);
 router.get('/tareas/:id/ver', verArchivoTareaDocente);
 router.get('/tareas/:id/slides', extractSlidesDocente);
 router.get('/entregas/:id/ver', verEntregaDocente);
+router.get('/entregas/:id/descargar', descargarEntregaDocente);
 
 // Presentaciones
 router.post('/presentaciones', uploadTarea.single('archivo'), crearPresentacion);

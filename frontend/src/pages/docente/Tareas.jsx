@@ -4,7 +4,7 @@ import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 import mammoth from 'mammoth';
 
-const TIPO_CHIP = { pdf: 'chip-crimson', pptx: 'chip-gold' };
+const TIPO_CHIP = { pdf: 'chip-crimson', pptx: 'chip-gold', word: 'chip-ink' };
 
 const formatFecha = (val) => {
   if (!val) return '—';
@@ -16,11 +16,12 @@ const formatFecha = (val) => {
 function VisorArchivo({ tareaId, tipoArchivo, apiBase }) {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [slides, setSlides] = useState(null);
+  const [wordHtml, setWordHtml] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setPdfUrl(null); setSlides(null); setLoading(true); setError('');
+    setPdfUrl(null); setSlides(null); setWordHtml(null); setLoading(true); setError('');
     if (tipoArchivo === 'pdf') {
       api.get(`${apiBase}/tareas/${tareaId}/ver`, { responseType: 'blob' })
         .then(r => setPdfUrl(URL.createObjectURL(r.data)))
@@ -30,6 +31,12 @@ function VisorArchivo({ tareaId, tipoArchivo, apiBase }) {
       api.get(`${apiBase}/tareas/${tareaId}/slides`)
         .then(r => setSlides(r.data.slides))
         .catch(() => setError('No se pudieron extraer las diapositivas.'))
+        .finally(() => setLoading(false));
+    } else if (tipoArchivo === 'word') {
+      api.get(`${apiBase}/tareas/${tareaId}/ver`, { responseType: 'arraybuffer' })
+        .then(r => mammoth.convertToHtml({ arrayBuffer: r.data }))
+        .then(result => setWordHtml(result.value))
+        .catch(() => setError('No se pudo cargar el documento Word.'))
         .finally(() => setLoading(false));
     } else {
       setLoading(false); setError('Tipo de archivo no soportado.');
@@ -43,6 +50,16 @@ function VisorArchivo({ tareaId, tipoArchivo, apiBase }) {
     </div>
   );
   if (error) return <div style={{ padding: '2rem', color: 'var(--crimson)' }}>{error}</div>;
+
+  if (tipoArchivo === 'word' && wordHtml) {
+    return (
+      <div
+        dangerouslySetInnerHTML={{ __html: wordHtml }}
+        onContextMenu={e => e.preventDefault()}
+        style={{ maxHeight: '72vh', overflowY: 'auto', padding: '1.5rem 2rem', background: '#fff', borderRadius: '4px', lineHeight: 1.8, color: '#111' }}
+      />
+    );
+  }
 
   if (tipoArchivo === 'pdf' && pdfUrl) {
     return (
@@ -242,6 +259,7 @@ export default function DocenteTareas() {
           const pct = t.total_inscritos > 0
             ? Math.round((t.total_entregas / t.total_inscritos) * 100)
             : 0;
+          const hayNuevas = t.total_nuevas > 0;
 
           return (
             <div key={t.id} className="card" style={{
@@ -327,9 +345,20 @@ export default function DocenteTareas() {
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => abrirEntregas(t)}
-                  style={{ whiteSpace: 'nowrap' }}
+                  style={{ whiteSpace: 'nowrap', position: 'relative' }}
                 >
                   Entregas ({t.total_entregas})
+                  {hayNuevas && (
+                    <span style={{
+                      position: 'absolute', top: '-7px', right: '-7px',
+                      background: 'var(--crimson)', color: '#fff',
+                      borderRadius: '999px', fontSize: '.62rem', fontWeight: 700,
+                      minWidth: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 4px', lineHeight: 1
+                    }}>
+                      {t.total_nuevas}
+                    </span>
+                  )}
                 </button>
                 {t.archivo_path && (
                   <button
@@ -427,7 +456,7 @@ export default function DocenteTareas() {
                   </span>
                   <input
                     type="file"
-                    accept=".pdf,.pptx"
+                    accept=".pdf,.pptx,.doc,.docx"
                     style={{ display: 'none' }}
                     onChange={e => setArchivo(e.target.files[0] || null)}
                   />
@@ -437,7 +466,7 @@ export default function DocenteTareas() {
                 </span>
               </div>
               <div style={{ fontSize: '.72rem', color: 'var(--ink-light)', marginTop: '.4rem', fontFamily: 'var(--mono)' }}>
-                Solo PDF y PPTX · Los estudiantes podrán verlo pero no descargarlo
+                PDF, PPTX o Word (DOC/DOCX) · Los estudiantes podrán verlo pero no descargarlo
               </div>
             </div>
           </div>
@@ -497,10 +526,24 @@ export default function DocenteTareas() {
                     <span className="chip chip-gold">Sin calificar</span>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: '.5rem' }}>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setModalVerEntrega(e.id)}>
-                    Ver doc.
-                  </button>
+                <div style={{ display: 'flex', gap: '.5rem', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: '.5rem' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setModalVerEntrega(e.id)}>
+                      Ver
+                    </button>
+                    <button className="btn btn-secondary btn-sm"
+                      onClick={async () => {
+                        const r = await api.get(`/docente/entregas/${e.id}/descargar`, { responseType: 'blob' });
+                        const url = URL.createObjectURL(r.data);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = e.archivo_nombre || 'entrega.docx';
+                        a.click(); URL.revokeObjectURL(url);
+                      }}
+                      title="Descargar documento Word"
+                    >
+                      ↓ Descargar
+                    </button>
+                  </div>
                   <button className="btn btn-primary btn-sm"
                     onClick={() => { setModalCalificar(e); setCalForm({ calificacion: e.calificacion || '', comentario_calificacion: e.comentario_calificacion || '' }); }}>
                     {e.calificacion !== null ? 'Editar nota' : 'Calificar'}
