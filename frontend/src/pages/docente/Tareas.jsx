@@ -54,9 +54,10 @@ function VisorArchivo({ tareaId, tipoArchivo, apiBase }) {
   if (tipoArchivo === 'word' && wordHtml) {
     return (
       <div
+        className="word-preview"
         dangerouslySetInnerHTML={{ __html: wordHtml }}
         onContextMenu={e => e.preventDefault()}
-        style={{ maxHeight: '72vh', overflowY: 'auto', padding: '1.5rem 2rem', background: '#fff', borderRadius: '4px', lineHeight: 1.8, color: '#111' }}
+        style={{ maxHeight: '72vh', overflowY: 'auto', padding: '1.5rem 2rem', background: '#fff', borderRadius: '4px' }}
       />
     );
   }

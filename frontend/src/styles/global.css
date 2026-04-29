@@ -406,3 +406,33 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .loading-dots span:nth-child(2) { animation-delay:.2s; }
 .loading-dots span:nth-child(3) { animation-delay:.4s; }
+
+/* ===================== WORD PREVIEW ===================== */
+/* Contenedor para documentos Word convertidos con mammoth.js  */
+/* El reset global borra márgenes/padding, aquí los restauramos */
+.word-preview {
+  font-family: 'Calibri', 'Georgia', 'Times New Roman', serif;
+  font-size: 12pt;
+  line-height: 1.8;
+  color: #111;
+}
+.word-preview p                   { margin-bottom: 0.75em; }
+.word-preview h1                  { font-size: 2em;   font-weight: 700; margin: 0.75em 0 0.4em;  letter-spacing: normal; color: #111; }
+.word-preview h2                  { font-size: 1.5em; font-weight: 700; margin: 0.75em 0 0.35em; letter-spacing: normal; color: #111; }
+.word-preview h3                  { font-size: 1.2em; font-weight: 600; margin: 0.6em  0 0.3em;  letter-spacing: normal; color: #111; }
+.word-preview h4                  { font-size: 1.05em;font-weight: 600; margin: 0.5em  0 0.25em; color: #111; }
+.word-preview h5,.word-preview h6 { font-size: 1em;   font-weight: 600; margin: 0.4em  0 0.2em;  color: #111; }
+.word-preview ul,.word-preview ol { margin: 0.4em 0 0.75em 1.75em; padding-left: 0; }
+.word-preview ul                  { list-style: disc; }
+.word-preview ol                  { list-style: decimal; }
+.word-preview li                  { margin-bottom: 0.25em; }
+.word-preview strong,.word-preview b { font-weight: 700; }
+.word-preview em,.word-preview i     { font-style: italic; }
+.word-preview u                      { text-decoration: underline; }
+.word-preview table  { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.95em; }
+.word-preview th,
+.word-preview td     { border: 1px solid #bbb; padding: 0.45em 0.7em; text-align: left; vertical-align: top; }
+.word-preview th     { background: #f0f0f0; font-weight: 700; }
+.word-preview a      { color: #1d4ed8; text-decoration: underline; }
+.word-preview img    { max-width: 100%; height: auto; display: block; margin: 0.5em 0; }
+.word-preview blockquote { border-left: 3px solid #ccc; margin: 0.75em 0; padding: 0.25em 1em; color: #555; font-style: italic; }
