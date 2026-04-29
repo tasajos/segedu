@@ -249,3 +249,86 @@ export const miExpediente = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ============ RANKING DE GRUPO ============
+export const rankingGrupo = async (req, res) => {
+  try {
+    const estudianteId = req.user.estudiante_id;
+
+    const [[est]] = await pool.query(
+      'SELECT carrera_id FROM estudiantes WHERE id = ?',
+      [estudianteId]
+    );
+    if (!est) return res.json({ podio: [], clasificados: [], miGrupo: null, mejorGrupo: null });
+
+    const { carrera_id } = est;
+
+    // Grupo del estudiante desde la primera materia con notas registradas
+    const [[grupoRow]] = await pool.query(
+      `SELECT m.grupo
+       FROM grade_report_details grd
+       JOIN grade_reports gr ON grd.acta_id = gr.id
+       JOIN materias m ON gr.materia_id = m.id
+       WHERE grd.estudiante_id = ? AND grd.nota_final IS NOT NULL
+       LIMIT 1`,
+      [estudianteId]
+    );
+
+    if (!grupoRow) return res.json({ podio: [], clasificados: [], miGrupo: null, mejorGrupo: null });
+
+    const { grupo } = grupoRow;
+
+    // Top 5 del grupo del estudiante
+    const [ranking] = await pool.query(
+      `SELECT ranked.*
+       FROM (
+         SELECT
+           e.id AS estudiante_id, e.codigo_estudiante, e.semestre,
+           u.nombre, u.apellido, m.grupo,
+           ROUND(AVG(grd.nota_final), 2) AS promedio_general,
+           COUNT(DISTINCT gr.materia_id) AS materias_evaluadas,
+           COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) AS aprobadas_parcial,
+           ROW_NUMBER() OVER (
+             ORDER BY AVG(grd.nota_final) DESC,
+                      COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) DESC,
+                      u.apellido, u.nombre
+           ) AS posicion
+         FROM grade_report_details grd
+         JOIN grade_reports gr ON grd.acta_id = gr.id
+         JOIN materias m ON gr.materia_id = m.id
+         JOIN estudiantes e ON grd.estudiante_id = e.id
+         JOIN usuarios u ON e.usuario_id = u.id
+         WHERE e.carrera_id = ? AND m.grupo = ? AND grd.nota_final IS NOT NULL
+         GROUP BY e.id, e.codigo_estudiante, e.semestre, u.nombre, u.apellido, m.grupo
+       ) ranked
+       WHERE ranked.posicion <= 5
+       ORDER BY ranked.posicion`,
+      [carrera_id, grupo]
+    );
+
+    // Mejor grupo (promedio) de toda la carrera — para el fondo
+    const [[mejorGrupo]] = await pool.query(
+      `SELECT m.grupo, ROUND(AVG(grd.nota_final), 2) AS promedio_grupo
+       FROM grade_report_details grd
+       JOIN grade_reports gr ON grd.acta_id = gr.id
+       JOIN materias m ON gr.materia_id = m.id
+       JOIN estudiantes e ON grd.estudiante_id = e.id
+       WHERE e.carrera_id = ? AND grd.nota_final IS NOT NULL
+       GROUP BY m.grupo
+       ORDER BY promedio_grupo DESC
+       LIMIT 1`,
+      [carrera_id]
+    );
+
+    const enrich = (row) => ({ ...row, es_yo: row.estudiante_id === estudianteId });
+
+    res.json({
+      podio:        ranking.slice(0, 3).map(enrich),
+      clasificados: ranking.slice(3).map(enrich),
+      miGrupo:      grupo,
+      mejorGrupo:   mejorGrupo || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

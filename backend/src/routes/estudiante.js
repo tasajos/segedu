@@ -7,7 +7,8 @@ import {
   listarMateriasEstudiante, listarAsistenciasEstudiante,
   resumenAsistencias,
   miExpediente,
-  solicitarPermiso, listarMisPermisos
+  solicitarPermiso, listarMisPermisos,
+  rankingGrupo
 } from '../controllers/estudianteController.js';
 import {
   listarTareasEstudiante, verArchivoTareaEstudiante, extractSlidesEstudiante,
@@ -24,6 +25,8 @@ router.delete('/cursos/:id', eliminarCurso);
 
 router.put('/info-personal', actualizarInfoPersonal);
 router.put('/cambiar-contrasena', cambiarContrasena);
+
+router.get('/ranking-grupo', rankingGrupo);
 
 router.get('/materias', listarMateriasEstudiante);
 router.get('/asistencias/resumen', resumenAsistencias);
