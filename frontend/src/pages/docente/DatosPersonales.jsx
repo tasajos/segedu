@@ -3,7 +3,7 @@ import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 
-export default function EstudianteInfoPersonal() {
+export default function DocenteDatosPersonales() {
   const { user } = useAuth();
   const [form, setForm] = useState({ nombre: '', apellido: '', ci: '', telefono: '' });
   const [passwordForm, setPasswordForm] = useState({ actual: '', nueva: '', confirmar: '' });
@@ -23,53 +23,49 @@ export default function EstudianteInfoPersonal() {
     e.preventDefault();
     setLoading(true); setMsg('');
     try {
-      await api.put('/estudiante/info-personal', form);
-      setMsg('✓ Información actualizada correctamente');
-      setTimeout(() => setMsg(''), 3000);
-    } catch { setMsg('Error al guardar'); }
-    finally { setLoading(false); }
+      await api.put('/docente/info-personal', form);
+      setMsg('OK Información actualizada correctamente');
+      setTimeout(() => setMsg(''), 3500);
+    } catch (err) {
+      setMsg(err.response?.data?.error || 'Error al guardar');
+    } finally { setLoading(false); }
   };
 
   const cambiarContrasena = async (e) => {
     e.preventDefault();
-    setPasswordLoading(true);
-    setPasswordMsg('');
+    setPasswordLoading(true); setPasswordMsg('');
     try {
-      await api.put('/estudiante/cambiar-contraseña', passwordForm);
+      await api.put('/docente/cambiar-contrasena', passwordForm);
       setPasswordForm({ actual: '', nueva: '', confirmar: '' });
-      setPasswordMsg('OK Contrasena actualizada correctamente');
-      setTimeout(() => setPasswordMsg(''), 3000);
+      setPasswordMsg('OK Contraseña actualizada correctamente');
+      setTimeout(() => setPasswordMsg(''), 3500);
     } catch (err) {
       setPasswordMsg(err.response?.data?.error || 'Error al cambiar la contraseña');
-    } finally {
-      setPasswordLoading(false);
-    }
+    } finally { setPasswordLoading(false); }
   };
 
   return (
     <>
       <PageHeader
-        num="03"
-        eyebrow="Ficha del estudiante"
+        num="10"
+        eyebrow="Ficha del docente"
         title={<>Datos <span className="display-italic">personales</span></>}
-        lead="Mantenga esta información actualizada para garantizar correcta comunicación institucional."
+        lead="Mantenga su información actualizada. Puede cambiar su contraseña en cualquier momento desde esta sección."
       />
 
       <div className="grid-2">
-        {/* Tarjeta de ficha */}
+        {/* Tarjeta ficha */}
         <div className="ficha-card">
           <div className="ficha-head">
             <div>
-              <div className="eyebrow">Ficha № {user.codigo_estudiante || '—'}</div>
+              <div className="eyebrow">Docente</div>
               <h2 style={{ marginTop: '.5rem', fontSize: '1.75rem' }}>{form.nombre} {form.apellido}</h2>
             </div>
             <div className="ficha-avatar">{form.nombre?.[0]}{form.apellido?.[0]}</div>
           </div>
 
           <div className="ficha-body">
-            <FichaRow label="Carrera" value={user.carrera || '—'} />
-            <FichaRow label="Semestre actual" value={user.semestre || '—'} />
-            <FichaRow label="Correo institucional" value={user.email} />
+            <FichaRow label="Correo institucional" value={user?.email || '—'} />
             <FichaRow label="Carnet de identidad" value={form.ci || 'sin registrar'} />
             <FichaRow label="Teléfono" value={form.telefono || 'sin registrar'} />
           </div>
@@ -82,93 +78,67 @@ export default function EstudianteInfoPersonal() {
           </div>
         </div>
 
-        {/* Formulario */}
+        {/* Formularios */}
         <div className="card">
+          {/* Editar información */}
           <h3 style={{ marginBottom: '1.5rem' }}>Editar información</h3>
           <form onSubmit={guardar}>
             <div className="grid-2" style={{ gap: '1rem' }}>
               <div className="form-field">
                 <label>Nombre</label>
-                <input value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} required/>
+                <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} required />
               </div>
               <div className="form-field">
                 <label>Apellido</label>
-                <input value={form.apellido} onChange={e => setForm({...form, apellido: e.target.value})} required/>
+                <input value={form.apellido} onChange={e => setForm({ ...form, apellido: e.target.value })} required />
               </div>
             </div>
             <div className="form-field">
               <label>Carnet de identidad (CI)</label>
-              <input value={form.ci} onChange={e => setForm({...form, ci: e.target.value})} placeholder="1234567"/>
+              <input value={form.ci} onChange={e => setForm({ ...form, ci: e.target.value })} placeholder="1234567" />
             </div>
             <div className="form-field">
               <label>Teléfono</label>
-              <input value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})} placeholder="7xxxxxxx"/>
+              <input value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} placeholder="7xxxxxxx" />
             </div>
 
-            {msg && (
-              <div style={{
-                padding: '.75rem 1rem', marginBottom: '1rem', borderRadius: '2px',
-                background: msg.startsWith('✓') ? 'rgba(58,90,63,0.08)' : 'rgba(139,42,42,0.08)',
-                borderLeft: `3px solid ${msg.startsWith('✓') ? 'var(--forest)' : 'var(--crimson)'}`,
-                fontSize: '.85rem', color: msg.startsWith('✓') ? 'var(--forest)' : 'var(--crimson)'
-              }}>{msg}</div>
-            )}
+            {msg && <Alerta msg={msg} />}
 
             <button className="btn btn-primary" disabled={loading}>
               {loading ? 'Guardando…' : 'Guardar cambios'}
             </button>
           </form>
 
-          <div className="rule-thin" style={{ margin: '1.5rem 0' }} />
+          <div className="rule-thin" style={{ margin: '1.75rem 0' }} />
 
+          {/* Cambiar contraseña */}
           <h3 style={{ marginBottom: '1.5rem' }}>Cambiar contraseña</h3>
           <form onSubmit={cambiarContrasena}>
             <div className="form-field">
-              <label>Contrasena actual</label>
-              <input
-                type="password"
-                value={passwordForm.actual}
+              <label>Contraseña actual</label>
+              <input type="password" value={passwordForm.actual}
                 onChange={e => setPasswordForm({ ...passwordForm, actual: e.target.value })}
-                autoComplete="current-password"
-                required
-              />
+                autoComplete="current-password" required />
             </div>
             <div className="grid-2" style={{ gap: '1rem' }}>
               <div className="form-field">
                 <label>Nueva contraseña</label>
-                <input
-                  type="password"
-                  value={passwordForm.nueva}
+                <input type="password" value={passwordForm.nueva}
                   onChange={e => setPasswordForm({ ...passwordForm, nueva: e.target.value })}
-                  autoComplete="new-password"
-                  minLength={6}
-                  required
-                />
+                  autoComplete="new-password" minLength={6} required />
               </div>
               <div className="form-field">
                 <label>Confirmar contraseña</label>
-                <input
-                  type="password"
-                  value={passwordForm.confirmar}
+                <input type="password" value={passwordForm.confirmar}
                   onChange={e => setPasswordForm({ ...passwordForm, confirmar: e.target.value })}
-                  autoComplete="new-password"
-                  minLength={6}
-                  required
-                />
+                  autoComplete="new-password" minLength={6} required />
               </div>
             </div>
 
-            {passwordMsg && (
-              <div style={{
-                padding: '.75rem 1rem', marginBottom: '1rem', borderRadius: '2px',
-                background: passwordMsg.startsWith('OK') ? 'rgba(58,90,63,0.08)' : 'rgba(139,42,42,0.08)',
-                borderLeft: `3px solid ${passwordMsg.startsWith('OK') ? 'var(--forest)' : 'var(--crimson)'}`,
-                fontSize: '.85rem', color: passwordMsg.startsWith('OK') ? 'var(--forest)' : 'var(--crimson)'
-              }}>{passwordMsg.replace(/^OK\s*/, '')}</div>
-            )}
+            {passwordMsg && <Alerta msg={passwordMsg} />}
 
             <button className="btn btn-secondary" disabled={passwordLoading}>
-              {passwordLoading ? 'Actualizando...' : 'Actualizar contraseña'}
+              {passwordLoading ? 'Actualizando…' : 'Actualizar contraseña'}
             </button>
           </form>
         </div>
@@ -240,8 +210,22 @@ export default function EstudianteInfoPersonal() {
 }
 
 const FichaRow = ({ label, value }) => (
-  <div className="ficha-row" style={{ display: 'flex', padding: '.75rem 0', borderBottom: '1px dashed var(--line)' }}>
+  <div style={{ display: 'flex', padding: '.75rem 0', borderBottom: '1px dashed var(--line)' }}>
     <div style={{ flex: '0 0 40%', fontFamily: 'var(--mono)', fontSize: '.72rem', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-light)' }}>{label}</div>
     <div style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{value}</div>
   </div>
 );
+
+const Alerta = ({ msg }) => {
+  const ok = msg.startsWith('OK');
+  return (
+    <div style={{
+      padding: '.75rem 1rem', marginBottom: '1rem', borderRadius: '2px',
+      background: ok ? 'rgba(58,90,63,0.08)' : 'rgba(139,42,42,0.08)',
+      borderLeft: `3px solid ${ok ? 'var(--forest)' : 'var(--crimson)'}`,
+      fontSize: '.85rem', color: ok ? 'var(--forest)' : 'var(--crimson)'
+    }}>
+      {ok ? `✓ ${msg.replace(/^OK\s*/, '')}` : msg}
+    </div>
+  );
+};

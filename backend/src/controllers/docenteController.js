@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import bcrypt from 'bcryptjs';
 import { ensureNotificationSchema } from '../utils/notifications.js';
 import { ensurePgoTaskSchema } from '../utils/pgoTasks.js';
 import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
@@ -608,6 +609,51 @@ export const crearComentario = async (req, res) => {
       [estudiante_id, docenteId, materia_id, tipo, comentario]
     );
     res.status(201).json({ id: result.insertId, message: 'Comentario registrado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ============ PERFIL PERSONAL ============
+export const actualizarInfoPersonalDocente = async (req, res) => {
+  try {
+    const { ci, telefono, nombre, apellido } = req.body;
+    await pool.query(
+      'UPDATE usuarios SET ci = ?, telefono = ?, nombre = ?, apellido = ? WHERE id = ?',
+      [ci, telefono, nombre, apellido, req.user.id]
+    );
+    res.json({ message: 'Información actualizada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const cambiarContrasenaDocente = async (req, res) => {
+  try {
+    const { actual, nueva, confirmar } = req.body;
+
+    if (!actual || !nueva || !confirmar) {
+      return res.status(400).json({ error: 'Complete todos los campos de contraseña' });
+    }
+    if (nueva.length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+    if (nueva !== confirmar) {
+      return res.status(400).json({ error: 'La confirmación no coincide con la nueva contraseña' });
+    }
+
+    const [[user]] = await pool.query('SELECT password FROM usuarios WHERE id = ?', [req.user.id]);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const valid = await bcrypt.compare(actual, user.password);
+    if (!valid) {
+      return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
+    }
+
+    const hash = await bcrypt.hash(nueva, 10);
+    await pool.query('UPDATE usuarios SET password = ? WHERE id = ?', [hash, req.user.id]);
+
+    res.json({ message: 'Contraseña actualizada correctamente' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

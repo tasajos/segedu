@@ -63,7 +63,7 @@ export default function EstudianteInicio() {
                     </div>
                     <h3 style={{ marginTop: '.25rem' }}>{m.nombre}</h3>
                     <div className="text-muted" style={{ fontSize: '.85rem', marginTop: '.25rem' }}>
-                      {m.docente_nombre ? `Prof. ${m.docente_nombre} ${m.docente_apellido}` : 'Sin docente asignado'}
+                      {m.docente_nombre ? `Sr. Docente ${[m.docente_nombre, m.docente_apellido].filter(Boolean).join(' ')}` : 'Sin docente asignado'}
                     </div>
                   </div>
                   <span className="chip chip-ink">Sem. {m.semestre}</span>

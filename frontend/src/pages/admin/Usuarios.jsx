@@ -522,12 +522,12 @@ export default function AdminUsuarios() {
         </div>
       </Modal>
 
-      <Modal open={!!modalReset} onClose={() => setModalReset(null)} title="Restablecer contrasena">
+      <Modal open={!!modalReset} onClose={() => setModalReset(null)} title="Restablecer contraseña">
         <p style={{ marginBottom: '1rem', fontSize: '.9rem' }}>
-          Restableciendo contrasena de <strong>{modalReset?.nombre} {modalReset?.apellido}</strong>
+          Restableciendo contraseña de <strong>{modalReset?.nombre} {modalReset?.apellido}</strong>
         </p>
         <div style={{ marginBottom: '1.5rem' }}>
-          <label className="form-label">Nueva contrasena</label>
+          <label className="form-label">Nueva contraseña</label>
           <input className="form-input" value={newPass} onChange={(e) => setNewPass(e.target.value)} />
         </div>
         <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>

@@ -16,14 +16,15 @@ const menuByRole = {
   ],
   docente: [
     { to: '/docente', label: 'Inicio', num: '01' },
-    { to: '/docente/pgo', label: 'PGO', num: '02' },
-    { to: '/docente/avance', label: 'Avance de materia', num: '03' },
-    { to: '/docente/comentarios', label: 'Comentarios', num: '04' },
-    { to: '/docente/asistencia', label: 'Lista asistencia', num: '05' },
-    { to: '/docente/disciplina', label: 'Mi disciplina', num: '06' },
-    { to: '/docente/tareas', label: 'Tareas del curso', num: '07' },
-    { to: '/docente/unidades', label: 'Unidades instrucción', num: '08' },
-    { to: '/docente/presentaciones', label: 'Presentaciones', num: '09' }
+    { to: '/docente/datos-personales', label: 'Datos personales', num: '02' },
+    { to: '/docente/pgo', label: 'PGO', num: '03' },
+    { to: '/docente/avance', label: 'Avance de materia', num: '04' },
+    { to: '/docente/comentarios', label: 'Comentarios', num: '05' },
+    { to: '/docente/asistencia', label: 'Lista asistencia', num: '06' },
+    { to: '/docente/disciplina', label: 'Mi disciplina', num: '07' },
+    { to: '/docente/tareas', label: 'Tareas del curso', num: '08' },
+    { to: '/docente/unidades', label: 'Unidades instrucción', num: '09' },
+    { to: '/docente/presentaciones', label: 'Presentaciones', num: '10' }
   ],
   jefe: [
     { to: '/jefe', label: 'Dashboard', num: '01' },

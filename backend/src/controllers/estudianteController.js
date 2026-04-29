@@ -61,15 +61,15 @@ export const cambiarContrasena = async (req, res) => {
     const { actual, nueva, confirmar } = req.body;
 
     if (!actual || !nueva || !confirmar) {
-      return res.status(400).json({ error: 'Complete todos los campos de contrasena' });
+      return res.status(400).json({ error: 'Complete todos los campos de contraseña' });
     }
 
     if (nueva.length < 6) {
-      return res.status(400).json({ error: 'La nueva contrasena debe tener al menos 6 caracteres' });
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
     }
 
     if (nueva !== confirmar) {
-      return res.status(400).json({ error: 'La confirmacion no coincide con la nueva contrasena' });
+      return res.status(400).json({ error: 'La confirmación no coincide con la nueva contraseña' });
     }
 
     const [[user]] = await pool.query('SELECT password FROM usuarios WHERE id = ?', [req.user.id]);
@@ -77,13 +77,13 @@ export const cambiarContrasena = async (req, res) => {
 
     const valid = await bcrypt.compare(actual, user.password);
     if (!valid) {
-      return res.status(400).json({ error: 'La contrasena actual es incorrecta' });
+      return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
     }
 
     const hash = await bcrypt.hash(nueva, 10);
     await pool.query('UPDATE usuarios SET password = ? WHERE id = ?', [hash, req.user.id]);
 
-    res.json({ message: 'Contrasena actualizada correctamente' });
+    res.json({ message: 'Contraseña actualizada correctamente' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

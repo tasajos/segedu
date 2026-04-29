@@ -27,13 +27,14 @@ export default function DocenteInicio() {
   const totalEstudiantes = materias.reduce((s, m) => s + (+m.total_estudiantes || 0), 0);
   const avanceProm = avance.length ? Math.round(avance.reduce((s, a) => s + (+a.porcentaje_avance), 0) / avance.length) : 0;
   const pgoPendientes = pgo.filter(p => p.estado === 'enviado' || p.estado === 'revision').length;
+  const docenteNombreCompleto = [user.nombre, user.apellido].filter(Boolean).join(' ');
 
   return (
     <>
       <PageHeader
         num="01"
         eyebrow="Panel docente"
-        title={<>Buen día, <span className="display-italic">Prof. {user.nombre}</span>.</>}
+        title={<>Buen día, <span className="display-italic">Sr. Docente {docenteNombreCompleto}</span>.</>}
         lead={user.especialidad || 'Panel de seguimiento académico para docentes'}
       />
 

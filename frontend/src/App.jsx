@@ -46,6 +46,7 @@ import JefeUnidades from './pages/jefe/UnidadesInstruccion';
 
 // Docente — presentaciones
 import DocentePresentaciones from './pages/docente/Presentaciones';
+import DocenteDatosPersonales from './pages/docente/DatosPersonales';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
@@ -95,6 +96,7 @@ export default function App() {
       {/* Docente */}
       <Route path="/docente" element={<Protected roles={['docente']}><Layout /></Protected>}>
         <Route index element={<DocenteInicio />} />
+        <Route path="datos-personales" element={<DocenteDatosPersonales />} />
         <Route path="pgo" element={<DocentePGO />} />
         <Route path="avance" element={<DocenteAvance />} />
         <Route path="comentarios" element={<DocenteComentarios />} />

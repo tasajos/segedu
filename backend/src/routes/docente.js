@@ -9,7 +9,8 @@ import {
   registrarListaAsistencia, listarSesionesAsistencia, listarAsistenciaSesion, listarReporteAsistencia,
   listarSolicitudesPermisoDocente,
   listarNotificacionesPendientesDocente, revisarNotificacionesDocente,
-  misDisciplina
+  misDisciplina,
+  actualizarInfoPersonalDocente, cambiarContrasenaDocente
 } from '../controllers/docenteController.js';
 import {
   listarTareasDocente, crearTarea, eliminarTarea,
@@ -45,6 +46,9 @@ router.get('/notificaciones/pendientes', listarNotificacionesPendientesDocente);
 router.post('/notificaciones/revisar', revisarNotificacionesDocente);
 
 router.get('/mi-disciplina', misDisciplina);
+
+router.put('/info-personal', actualizarInfoPersonalDocente);
+router.put('/cambiar-contrasena', cambiarContrasenaDocente);
 
 // Tareas
 router.get('/tareas', listarTareasDocente);
