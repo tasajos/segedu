@@ -43,39 +43,17 @@ const downloadBlob = (blob, fileName) => {
   saveAs(blob, fileName);
 };
 
-const buildLogoDataUrl = () => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1200;
-  canvas.height = 300;
-  const ctx = canvas.getContext('2d');
+const loadUnicenLogoDataUrl = async () => {
+  const response = await fetch('/unicen.png');
+  if (!response.ok) throw new Error('No se pudo cargar el logo de UNICEN');
+  const blob = await response.blob();
 
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = '#0C2F5C';
-  ctx.font = 'bold 170px Arial';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('UNI', 40, 120);
-
-  ctx.beginPath();
-  ctx.arc(680, 120, 92, 0.2 * Math.PI, 1.8 * Math.PI, true);
-  ctx.lineWidth = 38;
-  ctx.strokeStyle = '#0C2F5C';
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(680, 120, 32, 0, 2 * Math.PI);
-  ctx.fillStyle = '#FF6200';
-  ctx.fill();
-
-  ctx.fillStyle = '#0C2F5C';
-  ctx.font = 'bold 170px Arial';
-  ctx.fillText('EN', 765, 120);
-
-  ctx.font = '58px Arial';
-  ctx.fillText('Comprometida con tu Futuro Laboral', 60, 245);
-
-  return canvas.toDataURL('image/png');
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 };
 
 const buildRows = (records) => records.map((row, index) => ([
@@ -97,40 +75,40 @@ const buildRangeLabel = ({ periodoLabel, desde, hasta, fechaBase }) => {
 
 export const exportAttendancePdf = async ({ fileName, records, metadata }) => {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const logoDataUrl = buildLogoDataUrl();
+  const logoDataUrl = await loadUnicenLogoDataUrl();
 
-  doc.addImage(logoDataUrl, 'PNG', 14, 8, 52, 13);
+  doc.addImage(logoDataUrl, 'PNG', 14, 8, 26, 26);
   doc.setFillColor(...COLORS.navy);
-  doc.roundedRect(14, 24, 269, 20, 2, 2, 'F');
+  doc.roundedRect(46, 11, 237, 20, 2, 2, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('Reporte Oficial de Asistencia', 20, 37);
+  doc.text('Reporte Oficial de Asistencia', 52, 24);
 
   doc.setTextColor(...COLORS.navy);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Materia: ${metadata.materia}`, 14, 54);
-  doc.text(`Docente: ${metadata.docente}`, 14, 61);
-  doc.text(`Periodo consultado: ${metadata.rango}`, 14, 68);
-  doc.text(`Emitido: ${metadata.emitido}`, 14, 75);
+  doc.text(`Materia: ${metadata.materia}`, 14, 47);
+  doc.text(`Docente: ${metadata.docente}`, 14, 54);
+  doc.text(`Periodo consultado: ${metadata.rango}`, 14, 61);
+  doc.text(`Emitido: ${metadata.emitido}`, 14, 68);
 
   doc.setFillColor(...COLORS.lightBlue);
-  doc.roundedRect(185, 50, 98, 28, 2, 2, 'F');
+  doc.roundedRect(185, 43, 98, 28, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.text(`Total: ${metadata.resumen.total}`, 191, 58);
+  doc.text(`Total: ${metadata.resumen.total}`, 191, 51);
   doc.setTextColor(...COLORS.green);
-  doc.text(`Presentes: ${metadata.resumen.presente}`, 191, 65);
+  doc.text(`Presentes: ${metadata.resumen.presente}`, 191, 58);
   doc.setTextColor(...COLORS.red);
-  doc.text(`Faltas: ${metadata.resumen.falta}`, 225, 65);
+  doc.text(`Faltas: ${metadata.resumen.falta}`, 225, 58);
   doc.setTextColor(...COLORS.gold);
-  doc.text(`Permisos: ${metadata.resumen.permiso}`, 191, 72);
+  doc.text(`Permisos: ${metadata.resumen.permiso}`, 191, 65);
   doc.setTextColor(...COLORS.blue);
-  doc.text(`Tardes: ${metadata.resumen.tarde}`, 225, 72);
+  doc.text(`Tardes: ${metadata.resumen.tarde}`, 225, 65);
   doc.setTextColor(...COLORS.navy);
 
   autoTable(doc, {
-    startY: 84,
+    startY: 77,
     head: [['N°', 'Fecha', 'Estudiante', 'Código', 'Materia', 'Estado', 'Justificación']],
     body: buildRows(records),
     theme: 'grid',
@@ -182,19 +160,19 @@ export const exportAttendanceExcel = async ({ fileName, records, metadata }) => 
     pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 }
   });
 
-  const logoDataUrl = buildLogoDataUrl();
+  const logoDataUrl = await loadUnicenLogoDataUrl();
   const imageId = workbook.addImage({
     base64: logoDataUrl,
     extension: 'png'
   });
 
   sheet.addImage(imageId, {
-    tl: { col: 0, row: 0 },
-    ext: { width: 360, height: 90 }
+    tl: { col: 0, row: 3 },
+    ext: { width: 92, height: 92 }
   });
 
-  sheet.mergeCells('A6:G6');
-  const titleCell = sheet.getCell('A6');
+  sheet.mergeCells('B2:G3');
+  const titleCell = sheet.getCell('B2');
   titleCell.value = 'Reporte Oficial de Asistencia';
   titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -212,14 +190,14 @@ export const exportAttendanceExcel = async ({ fileName, records, metadata }) => 
   ];
 
   infoRows.forEach((row, index) => {
-    const number = 8 + index;
+    const number = 10 + index;
     sheet.getCell(`A${number}`).value = row[0];
     sheet.getCell(`A${number}`).font = { bold: true, color: { argb: 'FF0C2F5C' } };
     sheet.getCell(`B${number}`).value = row[1];
     sheet.mergeCells(`B${number}:G${number}`);
   });
 
-  const summaryStart = 8;
+  const summaryStart = 10;
   const summaryData = [
     ['Total', metadata.resumen.total, 'FF0C2F5C'],
     ['Presentes', metadata.resumen.presente, `FF${statusColorHex.presente}`],
@@ -236,7 +214,7 @@ export const exportAttendanceExcel = async ({ fileName, records, metadata }) => 
     sheet.getCell(`J${row}`).font = { bold: true, color: { argb: item[2] } };
   });
 
-  const tableStart = 14;
+  const tableStart = 16;
   const headerRow = sheet.getRow(tableStart);
   headerRow.values = ['N°', 'Fecha', 'Estudiante', 'Código', 'Materia', 'Estado', 'Justificación'];
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };

@@ -35,6 +35,24 @@ const ESTADO_LABEL = {
   permiso: 'Permiso',
   tarde: 'Tarde'
 };
+const EXCEL_BUTTON_STYLE = {
+  padding: '.72rem 1.15rem',
+  borderRadius: '8px',
+  border: '1px solid #86efac',
+  background: 'linear-gradient(180deg, #22c55e 0%, #15803d 100%)',
+  color: '#ffffff',
+  fontSize: '.82rem',
+  fontFamily: 'var(--mono)',
+  fontWeight: 800,
+  letterSpacing: '.04em',
+  boxShadow: '0 14px 30px -18px rgba(21, 128, 61, 0.9)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '.45rem',
+  minWidth: '158px',
+  minHeight: '42px'
+};
 
 const getTodayLocal = () => {
   const now = new Date();
@@ -330,6 +348,46 @@ export default function DocenteAsistencia() {
     }
   };
 
+  const handleExportLlamada = async () => {
+    if (!estudiantes.length || !materia) return;
+    setExporting('llamada');
+    try {
+      const records = estudiantes.map((est) => ({
+        fecha,
+        nombre: est.nombre,
+        apellido: est.apellido,
+        codigo_estudiante: est.codigo_estudiante,
+        materia_nombre: materia.nombre,
+        materia_grupo: materia.grupo,
+        estado: estados[est.id] || 'presente',
+        justificacion: justificaciones[est.id] || null
+      }));
+      const resumen = {
+        total: records.length,
+        presente: records.filter((r) => r.estado === 'presente').length,
+        falta:    records.filter((r) => r.estado === 'falta').length,
+        permiso:  records.filter((r) => r.estado === 'permiso').length,
+        tarde:    records.filter((r) => r.estado === 'tarde').length
+      };
+      const meta = buildAttendanceExportMetadata({
+        materia,
+        docente: user ? `${user.nombre} ${user.apellido}` : 'Docente responsable',
+        periodoLabel: 'Lista del día',
+        desde: fecha,
+        hasta: fecha,
+        fechaBase: fecha,
+        resumen
+      });
+      await exportAttendanceExcel({
+        fileName: `asistencia_${materia.codigo}_${fecha}.xlsx`,
+        records,
+        metadata: meta
+      });
+    } finally {
+      setExporting('');
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -589,6 +647,21 @@ export default function DocenteAsistencia() {
                     Lista guardada
                   </span>
                 )}
+                <button
+                  onClick={handleExportLlamada}
+                  disabled={!!exporting}
+                  style={{
+                    ...EXCEL_BUTTON_STYLE,
+                    cursor: exporting ? 'not-allowed' : 'pointer',
+                    opacity: exporting ? 0.68 : 1,
+                    transition: 'transform .15s, opacity .15s'
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M6.5 1v8M3 6l3.5 3.5L10 6M2 11h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {exporting === 'llamada' ? 'Generando…' : 'Exportar Excel'}
+                </button>
                 <button className="btn btn-primary" onClick={guardar} disabled={saving || listaBloqueada}>
                   {saving ? 'Guardando...' : listaBloqueada ? 'Lista cerrada' : 'Registrar lista'}
                 </button>
@@ -641,9 +714,13 @@ export default function DocenteAsistencia() {
 
             <div style={{ display: 'flex', gap: '.5rem' }}>
               <button
-                className="btn btn-secondary"
                 onClick={handleExportExcel}
                 disabled={!reporte.registros?.length || !!exporting}
+                style={{
+                  ...EXCEL_BUTTON_STYLE,
+                  cursor: !reporte.registros?.length || exporting ? 'not-allowed' : 'pointer',
+                  opacity: !reporte.registros?.length || exporting ? 0.6 : 1
+                }}
               >
                 {exporting === 'excel' ? 'Generando Excel...' : 'Exportar Excel'}
               </button>
