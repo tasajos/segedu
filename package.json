@@ -1,0 +1,16 @@
+{
+  "name": "segedu-deploy",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "deploy":          "node deploy.js",
+    "deploy:frontend": "node deploy.js --frontend",
+    "deploy:backend":  "node deploy.js --backend",
+    "deploy:24h":      "node deploy.js --horas 24",
+    "deploy:48h":      "node deploy.js --horas 48"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.17"
+  }
+}
