@@ -4,10 +4,10 @@ import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 
 const TIPOS = [
-  { val: 'felicitacion', label: 'Felicitación', color: 'forest' },
-  { val: 'positivo', label: 'Positivo', color: 'forest' },
-  { val: 'observacion', label: 'Observación', color: 'gold' },
-  { val: 'alerta', label: 'Alerta', color: 'crimson' }
+  { val: 'felicitacion', label: 'Felicitación', color: 'forest', accent: '#16a34a', bg: '#dcfce7', border: '#86efac', tag: 'OK' },
+  { val: 'positivo', label: 'Positivo', color: 'forest', accent: '#059669', bg: '#ccfbf1', border: '#5eead4', tag: '+' },
+  { val: 'observacion', label: 'Observación', color: 'gold', accent: '#d97706', bg: '#fef3c7', border: '#fbbf24', tag: '!' },
+  { val: 'alerta', label: 'Alerta', color: 'crimson', accent: '#dc2626', bg: '#fee2e2', border: '#fca5a5', tag: 'AL' }
 ];
 
 export default function DocenteComentarios() {
@@ -97,7 +97,7 @@ export default function DocenteComentarios() {
                   </div>
                   {c.materia_nombre && (
                     <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)', letterSpacing: '.08em' }}>
-                      {c.materia_nombre}
+                      {c.materia_nombre}{c.materia_grupo ? ` - Grupo ${c.materia_grupo}` : ''}
                     </div>
                   )}
                 </div>
@@ -128,7 +128,9 @@ export default function DocenteComentarios() {
               required
             >
               <option value="">Seleccione una materia</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+              {materias.map(m => (
+                <option key={m.id} value={m.id}>{m.nombre} - Grupo {m.grupo || '-'}</option>
+              ))}
             </select>
           </div>
 
@@ -144,23 +146,46 @@ export default function DocenteComentarios() {
 
           <div className="form-field">
             <label>Tipo de comentario *</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '.5rem', marginTop: '.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '.75rem', marginTop: '.35rem' }}>
               {TIPOS.map(t => (
                 <label key={t.val} style={{
-                  padding: '.6rem',
-                  border: `1px solid ${form.tipo === t.val ? 'var(--ink)' : 'var(--line-strong)'}`,
-                  background: form.tipo === t.val ? 'var(--paper-dark)' : 'transparent',
-                  borderRadius: '2px',
-                  textAlign: 'center',
+                  padding: '.85rem .7rem',
+                  border: `1.5px solid ${form.tipo === t.val ? t.accent : t.border}`,
+                  background: form.tipo === t.val ? t.bg : '#fff',
+                  borderRadius: '12px',
                   cursor: 'pointer',
-                  fontSize: '.8rem',
-                  transition: 'all .2s'
+                  color: t.accent,
+                  fontSize: '.82rem',
+                  fontWeight: 800,
+                  minHeight: '96px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '.5rem',
+                  boxShadow: form.tipo === t.val ? `0 16px 28px -22px ${t.accent}` : '0 10px 22px -24px rgba(15, 23, 42, .45)',
+                  transition: 'transform .15s, box-shadow .15s, background .15s, border-color .15s'
                 }}>
                   <input type="radio" name="tipo" value={t.val}
                     checked={form.tipo === t.val}
                     onChange={e => setForm({...form, tipo: e.target.value})}
                     style={{ display: 'none' }}/>
-                  {t.label}
+                  <span style={{
+                    width: '2rem',
+                    height: '2rem',
+                    borderRadius: '999px',
+                    display: 'grid',
+                    placeItems: 'center',
+                    background: form.tipo === t.val ? t.accent : t.bg,
+                    color: form.tipo === t.val ? '#fff' : t.accent,
+                    border: `1px solid ${t.border}`,
+                    fontFamily: 'var(--mono)',
+                    fontSize: '.72rem',
+                    fontWeight: 900
+                  }}>
+                    {t.tag}
+                  </span>
+                  <span style={{ textAlign: 'center', lineHeight: 1.2 }}>{t.label}</span>
                 </label>
               ))}
             </div>

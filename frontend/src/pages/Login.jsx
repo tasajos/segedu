@@ -46,20 +46,6 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="hero-foot">
-          <div className="hero-stat">
-            <div className="hero-stat-num">3</div>
-            <div className="hero-stat-label">Perfiles</div>
-          </div>
-          <div className="hero-stat">
-            <div className="hero-stat-num">100%</div>
-            <div className="hero-stat-label">En línea</div>
-          </div>
-          <div className="hero-stat">
-            <div className="hero-stat-num">2026</div>
-            <div className="hero-stat-label">Versión</div>
-          </div>
-        </div>
       </aside>
 
       {/* Panel formulario */}

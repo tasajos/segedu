@@ -584,7 +584,7 @@ export const listarComentarios = async (req, res) => {
     const docenteId = req.user.docente_id;
     const [rows] = await pool.query(
       `SELECT c.*, u.nombre as estudiante_nombre, u.apellido as estudiante_apellido,
-              m.nombre as materia_nombre
+              m.nombre as materia_nombre, m.grupo as materia_grupo
        FROM comentarios_estudiantes c
        JOIN estudiantes e ON c.estudiante_id = e.id
        JOIN usuarios u ON e.usuario_id = u.id
