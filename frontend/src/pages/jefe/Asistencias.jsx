@@ -772,98 +772,108 @@ export default function JefeAsistencias() {
               </div>
             </div>
 
-            <div className="card" style={{ padding: '1.25rem' }}>
-              <div className="section-head">
-                <h2>Solicitudes cargadas</h2>
-                <span className="count">{solicitudes.length} registros</span>
+            {loadingSolicitudes ? (
+              <div className="card" style={{ padding: '2rem' }}>
+                <div className="loading-dots"><span /><span /><span /></div>
               </div>
-              {loadingSolicitudes ? (
-                <div className="loading-dots" style={{ marginTop: '2rem' }}><span /><span /><span /></div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem', marginTop: '1rem', maxHeight: '560px', overflowY: 'auto' }}>
-                  {solicitudes.map((item) => {
-                    const esEstudiante = item.registrado_rol === 'estudiante';
-                    const estadoBorderColor = item.estado === 'aprobado' ? 'var(--success)' : item.estado === 'rechazado' ? 'var(--danger)' : 'var(--warning)';
-                    return (
-                    <div key={item.id} style={{ padding: '.9rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', borderLeft: `4px solid ${estadoBorderColor}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
-                            <div style={{ fontFamily: 'var(--serif)', fontSize: '1rem' }}>
-                              {item.estudiante_nombre} {item.estudiante_apellido}
-                            </div>
-                            {esEstudiante && (
-                              <span className="chip chip-forest" style={{ fontSize: '.65rem' }}>Enviada por estudiante</span>
-                            )}
-                          </div>
-                          <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
-                            {item.codigo_estudiante} · {item.materia_nombre} ({item.materia_codigo}) - G{item.materia_grupo}
-                          </div>
+            ) : (
+              <>
+                {[
+                  { key: 'pendiente', label: 'Pendientes',  accent: 'var(--warning)', chipClass: 'chip-gold'    },
+                  { key: 'aprobado',  label: 'Aprobadas',   accent: 'var(--success)', chipClass: 'chip-forest'  },
+                  { key: 'rechazado', label: 'Rechazadas',  accent: 'var(--danger)',  chipClass: 'chip-crimson' },
+                ].map(({ key, label, accent, chipClass }) => {
+                  const grupo = solicitudes.filter((s) => s.estado === key);
+                  return (
+                    <div key={key} className="card" style={{ padding: '1.25rem', borderTop: `3px solid ${accent}` }}>
+                      <div className="section-head" style={{ marginBottom: '1rem' }}>
+                        <h2>{label}</h2>
+                        <span className="count">{grupo.length} solicitudes</span>
+                      </div>
+
+                      {grupo.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--ink-light)', fontStyle: 'italic', fontSize: '.88rem' }}>
+                          Sin solicitudes {label.toLowerCase()}
                         </div>
-                        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span className={`chip ${item.estado === 'aprobado' ? 'chip-forest' : item.estado === 'rechazado' ? 'chip-crimson' : 'chip-gold'}`} style={{ fontSize: '.7rem' }}>
-                            {item.estado === 'aprobado' ? 'Aprobado' : item.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
-                          </span>
-                          <span className={`chip ${item.tipo === 'carta_permiso' ? 'chip-gold' : 'chip-ink'}`}>
-                            {SOLICITUD_TIPO[item.tipo] || item.tipo}
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '.84rem', marginTop: '.55rem' }}>
-                        {formatDateEs(item.fecha_desde)} {item.fecha_desde !== item.fecha_hasta ? `al ${formatDateEs(item.fecha_hasta)}` : ''}
-                        {item.horas_detalle ? ` · ${item.horas_detalle}` : ''}
-                      </div>
-                      <div style={{ fontSize: '.84rem', color: 'var(--ink-light)', marginTop: '.45rem' }}>
-                        {item.detalle || 'Sin detalle adicional'}
-                      </div>
-                      {item.observacion_jefe && (
-                        <div style={{ fontSize: '.82rem', marginTop: '.4rem', padding: '.4rem .6rem', background: 'rgba(0,0,0,.06)', borderRadius: '2px', fontStyle: 'italic', color: 'var(--ink-light)' }}>
-                          Obs. jefe: {item.observacion_jefe}
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+                          {grupo.map((item) => {
+                            const esEstudiante = item.registrado_rol === 'estudiante';
+                            return (
+                              <div key={item.id} style={{ padding: '.9rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', borderLeft: `4px solid ${accent}` }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                  <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
+                                      <div style={{ fontFamily: 'var(--serif)', fontSize: '1rem' }}>
+                                        {item.estudiante_nombre} {item.estudiante_apellido}
+                                      </div>
+                                      {esEstudiante && (
+                                        <span className="chip chip-forest" style={{ fontSize: '.65rem' }}>Enviada por estudiante</span>
+                                      )}
+                                    </div>
+                                    <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
+                                      {item.codigo_estudiante} · {item.materia_nombre} ({item.materia_codigo}) - G{item.materia_grupo}
+                                    </div>
+                                  </div>
+                                  <span className={`chip ${item.tipo === 'carta_permiso' ? 'chip-gold' : 'chip-ink'}`}>
+                                    {SOLICITUD_TIPO[item.tipo] || item.tipo}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '.84rem', marginTop: '.55rem' }}>
+                                  {formatDateEs(item.fecha_desde)} {item.fecha_desde !== item.fecha_hasta ? `al ${formatDateEs(item.fecha_hasta)}` : ''}
+                                  {item.horas_detalle ? ` · ${item.horas_detalle}` : ''}
+                                </div>
+                                <div style={{ fontSize: '.84rem', color: 'var(--ink-light)', marginTop: '.45rem' }}>
+                                  {item.detalle || 'Sin detalle adicional'}
+                                </div>
+                                {item.observacion_jefe && (
+                                  <div style={{ fontSize: '.82rem', marginTop: '.4rem', padding: '.4rem .6rem', background: 'rgba(0,0,0,.06)', borderRadius: '2px', fontStyle: 'italic', color: 'var(--ink-light)' }}>
+                                    Obs. jefe: {item.observacion_jefe}
+                                  </div>
+                                )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '.6rem', fontSize: '.8rem', flexWrap: 'wrap', gap: '.5rem' }}>
+                                  <span style={{ color: 'var(--ink-light)' }}>Registrado por {item.registrado_nombre} {item.registrado_apellido}</span>
+                                  <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    {item.documento_url
+                                      ? <button className="btn btn-outline btn-sm" style={{ fontSize: '.76rem' }}
+                                          onClick={() => setModalDoc({ url: item.documento_url, nombre: `Permiso — ${item.estudiante_nombre} ${item.estudiante_apellido}` })}>
+                                          Ver carta
+                                        </button>
+                                      : <span style={{ color: 'var(--ink-light)' }}>Sin documento</span>
+                                    }
+                                    {item.estado !== 'aprobado' && (
+                                      <button className="btn btn-sm" style={{ fontSize: '.76rem', background: 'var(--success)', color: '#fff', border: 'none' }}
+                                        onClick={() => confirmarEstado(item, 'aprobado')}>
+                                        Aprobar
+                                      </button>
+                                    )}
+                                    {item.estado !== 'rechazado' && (
+                                      <button className="btn btn-sm" style={{ fontSize: '.76rem', background: 'var(--danger)', color: '#fff', border: 'none' }}
+                                        onClick={() => confirmarEstado(item, 'rechazado')}>
+                                        Rechazar
+                                      </button>
+                                    )}
+                                    {item.estado !== 'pendiente' && (
+                                      <button className="btn btn-outline btn-sm" style={{ fontSize: '.76rem' }}
+                                        onClick={() => confirmarEstado(item, 'pendiente')}>
+                                        Pendiente
+                                      </button>
+                                    )}
+                                    <button className="btn btn-danger btn-sm" onClick={() => deleteRequest(item.id)}>
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '.6rem', fontSize: '.8rem', flexWrap: 'wrap', gap: '.5rem' }}>
-                        <span>Registrado por {item.registrado_nombre} {item.registrado_apellido}</span>
-                        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                          {item.documento_url
-                            ? <button className="btn btn-outline btn-sm" style={{ fontSize: '.76rem' }}
-                                onClick={() => setModalDoc({ url: item.documento_url, nombre: `Permiso — ${item.estudiante_nombre} ${item.estudiante_apellido}` })}>
-                                Ver carta
-                              </button>
-                            : <span style={{ color: 'var(--ink-light)' }}>Sin documento</span>
-                          }
-                          {item.estado !== 'aprobado' && (
-                            <button className="btn btn-sm" style={{ fontSize: '.76rem', background: 'var(--success)', color: '#fff', border: 'none' }}
-                              onClick={() => confirmarEstado(item, 'aprobado')}>
-                              Aprobar
-                            </button>
-                          )}
-                          {item.estado !== 'rechazado' && (
-                            <button className="btn btn-sm" style={{ fontSize: '.76rem', background: 'var(--danger)', color: '#fff', border: 'none' }}
-                              onClick={() => confirmarEstado(item, 'rechazado')}>
-                              Rechazar
-                            </button>
-                          )}
-                          {item.estado !== 'pendiente' && (
-                            <button className="btn btn-outline btn-sm" style={{ fontSize: '.76rem' }}
-                              onClick={() => confirmarEstado(item, 'pendiente')}>
-                              Pendiente
-                            </button>
-                          )}
-                          <button className="btn btn-danger btn-sm" onClick={() => deleteRequest(item.id)}>
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
                     </div>
-                  )})}
-                  {solicitudes.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>
-                      No hay solicitudes registradas
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                  );
+                })}
+              </>
+            )}
           </div>
         </>
       )}

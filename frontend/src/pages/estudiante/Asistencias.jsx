@@ -271,7 +271,7 @@ export default function EstudianteAsistencias() {
                   <p style={{ fontSize: '.84rem', color: 'var(--ink-light)', marginTop: '.35rem' }}>{p.detalle}</p>
                 )}
                 <div style={{ marginTop: '.5rem', fontSize: '.76rem', color: 'var(--ink-light)' }}>
-                  Enviada el {formatFecha(String(p.created_at).split('T')[0])}
+                  Enviada el {p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                   {p.documento_url && <span style={{ marginLeft: '.75rem', color: 'var(--forest)' }}>✓ Documento adjunto</span>}
                 </div>
               </div>
