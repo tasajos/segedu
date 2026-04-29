@@ -1,11 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { fileURLToPath } from 'url';
+import AdmZip from 'adm-zip';
 import pool from '../config/db.js';
 
-const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -45,31 +43,14 @@ const normalizeLine = (line) => line
   .trim();
 
 const extractDocumentText = async (docxPath) => {
-  const escapedPath = docxPath.replace(/'/g, "''");
-  const { stdout } = await execFileAsync(
-    'powershell',
-    [
-      '-NoProfile',
-      '-Command',
-      [
-        '$ErrorActionPreference = "Stop"',
-        'Add-Type -AssemblyName System.IO.Compression.FileSystem',
-        `$zip = [System.IO.Compression.ZipFile]::OpenRead('${escapedPath}')`,
-        "$entry = $zip.Entries | Where-Object { $_.FullName -eq 'word/document.xml' }",
-        'if (-not $entry) { throw "No se encontro word/document.xml en el documento" }',
-        '$reader = New-Object System.IO.StreamReader($entry.Open())',
-        '$xml = $reader.ReadToEnd()',
-        '$reader.Close()',
-        '$zip.Dispose()',
-        '$bytes = [System.Text.Encoding]::UTF8.GetBytes($xml)',
-        '$base64 = [Convert]::ToBase64String($bytes)',
-        'Write-Output $base64'
-      ].join('; ')
-    ],
-    { windowsHide: true, maxBuffer: 1024 * 1024 * 20 }
-  );
+  const zip = new AdmZip(await fs.readFile(docxPath));
+  const entry = zip.getEntry('word/document.xml');
 
-  const xml = Buffer.from(stdout.trim(), 'base64').toString('utf8');
+  if (!entry) {
+    throw new Error('No se encontro word/document.xml en el documento');
+  }
+
+  const xml = entry.getData().toString('utf8');
   const text = decodeXmlText(
     xml
       .replace(/<\/w:(p|tr|tc)>/g, '\n')
@@ -84,10 +65,21 @@ const extractDocumentText = async (docxPath) => {
     .filter(Boolean);
 };
 
+const truncate = (value, maxLength = 255) => {
+  const normalized = normalizeLine(value);
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 3)}...` : normalized;
+};
+
 const parseTaskTitle = (line) => {
-  const match = line.match(/^\d+\s*\.\s*\d+\s*\.?\s*(.+)$/);
-  if (!match) return null;
-  return normalizeLine(match[1]);
+  const cleaned = normalizeLine(line)
+    .replace(/^[•·▪▫◦*-]\s*/, '')
+    .replace(/^\d+(?:\s*\.\s*\d+)*\s*\.?\s*/, '')
+    .replace(/^[a-z]\)\s*/i, '');
+
+  if (!cleaned || cleaned.length < 3) return null;
+  if (/^(el estudiante|la estudiante|estudiante):?$/i.test(cleaned)) return null;
+
+  return truncate(cleaned);
 };
 
 const parsePgoTasksFromLines = (lines) => {
@@ -131,7 +123,7 @@ const parsePgoTasksFromLines = (lines) => {
 
     tasks.push({
       unidad_codigo: `Unidad ${collectingUnitCode}`,
-      unidad_nombre: unitMap.get(collectingUnitCode) || `Unidad ${collectingUnitCode}`,
+      unidad_nombre: truncate(unitMap.get(collectingUnitCode) || `Unidad ${collectingUnitCode}`),
       titulo: title,
       orden: order++
     });
