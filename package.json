@@ -6,9 +6,7 @@
   "scripts": {
     "deploy":          "node deploy.js",
     "deploy:frontend": "node deploy.js --frontend",
-    "deploy:backend":  "node deploy.js --backend",
-    "deploy:24h":      "node deploy.js --horas 24",
-    "deploy:48h":      "node deploy.js --horas 48"
+    "deploy:backend":  "node deploy.js --backend"
   },
   "dependencies": {
     "adm-zip": "^0.5.17"
