@@ -289,11 +289,18 @@ export default function EstudianteTareas() {
                         Ver material
                       </button>
                     )}
-                    {!vencida && (
-                      <button className="btn btn-primary" style={{ fontSize: '.76rem', width: '100%' }}
-                        onClick={() => setModalEntrega(t)}>
-                        {entregada ? 'Reemplazar entrega' : 'Entregar tarea'}
-                      </button>
+                    <button
+                      className={vencida ? 'btn btn-ghost' : 'btn btn-primary'}
+                      style={{ fontSize: '.76rem', width: '100%' }}
+                      onClick={() => setModalEntrega(t)}
+                      disabled={vencida}
+                    >
+                      {entregada ? 'Reemplazar entrega' : 'Entregar tarea'}
+                    </button>
+                    {vencida && (
+                      <div style={{ maxWidth: '150px', fontSize: '.72rem', lineHeight: 1.35, color: 'var(--danger)', textAlign: 'right' }}>
+                        Fuera de la fecha permitida
+                      </div>
                     )}
                   </div>
                 </div>
