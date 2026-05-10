@@ -3,17 +3,25 @@ import api from '../../services/api';
 import Modal from '../../components/Modal';
 import PresentationViewer from '../../components/PresentationViewer';
 
-const TIPO_ICON  = { pdf: '📄', pptx: '📊', link: '🔗' };
-const TIPO_BADGE = { pdf: 'PDF', pptx: 'PPT', link: 'URL' };
+const isDriveFolder = (url) => /drive\.google\.com\/drive\/folders\//i.test(url || '');
+
+const tipoEfectivo = (p) =>
+  p.tipo_archivo === 'link' && isDriveFolder(p.enlace_url) ? 'drive_folder' : p.tipo_archivo;
+
+const TIPO_ICON  = { pdf: '📄', pptx: '📊', link: '🔗', drive_folder: '📁' };
+const TIPO_BADGE = { pdf: 'PDF', pptx: 'PPT', link: 'URL', drive_folder: 'CARPETA' };
 const TIPO_COLOR = {
-  pdf:  { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
-  pptx: { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' },
-  link: { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
+  pdf:          { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
+  pptx:         { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' },
+  link:         { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
+  drive_folder: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
 };
 
 // ── Ítem individual de presentación ──────────────────────────
 function ItemPresentacion({ p, onVer, isLast }) {
-  const col = TIPO_COLOR[p.tipo_archivo] || TIPO_COLOR.pptx;
+  const tipo = tipoEfectivo(p);
+  const col  = TIPO_COLOR[tipo] || TIPO_COLOR.link;
+  const esFolder = tipo === 'drive_folder';
   return (
     <button
       onClick={() => onVer(p)}
@@ -28,7 +36,7 @@ function ItemPresentacion({ p, onVer, isLast }) {
       onMouseLeave={e => e.currentTarget.style.background = ''}
     >
       <span style={{ fontSize: '1.05rem', lineHeight: 1, flexShrink: 0 }}>
-        {TIPO_ICON[p.tipo_archivo]}
+        {TIPO_ICON[tipo]}
       </span>
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
         <div style={{ fontWeight: 600, fontSize: '.88rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -41,10 +49,10 @@ function ItemPresentacion({ p, onVer, isLast }) {
         )}
       </div>
       <span style={{ fontSize: '.65rem', fontWeight: 800, letterSpacing: '.04em', padding: '.15rem .5rem', borderRadius: 99, flexShrink: 0, background: col.bg, color: col.color, border: `1px solid ${col.border}` }}>
-        {TIPO_BADGE[p.tipo_archivo]}
+        {TIPO_BADGE[tipo]}
       </span>
       <span style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--blue-600)', background: 'var(--blue-50)', border: '1px solid var(--blue-100)', borderRadius: 4, padding: '.2rem .55rem', flexShrink: 0 }}>
-        Ver →
+        {esFolder ? 'Abrir →' : 'Ver →'}
       </span>
     </button>
   );

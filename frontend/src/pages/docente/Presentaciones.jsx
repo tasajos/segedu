@@ -6,8 +6,10 @@ import PresentationViewer from '../../components/PresentationViewer';
 
 const EMPTY_FORM = { titulo: '', descripcion: '', enlace_url: '', carpeta_id: '' };
 
-const TIPO_ICON  = { pdf: 'PDF', pptx: 'PPT', link: 'URL' };
-const TIPO_LABEL = { pdf: 'Archivo PDF', pptx: 'PowerPoint', link: 'Enlace externo' };
+const TIPO_ICON  = { pdf: 'PDF', pptx: 'PPT', link: 'URL', drive_folder: '📁' };
+const TIPO_LABEL = { pdf: 'Archivo PDF', pptx: 'PowerPoint', link: 'Enlace externo', drive_folder: 'Carpeta de Drive' };
+
+const isDriveFolder = (url) => /drive\.google\.com\/drive\/folders\//i.test(url);
 
 // ── Icono carpeta SVG ─────────────────────────────────────────
 function IconFolder({ size = 16, color = 'currentColor' }) {
@@ -455,26 +457,46 @@ export default function PresentacionesDocente() {
               </div>
 
               {/* Panel URL */}
-              <div style={{
-                display: 'flex', flexDirection: 'column', gap: '.85rem',
-                minHeight: 164, padding: '1rem',
-                background: form.enlace_url.trim() ? 'var(--blue-50)' : 'var(--gray-50)',
-                border: `1.5px solid ${form.enlace_url.trim() ? 'var(--blue-400)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: form.enlace_url.trim() ? '0 0 0 3px rgba(37,99,235,.08)' : 'none',
-                transition: 'all .15s',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '.8rem' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 36, minWidth: 44, padding: '0 .55rem', borderRadius: 8, background: 'var(--blue-50)', color: 'var(--blue-700)', border: '1px solid var(--blue-100)', fontFamily: 'var(--font-mono)', fontSize: '.72rem', fontWeight: 800 }}>URL</span>
-                  <div>
-                    <strong style={{ display: 'block', fontWeight: 700 }}>Usar enlace</strong>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '.84rem' }}>Drive o Google Slides público.</p>
+              {(() => {
+                const url = form.enlace_url.trim();
+                const esFolder = isDriveFolder(url);
+                return (
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: '.85rem',
+                    minHeight: 164, padding: '1rem',
+                    background: url ? 'var(--blue-50)' : 'var(--gray-50)',
+                    border: `1.5px solid ${url ? 'var(--blue-400)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: url ? '0 0 0 3px rgba(37,99,235,.08)' : 'none',
+                    transition: 'all .15s',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '.8rem' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 36, minWidth: 44, padding: '0 .55rem', borderRadius: 8, background: 'var(--blue-50)', color: 'var(--blue-700)', border: '1px solid var(--blue-100)', fontFamily: 'var(--font-mono)', fontSize: '.72rem', fontWeight: 800 }}>
+                        {esFolder ? '📁' : 'URL'}
+                      </span>
+                      <div>
+                        <strong style={{ display: 'block', fontWeight: 700 }}>
+                          {esFolder ? 'Carpeta de Google Drive' : 'Usar enlace'}
+                        </strong>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '.84rem' }}>
+                          {esFolder
+                            ? 'Se mostrará el contenido completo de la carpeta con subcarpetas.'
+                            : 'Google Drive, Slides o cualquier enlace público.'}
+                        </p>
+                      </div>
+                    </div>
+                    {esFolder && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', padding: '.4rem .65rem', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 4, fontSize: '.78rem', color: 'var(--success)', fontWeight: 600 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        Carpeta de Drive detectada — se mostrará con sus archivos y subcarpetas
+                      </div>
+                    )}
+                    <input className="form-input" value={form.enlace_url}
+                      onChange={e => setForm(f => ({ ...f, enlace_url: e.target.value }))}
+                      placeholder="https://drive.google.com/drive/folders/… o Slides…" />
                   </div>
-                </div>
-                <input className="form-input" value={form.enlace_url}
-                  onChange={e => setForm(f => ({ ...f, enlace_url: e.target.value }))}
-                  placeholder="https://docs.google.com/presentation/d/..." />
-              </div>
+                );
+              })()}
 
               <input ref={fileRef} type="file" accept=".pdf,.pptx" style={{ display: 'none' }}
                 onChange={e => setFile(e.target.files[0] || null)} />
