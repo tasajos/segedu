@@ -98,26 +98,46 @@ function VisorArchivo({ tareaId, tipoArchivo, apiBase }) {
   return null;
 }
 
-// ── Visor de entrega Word ─────────────────────────────────────────────────────
+// ── Visor de entrega (Word o PDF) ────────────────────────────────────────────
 function VisorEntrega({ entregaId }) {
-  const [html, setHtml] = useState('');
+  const [content, setContent] = useState(null); // { type: 'pdf', url } | { type: 'word', html }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let blobUrl = null;
     api.get(`/docente/entregas/${entregaId}/ver`, { responseType: 'arraybuffer' })
-      .then(r => mammoth.convertToHtml({ arrayBuffer: r.data }))
-      .then(result => setHtml(result.value))
+      .then(r => {
+        const ct = r.headers['content-type'] || '';
+        if (ct.includes('pdf')) {
+          blobUrl = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+          setContent({ type: 'pdf', url: blobUrl });
+        } else {
+          return mammoth.convertToHtml({ arrayBuffer: r.data })
+            .then(result => setContent({ type: 'word', html: result.value }));
+        }
+      })
       .catch(() => setError('No se pudo cargar el documento.'))
       .finally(() => setLoading(false));
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [entregaId]);
 
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--ink-light)' }}>Cargando documento...</div>;
   if (error) return <div style={{ color: 'var(--crimson)', padding: '1rem' }}>{error}</div>;
+  if (content?.type === 'pdf') {
+    return (
+      <iframe
+        src={content.url}
+        title="Documento PDF"
+        style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '4px' }}
+        onContextMenu={e => e.preventDefault()}
+      />
+    );
+  }
   return (
     <div
       className="word-preview"
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: content?.html || '' }}
       onContextMenu={e => e.preventDefault()}
       style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1.5rem', background: '#fff', borderRadius: '4px', lineHeight: 1.8, color: '#111' }}
     />

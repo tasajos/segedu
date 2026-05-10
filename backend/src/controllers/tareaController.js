@@ -266,8 +266,8 @@ export const verEntregaDocente = async (req, res) => {
     if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
 
     const ext = path.extname(entrega.archivo_nombre).toLowerCase();
-    const mime = ext === '.docx'
-      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       : 'application/msword';
 
     res.setHeader('Content-Type', mime);
@@ -297,8 +297,8 @@ export const descargarEntregaDocente = async (req, res) => {
     if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
 
     const ext = path.extname(entrega.archivo_nombre).toLowerCase();
-    const mime = ext === '.docx'
-      ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       : 'application/msword';
 
     res.setHeader('Content-Type', mime);
@@ -404,7 +404,7 @@ export const entregarTarea = async (req, res) => {
     `, [id, estudianteId]);
     if (!inscr.length) return res.status(403).json({ error: 'No estás inscrito en esta materia' });
 
-    if (!req.file) return res.status(400).json({ error: 'Debe adjuntar un archivo Word (.docx)' });
+    if (!req.file) return res.status(400).json({ error: 'Debe adjuntar un archivo Word (.doc/.docx) o PDF' });
 
     const archivo_nombre = req.file.originalname;
     const archivo_path = `/uploads/${req.file.filename}`;

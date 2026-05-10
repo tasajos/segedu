@@ -29,13 +29,13 @@ export const uploadTarea = multer({
   }
 });
 
-// Para entregas de estudiantes: Word (doc / docx)
+// Para entregas de estudiantes: Word (doc / docx) o PDF
 export const uploadEntrega = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (['.doc', '.docx'].includes(ext)) cb(null, true);
-    else cb(new Error('Solo se permiten archivos Word (.doc o .docx)'), false);
+    if (['.doc', '.docx', '.pdf'].includes(ext)) cb(null, true);
+    else cb(new Error('Solo se permiten archivos Word (.doc o .docx) o PDF'), false);
   }
 });

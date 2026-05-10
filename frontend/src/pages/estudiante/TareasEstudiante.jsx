@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
@@ -115,11 +115,36 @@ function VisorMaterial({ tareaId, tipoArchivo }) {
   return null;
 }
 
-// ── Modal de entrega de tarea (solo Word) ────────────────────────────────────
+// ── Modal de entrega de tarea (Word o PDF) ───────────────────────────────────
 function ModalEntrega({ tarea, onClose, onSuccess }) {
   const [archivo, setArchivo] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef(null);
+
+  const processFile = (file) => {
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['doc', 'docx', 'pdf'].includes(ext)) {
+      setError('Formato no permitido. Usa .doc, .docx o .pdf');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError('El archivo supera el límite de 20 MB.');
+      return;
+    }
+    setError('');
+    setArchivo(file);
+  };
+
+  const handleFile = (e) => processFile(e.target.files[0]);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    processFile(e.dataTransfer.files[0]);
+  };
 
   const enviar = async (e) => {
     e.preventDefault();
@@ -139,24 +164,141 @@ function ModalEntrega({ tarea, onClose, onSuccess }) {
     }
   };
 
+  const fileIcon = archivo?.name.endsWith('.pdf') ? '📄' : '📝';
+  const fileSizeMB = archivo ? (archivo.size / (1024 * 1024)).toFixed(2) : null;
+
   return (
-    <form onSubmit={enviar} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ padding: '.75rem 1rem', background: 'var(--paper-dark)', borderRadius: '2px', fontSize: '.88rem' }}>
-        <strong>{tarea.titulo}</strong>
-        {tarea.fecha_entrega && <div style={{ color: 'var(--ink-light)', fontSize: '.8rem', marginTop: '.25rem' }}>Fecha límite: {formatFecha(tarea.fecha_entrega)}</div>}
-      </div>
-      <div>
-        <label className="label">Archivo Word (.doc / .docx) *</label>
-        <input type="file" accept=".doc,.docx" onChange={e => setArchivo(e.target.files[0])} style={{ fontSize: '.85rem' }} required />
-        <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)', marginTop: '.4rem' }}>
-          Solo se aceptan archivos Word (.doc o .docx). Si ya entregaste antes, este archivo reemplazará el anterior.
+    <form onSubmit={enviar} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+      {/* Info de la tarea */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: '.875rem',
+        padding: '1rem 1.25rem',
+        background: 'var(--blue-50)', border: '1.5px solid var(--blue-100)',
+        borderRadius: 'var(--radius)',
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 8, background: 'var(--blue-600)',
+          display: 'grid', placeItems: 'center', flexShrink: 0,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--text)', lineHeight: 1.3 }}>{tarea.titulo}</div>
+          {tarea.fecha_entrega && (
+            <div style={{ fontSize: '.78rem', color: 'var(--blue-700)', marginTop: '.3rem', fontWeight: 500 }}>
+              Fecha límite: {formatFecha(tarea.fecha_entrega)}
+            </div>
+          )}
         </div>
       </div>
-      {error && <div style={{ color: 'var(--crimson)', fontSize: '.85rem' }}>{error}</div>}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem' }}>
-        <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+
+      {/* Zona de carga */}
+      <div
+        onClick={() => !archivo && inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.75rem',
+          padding: '2rem 1.5rem',
+          border: `2px dashed ${archivo ? 'var(--success-border)' : dragOver ? 'var(--blue-400)' : 'var(--border-strong)'}`,
+          borderRadius: 'var(--radius)',
+          background: archivo ? 'var(--success-bg)' : dragOver ? 'var(--blue-50)' : 'var(--gray-50)',
+          cursor: archivo ? 'default' : 'pointer',
+          transition: 'all .2s',
+        }}
+      >
+        {archivo ? (
+          <>
+            <div style={{ fontSize: '2.25rem', lineHeight: 1 }}>{fileIcon}</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: 600, fontSize: '.9rem', color: 'var(--success)', wordBreak: 'break-all' }}>{archivo.name}</div>
+              <div style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '.2rem' }}>{fileSizeMB} MB</div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setArchivo(null); if (inputRef.current) inputRef.current.value = ''; }}
+              style={{
+                fontSize: '.75rem', fontWeight: 600, color: 'var(--danger)',
+                background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
+                borderRadius: 99, padding: '.2rem .75rem', cursor: 'pointer',
+              }}
+            >
+              Quitar archivo
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: 'var(--white)', border: '1.5px solid var(--border)',
+              display: 'grid', placeItems: 'center', boxShadow: 'var(--shadow-sm)',
+            }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: 600, fontSize: '.9rem', color: 'var(--text-soft)' }}>
+                Arrastra tu archivo aquí o <span style={{ color: 'var(--blue-600)' }}>selecciona uno</span>
+              </div>
+              <div style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '.3rem' }}>
+                Word (.doc, .docx) o PDF · máximo 20 MB
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '.4rem' }}>
+              {['.DOC', '.DOCX', '.PDF'].map(f => (
+                <span key={f} style={{
+                  fontSize: '.65rem', fontWeight: 700, letterSpacing: '.04em',
+                  padding: '.15rem .55rem', borderRadius: 99,
+                  background: 'var(--white)', border: '1px solid var(--border-strong)', color: 'var(--text-muted)',
+                }}>{f}</span>
+              ))}
+            </div>
+          </>
+        )}
+        <input ref={inputRef} type="file" accept=".doc,.docx,.pdf" onChange={handleFile} style={{ display: 'none' }} />
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '.6rem',
+          padding: '.75rem 1rem', borderRadius: 'var(--radius-sm)',
+          background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
+          fontSize: '.83rem', color: 'var(--danger)', fontWeight: 500,
+        }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          {error}
+        </div>
+      )}
+
+      {/* Nota de reemplazo */}
+      {tarea.entrega_id && (
+        <div style={{ fontSize: '.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Ya tienes una entrega. Este archivo la reemplazará.
+        </div>
+      )}
+
+      {/* Acciones */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem', paddingTop: '.25rem' }}>
+        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
         <button type="submit" className="btn btn-primary" disabled={saving || !archivo}>
-          {saving ? 'Enviando...' : 'Entregar tarea'}
+          {saving ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+              <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />
+              Enviando...
+            </span>
+          ) : 'Entregar tarea'}
         </button>
       </div>
     </form>
