@@ -31,7 +31,16 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 const publicDir = fs.existsSync(path.join(__dirname, '..', 'public', 'index.html'))
   ? path.join(__dirname, '..', 'public')
   : path.join(__dirname, '..', 'public', 'dist');
-app.use(express.static(publicDir));
+
+// Assets con hash (JS/CSS de Vite) → caché de 1 año
+// index.html → sin caché para que siempre cargue la versión más reciente
+app.use(express.static(publicDir, {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  }
+}));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'uni-tracking-api' }));
 
@@ -41,8 +50,9 @@ app.use('/api/docente', docenteRoutes);
 app.use('/api/jefe', jefeRoutes);
 app.use('/api/admin', adminRoutes);
 
-// React Router: cualquier ruta no-API devuelve index.html
+// React Router: cualquier ruta no-API devuelve index.html (sin caché)
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 

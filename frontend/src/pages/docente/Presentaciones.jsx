@@ -247,8 +247,8 @@ export default function PresentacionesDocente() {
       api.get('/docente/mis-presentaciones'),
       api.get('/docente/carpetas'),
     ]);
-    if (resP.status === 'fulfilled') setLista(resP.value.data);
-    if (resC.status === 'fulfilled') setCarpetas(resC.value.data);
+    if (resP.status === 'fulfilled') setLista(Array.isArray(resP.value.data) ? resP.value.data : []);
+    if (resC.status === 'fulfilled') setCarpetas(Array.isArray(resC.value.data) ? resC.value.data : []);
     setLoading(false);
   }
 

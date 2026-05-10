@@ -200,7 +200,7 @@ export default function PresentacionesVista() {
 
   useEffect(() => {
     api.get('/auth/mis-presentaciones')
-      .then(r => setLista(r.data))
+      .then(r => setLista(Array.isArray(r.data) ? r.data : []))
       .catch(err => setErrorCarga(err.response?.data?.error || 'Error al cargar presentaciones'))
       .finally(() => setLoading(false));
   }, []);
