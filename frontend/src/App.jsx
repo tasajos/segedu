@@ -47,6 +47,7 @@ import JefeUnidades from './pages/jefe/UnidadesInstruccion';
 // Docente — presentaciones
 import DocentePresentaciones from './pages/docente/Presentaciones';
 import DocenteDatosPersonales from './pages/docente/DatosPersonales';
+import DocenteGruposTrabajo from './pages/docente/GruposDocente';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="asistencia" element={<DocenteAsistencia />} />
         <Route path="disciplina" element={<DocenteDisciplina />} />
         <Route path="tareas" element={<DocenteTareas />} />
+        <Route path="grupos-trabajo" element={<DocenteGruposTrabajo />} />
         <Route path="unidades" element={<UnidadesLista />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />

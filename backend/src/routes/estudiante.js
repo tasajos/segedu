@@ -13,7 +13,8 @@ import {
 import {
   listarTareasEstudiante, verArchivoTareaEstudiante, extractSlidesEstudiante,
   entregarTarea, miEntrega,
-  listarGruposEstudiante, listarCompaneros, crearGrupo, salirGrupo, eliminarGrupo
+  listarGruposEstudiante, listarCompaneros, crearGrupo, salirGrupo, eliminarGrupo,
+  listarMisGruposDocente
 } from '../controllers/tareaController.js';
 
 const router = Router();
@@ -45,11 +46,14 @@ router.get('/tareas/:id/slides', extractSlidesEstudiante);
 router.post('/tareas/:id/entrega', uploadEntrega.single('archivo'), entregarTarea);
 router.get('/tareas/:id/mi-entrega', miEntrega);
 
-// Grupos
+// Grupos (creados por estudiantes)
 router.get('/grupos/:tareaId', listarGruposEstudiante);
 router.get('/grupos/:tareaId/companeros', listarCompaneros);
 router.post('/grupos', crearGrupo);
 router.delete('/grupos/:grupoId/salir', salirGrupo);
 router.delete('/grupos/:grupoId', eliminarGrupo);
+
+// Grupos de trabajo creados por docente
+router.get('/grupos-docente', listarMisGruposDocente);
 
 export default router;

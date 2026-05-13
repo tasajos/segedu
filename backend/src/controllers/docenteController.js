@@ -658,3 +658,200 @@ export const cambiarContrasenaDocente = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ── Grupos de trabajo (docente crea y gestiona) ──────────────────────────────
+
+export const listarGruposTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const { materia_id } = req.query;
+    const base = `
+      SELECT gt.id, gt.nombre, gt.descripcion, gt.fecha_creacion,
+             gt.materia_id, m.nombre AS materia_nombre, m.codigo AS materia_codigo, m.grupo AS materia_grupo
+      FROM grupos_trabajo gt
+      JOIN materias m ON m.id = gt.materia_id
+      WHERE gt.docente_id = ?`;
+    const params = [doc.id];
+    if (materia_id) { params.push(materia_id); }
+    const [grupos] = await pool.query(materia_id ? base + ' AND gt.materia_id = ?' : base, params);
+
+    for (const g of grupos) {
+      const [miembros] = await pool.query(
+        `SELECT e.id AS estudiante_id, u.nombre, u.apellido, e.codigo_estudiante
+         FROM miembros_grupo_trabajo mg
+         JOIN estudiantes e ON e.id = mg.estudiante_id
+         JOIN usuarios u ON u.id = e.usuario_id
+         WHERE mg.grupo_id = ?`, [g.id]
+      );
+      const [tareas] = await pool.query(
+        `SELECT t.id, t.titulo, t.fecha_entrega
+         FROM tareas_grupo_trabajo tgt
+         JOIN tareas t ON t.id = tgt.tarea_id
+         WHERE tgt.grupo_id = ?`, [g.id]
+      );
+      g.miembros = miembros;
+      g.tareas = tareas;
+    }
+
+    res.json(grupos);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const crearGrupoTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const { materia_id, nombre, descripcion } = req.body;
+    if (!materia_id || !nombre?.trim()) {
+      return res.status(400).json({ error: 'materia_id y nombre son requeridos' });
+    }
+
+    const [[mat]] = await pool.query(
+      'SELECT id FROM materias WHERE id = ? AND docente_id = ?', [materia_id, doc.id]
+    );
+    if (!mat) return res.status(403).json({ error: 'Materia no asignada a este docente' });
+
+    const [result] = await pool.query(
+      'INSERT INTO grupos_trabajo (materia_id, docente_id, nombre, descripcion) VALUES (?, ?, ?, ?)',
+      [materia_id, doc.id, nombre.trim(), descripcion || null]
+    );
+    res.status(201).json({ id: result.insertId, message: 'Grupo creado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const eliminarGrupoTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const [[grupo]] = await pool.query(
+      'SELECT id FROM grupos_trabajo WHERE id = ? AND docente_id = ?', [req.params.id, doc.id]
+    );
+    if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+    await pool.query('DELETE FROM grupos_trabajo WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Grupo eliminado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const actualizarGrupoTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const { nombre, descripcion } = req.body;
+    if (!nombre?.trim()) return res.status(400).json({ error: 'nombre es requerido' });
+
+    const [[grupo]] = await pool.query(
+      'SELECT id FROM grupos_trabajo WHERE id = ? AND docente_id = ?', [req.params.id, doc.id]
+    );
+    if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+    await pool.query(
+      'UPDATE grupos_trabajo SET nombre = ?, descripcion = ? WHERE id = ?',
+      [nombre.trim(), descripcion || null, req.params.id]
+    );
+    res.json({ message: 'Grupo actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const agregarMiembrosGrupoTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const [[grupo]] = await pool.query(
+      'SELECT id FROM grupos_trabajo WHERE id = ? AND docente_id = ?', [req.params.id, doc.id]
+    );
+    if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+    const { estudiante_ids } = req.body;
+    if (!Array.isArray(estudiante_ids) || estudiante_ids.length === 0) {
+      return res.status(400).json({ error: 'estudiante_ids debe ser un arreglo no vacío' });
+    }
+
+    for (const est_id of estudiante_ids) {
+      await pool.query(
+        'INSERT IGNORE INTO miembros_grupo_trabajo (grupo_id, estudiante_id) VALUES (?, ?)',
+        [req.params.id, est_id]
+      );
+    }
+    res.json({ message: 'Miembros agregados' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const removerMiembroGrupoTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const [[grupo]] = await pool.query(
+      'SELECT id FROM grupos_trabajo WHERE id = ? AND docente_id = ?', [req.params.id, doc.id]
+    );
+    if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+    await pool.query(
+      'DELETE FROM miembros_grupo_trabajo WHERE grupo_id = ? AND estudiante_id = ?',
+      [req.params.id, req.params.estudianteId]
+    );
+    res.json({ message: 'Miembro removido' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const asignarTareaGrupoTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const [[grupo]] = await pool.query(
+      'SELECT id FROM grupos_trabajo WHERE id = ? AND docente_id = ?', [req.params.id, doc.id]
+    );
+    if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+    const { tarea_id } = req.body;
+    if (!tarea_id) return res.status(400).json({ error: 'tarea_id es requerido' });
+
+    await pool.query(
+      'INSERT IGNORE INTO tareas_grupo_trabajo (grupo_id, tarea_id) VALUES (?, ?)',
+      [req.params.id, tarea_id]
+    );
+    res.json({ message: 'Tarea asignada al grupo' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const removerTareaGrupoTrabajo = async (req, res) => {
+  try {
+    const [[doc]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
+    if (!doc) return res.status(404).json({ error: 'Docente no encontrado' });
+
+    const [[grupo]] = await pool.query(
+      'SELECT id FROM grupos_trabajo WHERE id = ? AND docente_id = ?', [req.params.id, doc.id]
+    );
+    if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+    await pool.query(
+      'DELETE FROM tareas_grupo_trabajo WHERE grupo_id = ? AND tarea_id = ?',
+      [req.params.id, req.params.tareaId]
+    );
+    res.json({ message: 'Tarea removida del grupo' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

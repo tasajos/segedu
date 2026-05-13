@@ -637,3 +637,47 @@ export const eliminarGrupo = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ── Grupos de trabajo creados por docente — vista estudiante ─────────────────
+
+export const listarMisGruposDocente = async (req, res) => {
+  try {
+    const estudianteId = req.user.estudiante_id;
+
+    const [grupos] = await pool.query(
+      `SELECT gt.id, gt.nombre, gt.descripcion, gt.fecha_creacion,
+              gt.materia_id, m.nombre AS materia_nombre, m.codigo AS materia_codigo, m.grupo AS materia_grupo,
+              u.nombre AS docente_nombre, u.apellido AS docente_apellido
+       FROM miembros_grupo_trabajo mg
+       JOIN grupos_trabajo gt ON gt.id = mg.grupo_id
+       JOIN materias m ON m.id = gt.materia_id
+       JOIN docentes d ON d.id = gt.docente_id
+       JOIN usuarios u ON u.id = d.usuario_id
+       WHERE mg.estudiante_id = ?
+       ORDER BY gt.fecha_creacion DESC`, [estudianteId]
+    );
+
+    for (const g of grupos) {
+      const [miembros] = await pool.query(
+        `SELECT e.id AS estudiante_id, u.nombre, u.apellido, e.codigo_estudiante
+         FROM miembros_grupo_trabajo mg
+         JOIN estudiantes e ON e.id = mg.estudiante_id
+         JOIN usuarios u ON u.id = e.usuario_id
+         WHERE mg.grupo_id = ?`, [g.id]
+      );
+      const [tareas] = await pool.query(
+        `SELECT t.id, t.titulo, t.descripcion, t.fecha_entrega, t.tipo_archivo
+         FROM tareas_grupo_trabajo tgt
+         JOIN tareas t ON t.id = tgt.tarea_id
+         WHERE tgt.grupo_id = ?
+         ORDER BY t.fecha_entrega ASC`, [g.id]
+      );
+      g.miembros = miembros;
+      g.tareas = tareas;
+    }
+
+    res.json(grupos);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

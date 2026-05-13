@@ -23,8 +23,9 @@ const menuByRole = {
     { to: '/docente/asistencia', label: 'Lista asistencia', num: '06' },
     { to: '/docente/disciplina', label: 'Mi disciplina', num: '07' },
     { to: '/docente/tareas', label: 'Tareas del curso', num: '08' },
-    { to: '/docente/unidades', label: 'Unidades instrucción', num: '09' },
-    { to: '/docente/presentaciones', label: 'Presentaciones', num: '10' }
+    { to: '/docente/grupos-trabajo', label: 'Grupos de trabajo', num: '09' },
+    { to: '/docente/unidades', label: 'Unidades instrucción', num: '10' },
+    { to: '/docente/presentaciones', label: 'Presentaciones', num: '11' }
   ],
   jefe: [
     { to: '/jefe', label: 'Dashboard', num: '01' },

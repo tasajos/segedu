@@ -10,7 +10,10 @@ import {
   listarSolicitudesPermisoDocente,
   listarNotificacionesPendientesDocente, revisarNotificacionesDocente,
   misDisciplina,
-  actualizarInfoPersonalDocente, cambiarContrasenaDocente
+  actualizarInfoPersonalDocente, cambiarContrasenaDocente,
+  listarGruposTrabajo, crearGrupoTrabajo, eliminarGrupoTrabajo, actualizarGrupoTrabajo,
+  agregarMiembrosGrupoTrabajo, removerMiembroGrupoTrabajo,
+  asignarTareaGrupoTrabajo, removerTareaGrupoTrabajo
 } from '../controllers/docenteController.js';
 import {
   listarTareasDocente, crearTarea, eliminarTarea,
@@ -75,5 +78,15 @@ router.get('/carpetas', listarCarpetas);
 router.post('/carpetas', crearCarpeta);
 router.put('/carpetas/:id', actualizarCarpeta);
 router.delete('/carpetas/:id', eliminarCarpeta);
+
+// Grupos de trabajo
+router.get('/grupos-trabajo', listarGruposTrabajo);
+router.post('/grupos-trabajo', crearGrupoTrabajo);
+router.put('/grupos-trabajo/:id', actualizarGrupoTrabajo);
+router.delete('/grupos-trabajo/:id', eliminarGrupoTrabajo);
+router.post('/grupos-trabajo/:id/miembros', agregarMiembrosGrupoTrabajo);
+router.delete('/grupos-trabajo/:id/miembros/:estudianteId', removerMiembroGrupoTrabajo);
+router.post('/grupos-trabajo/:id/tareas', asignarTareaGrupoTrabajo);
+router.delete('/grupos-trabajo/:id/tareas/:tareaId', removerTareaGrupoTrabajo);
 
 export default router;

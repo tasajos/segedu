@@ -11,6 +11,115 @@ const formatFecha = (val) => {
   return `${d}/${m}/${y}`;
 };
 
+function SeccionGruposDocente({ estudianteId }) {
+  const [grupos, setGrupos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandido, setExpandido] = useState(null);
+
+  useEffect(() => {
+    api.get('/estudiante/grupos-docente')
+      .then(r => setGrupos(r.data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p style={{ color: 'var(--ink-light)', fontStyle: 'italic', marginBottom: '2rem' }}>Cargando grupos asignados...</p>;
+
+  return (
+    <div style={{ marginBottom: '3rem' }}>
+      <div className="section-head" style={{ marginBottom: '1rem' }}>
+        <h2>Grupos asignados por docente</h2>
+        <span className="count">{grupos.length} grupo(s)</span>
+      </div>
+
+      {grupos.length === 0 ? (
+        <div style={{ padding: '2.5rem', textAlign: 'center', border: '1px dashed var(--line-strong)', borderRadius: '2px', marginBottom: '.5rem' }}>
+          <p className="display-italic" style={{ color: 'var(--ink-light)' }}>No has sido asignado a ningún grupo todavía</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+          {grupos.map((g, idx) => {
+            const abierto = expandido === g.id;
+            return (
+              <div key={g.id} className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: '3px solid var(--blue-500)' }}>
+                <div
+                  style={{ display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: '1rem', alignItems: 'start', cursor: 'pointer' }}
+                  onClick={() => setExpandido(abierto ? null : g.id)}
+                >
+                  <div style={{ fontFamily: 'var(--serif)', fontSize: '1.4rem', color: 'var(--ink-xlight)', fontStyle: 'italic' }}>
+                    {String(idx + 1).padStart(2, '0')}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: '.66rem', color: 'var(--gold-dark)', letterSpacing: '.09em', textTransform: 'uppercase', marginBottom: '.3rem' }}>
+                      {g.materia_codigo} · {g.materia_nombre} — Grupo {g.materia_grupo}
+                    </div>
+                    <div style={{ fontWeight: 700, fontFamily: 'var(--serif)', fontSize: '1rem', marginBottom: '.2rem' }}>
+                      {g.nombre}
+                    </div>
+                    <div style={{ fontSize: '.78rem', color: 'var(--ink-light)' }}>
+                      Docente: {g.docente_nombre} {g.docente_apellido} · {g.miembros.length} miembro(s) · {g.tareas.length} tarea(s)
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--ink-light)', paddingTop: '.3rem' }}>
+                    {abierto ? '▲' : '▼'}
+                  </div>
+                </div>
+
+                {abierto && (
+                  <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--line)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    {/* Miembros */}
+                    <div>
+                      <div style={{ fontSize: '.68rem', fontFamily: 'var(--mono)', color: 'var(--ink-light)', letterSpacing: '.07em', marginBottom: '.5rem' }}>INTEGRANTES</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.35rem' }}>
+                        {g.miembros.map(m => (
+                          <span
+                            key={m.estudiante_id}
+                            style={{
+                              padding: '.25rem .6rem', background: m.estudiante_id === estudianteId ? 'rgba(22,163,74,.1)' : 'var(--paper-dark)',
+                              borderRadius: '20px', fontSize: '.77rem', border: `1px solid ${m.estudiante_id === estudianteId ? 'rgba(22,163,74,.35)' : 'var(--line)'}`,
+                              display: 'flex', alignItems: 'center', gap: '.3rem'
+                            }}
+                          >
+                            {m.nombre} {m.apellido}
+                            {m.estudiante_id === estudianteId && <span style={{ color: 'var(--forest)', fontSize: '.7rem' }}>(tú)</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tareas asignadas al grupo */}
+                    <div>
+                      <div style={{ fontSize: '.68rem', fontFamily: 'var(--mono)', color: 'var(--ink-light)', letterSpacing: '.07em', marginBottom: '.5rem' }}>TAREAS DEL GRUPO</div>
+                      {g.tareas.length === 0 ? (
+                        <p style={{ fontSize: '.8rem', color: 'var(--ink-xlight)', fontStyle: 'italic' }}>Sin tareas asignadas aún</p>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
+                          {g.tareas.map(t => (
+                            <div key={t.id} style={{ padding: '.5rem .75rem', background: 'var(--paper-dark)', borderRadius: '2px', borderLeft: '2px solid var(--blue-500)' }}>
+                              <div style={{ fontWeight: 600, fontSize: '.85rem' }}>{t.titulo}</div>
+                              {t.descripcion && (
+                                <div style={{ fontSize: '.78rem', color: 'var(--ink-light)', marginTop: '.15rem' }}>{t.descripcion}</div>
+                              )}
+                              {t.fecha_entrega && (
+                                <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)', marginTop: '.2rem' }}>
+                                  Entrega: {formatFecha(t.fecha_entrega)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EstudianteGrupos() {
   const { user } = useAuth();
   const estudianteId = user?.estudiante_id;
@@ -116,8 +225,18 @@ export default function EstudianteGrupos() {
         num="06"
         eyebrow="Trabajo colaborativo"
         title={<>Grupos de <span className="display-italic">trabajo</span></>}
-        lead="Cree grupos con sus compañeros para tareas específicas. Un estudiante solo puede pertenecer a un grupo por tarea."
+        lead="Consulta los grupos asignados por tu docente y gestiona grupos colaborativos con tus compañeros."
       />
+
+      {/* Grupos creados por docente */}
+      <SeccionGruposDocente estudianteId={estudianteId} />
+
+      {/* Separador */}
+      <div style={{ borderTop: '1px solid var(--line)', marginBottom: '2rem', paddingTop: '.5rem' }}>
+        <div style={{ fontSize: '.72rem', fontFamily: 'var(--mono)', color: 'var(--ink-light)', letterSpacing: '.09em', textTransform: 'uppercase' }}>
+          Grupos entre estudiantes
+        </div>
+      </div>
 
       {/* Selector de tarea */}
       <div className="section-head">
