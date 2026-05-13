@@ -18,6 +18,7 @@ const TIPO_LABEL = {
 const UNIT_ROUTES = {
   'Circuitos Lógicos':    'circuitos-logicos',
   'Cálculo — Derivadas':  'calculo-derivadas',
+  'Armar una PC':         'armar-pc',
 };
 
 export default function UnidadesLista() {
