@@ -1,26 +1,45 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import './PCBuilderSimulator.css';
+import { PCCaseView, MonitorDisplay, generatePostLines } from './PCVisualizer';
 
 // ═══════════════════════════════════════════════════════ CATALOG ══════════════
 
 const CATALOG = {
   cpu: [
-    { id:'i3-12100',  name:'Intel Core i3-12100',   socket:'LGA1700', tdp:89,  cores:4,  threads:8,  ghz:3.3, turbo:4.3, score:3,  price:130, igpu:true,  brand:'Intel' },
-    { id:'i5-12600k', name:'Intel Core i5-12600K',  socket:'LGA1700', tdp:125, cores:10, threads:16, ghz:3.7, turbo:4.9, score:5,  price:220, igpu:true,  brand:'Intel' },
-    { id:'i7-13700k', name:'Intel Core i7-13700K',  socket:'LGA1700', tdp:125, cores:16, threads:24, ghz:3.4, turbo:5.4, score:7,  price:380, igpu:true,  brand:'Intel' },
-    { id:'i9-13900k', name:'Intel Core i9-13900K',  socket:'LGA1700', tdp:253, cores:24, threads:32, ghz:3.0, turbo:5.8, score:9,  price:550, igpu:true,  brand:'Intel' },
-    { id:'r5-5600',   name:'AMD Ryzen 5 5600',      socket:'AM4',     tdp:65,  cores:6,  threads:12, ghz:3.5, turbo:4.4, score:4,  price:140, igpu:false, brand:'AMD'   },
-    { id:'r7-5800x',  name:'AMD Ryzen 7 5800X',     socket:'AM4',     tdp:105, cores:8,  threads:16, ghz:3.8, turbo:4.7, score:6,  price:250, igpu:false, brand:'AMD'   },
-    { id:'r9-7900x',  name:'AMD Ryzen 9 7900X',     socket:'AM5',     tdp:170, cores:12, threads:24, ghz:4.7, turbo:5.6, score:8,  price:400, igpu:true,  brand:'AMD'   },
-    { id:'r9-7950x',  name:'AMD Ryzen 9 7950X',     socket:'AM5',     tdp:170, cores:16, threads:32, ghz:4.5, turbo:5.7, score:10, price:600, igpu:true,  brand:'AMD'   },
+    // ── Gama económica / Bolivia mercado local ───────────────────────────────
+    { id:'celeron-g5905', name:'Intel Celeron G5905',      socket:'LGA1200', tdp:58,  cores:2,  threads:2,  ghz:3.5, turbo:3.5, score:1,  price:45,  igpu:true,  brand:'Intel' },
+    { id:'g6400',         name:'Intel Pentium Gold G6400', socket:'LGA1200', tdp:58,  cores:2,  threads:4,  ghz:4.0, turbo:4.0, score:1,  price:60,  igpu:true,  brand:'Intel' },
+    { id:'i3-10100f',     name:'Intel Core i3-10100F',    socket:'LGA1200', tdp:65,  cores:4,  threads:8,  ghz:3.6, turbo:4.3, score:2,  price:80,  igpu:false, brand:'Intel' },
+    { id:'i5-10400',      name:'Intel Core i5-10400',     socket:'LGA1200', tdp:65,  cores:6,  threads:12, ghz:2.9, turbo:4.3, score:4,  price:145, igpu:true,  brand:'Intel' },
+    { id:'r3-3100',       name:'AMD Ryzen 3 3100',        socket:'AM4',     tdp:65,  cores:4,  threads:8,  ghz:3.6, turbo:3.9, score:2,  price:75,  igpu:false, brand:'AMD'   },
+    { id:'r5-5500',       name:'AMD Ryzen 5 5500',        socket:'AM4',     tdp:65,  cores:6,  threads:12, ghz:3.6, turbo:4.2, score:3,  price:115, igpu:false, brand:'AMD'   },
+    // ── Gama media ────────────────────────────────────────────────────────────
+    { id:'i3-12100',      name:'Intel Core i3-12100',     socket:'LGA1700', tdp:89,  cores:4,  threads:8,  ghz:3.3, turbo:4.3, score:3,  price:130, igpu:true,  brand:'Intel' },
+    { id:'i5-13400f',     name:'Intel Core i5-13400F',   socket:'LGA1700', tdp:65,  cores:10, threads:16, ghz:2.5, turbo:4.6, score:5,  price:200, igpu:false, brand:'Intel' },
+    { id:'i5-12600k',     name:'Intel Core i5-12600K',   socket:'LGA1700', tdp:125, cores:10, threads:16, ghz:3.7, turbo:4.9, score:5,  price:220, igpu:true,  brand:'Intel' },
+    { id:'r5-5600',       name:'AMD Ryzen 5 5600',        socket:'AM4',     tdp:65,  cores:6,  threads:12, ghz:3.5, turbo:4.4, score:4,  price:140, igpu:false, brand:'AMD'   },
+    { id:'r7-5700x',      name:'AMD Ryzen 7 5700X',       socket:'AM4',     tdp:65,  cores:8,  threads:16, ghz:3.4, turbo:4.6, score:6,  price:200, igpu:false, brand:'AMD'   },
+    { id:'r7-5800x',      name:'AMD Ryzen 7 5800X',       socket:'AM4',     tdp:105, cores:8,  threads:16, ghz:3.8, turbo:4.7, score:6,  price:250, igpu:false, brand:'AMD'   },
+    // ── Gama alta ─────────────────────────────────────────────────────────────
+    { id:'i7-13700k',     name:'Intel Core i7-13700K',   socket:'LGA1700', tdp:125, cores:16, threads:24, ghz:3.4, turbo:5.4, score:7,  price:380, igpu:true,  brand:'Intel' },
+    { id:'i9-13900k',     name:'Intel Core i9-13900K',   socket:'LGA1700', tdp:253, cores:24, threads:32, ghz:3.0, turbo:5.8, score:9,  price:550, igpu:true,  brand:'Intel' },
+    { id:'r9-7900x',      name:'AMD Ryzen 9 7900X',       socket:'AM5',     tdp:170, cores:12, threads:24, ghz:4.7, turbo:5.6, score:8,  price:400, igpu:true,  brand:'AMD'   },
+    { id:'r9-7950x',      name:'AMD Ryzen 9 7950X',       socket:'AM5',     tdp:170, cores:16, threads:32, ghz:4.5, turbo:5.7, score:10, price:600, igpu:true,  brand:'AMD'   },
   ],
   motherboard: [
-    { id:'b660m',  name:'MSI B660M Pro-A DDR4',     socket:'LGA1700', ramType:'DDR4', maxRam:64,  form:'mATX', slots:2, price:100 },
-    { id:'z690',   name:'ASUS ROG STRIX Z690-F',    socket:'LGA1700', ramType:'DDR5', maxRam:128, form:'ATX',  slots:4, price:200 },
-    { id:'b550',   name:'Gigabyte B550M DS3H',      socket:'AM4',     ramType:'DDR4', maxRam:128, form:'mATX', slots:2, price:80  },
-    { id:'x570',   name:'MSI MEG X570 ACE',         socket:'AM4',     ramType:'DDR4', maxRam:128, form:'ATX',  slots:4, price:180 },
-    { id:'b650',   name:'MSI MAG B650 Tomahawk',    socket:'AM5',     ramType:'DDR5', maxRam:128, form:'ATX',  slots:4, price:150 },
-    { id:'x670e',  name:'MSI MEG X670E Ace',        socket:'AM5',     ramType:'DDR5', maxRam:256, form:'ATX',  slots:4, price:280 },
+    // LGA1200 (economía Bolivia)
+    { id:'h510m',  name:'MSI H510M PRO',              socket:'LGA1200', ramType:'DDR4', maxRam:64,  form:'mATX', slots:2, price:70  },
+    { id:'b560m',  name:'ASUS PRIME B560M-A',         socket:'LGA1200', ramType:'DDR4', maxRam:64,  form:'mATX', slots:4, price:90  },
+    // LGA1700
+    { id:'b660m',  name:'MSI B660M Pro-A DDR4',       socket:'LGA1700', ramType:'DDR4', maxRam:64,  form:'mATX', slots:2, price:100 },
+    { id:'z690',   name:'ASUS ROG STRIX Z690-F',      socket:'LGA1700', ramType:'DDR5', maxRam:128, form:'ATX',  slots:4, price:200 },
+    // AM4
+    { id:'b450m',  name:'Gigabyte B450M DS3H',        socket:'AM4',     ramType:'DDR4', maxRam:64,  form:'mATX', slots:2, price:65  },
+    { id:'b550',   name:'Gigabyte B550M DS3H',        socket:'AM4',     ramType:'DDR4', maxRam:128, form:'mATX', slots:2, price:80  },
+    { id:'x570',   name:'MSI MEG X570 ACE',           socket:'AM4',     ramType:'DDR4', maxRam:128, form:'ATX',  slots:4, price:180 },
+    // AM5
+    { id:'b650',   name:'MSI MAG B650 Tomahawk',      socket:'AM5',     ramType:'DDR5', maxRam:128, form:'ATX',  slots:4, price:150 },
+    { id:'x670e',  name:'MSI MEG X670E Ace',          socket:'AM5',     ramType:'DDR5', maxRam:256, form:'ATX',  slots:4, price:280 },
   ],
   ram: [
     { id:'ddr4-8',   name:'8 GB DDR4-3200',    type:'DDR4', gb:8,   mhz:3200, score:1, price:25  },
@@ -78,10 +97,28 @@ const CATALOG = {
     { id:'4k144',  name:'32" 4K UHD 144Hz',                   res:'3840×2160', hz:144, inch:32, price:620 },
     { id:'uw144',  name:'34" Ultrawide QHD 1440p 144Hz',      res:'3440×1440', hz:144, inch:34, price:455 },
   ],
-  peripherals: [
-    { id:'basic',  name:'Teclado Membrana + Ratón óptico',    price:30  },
-    { id:'gaming', name:'Teclado Gaming + Ratón 6400 DPI',    price:85  },
-    { id:'mech',   name:'Teclado Mecánico + Ratón Pro 25600 DPI', price:190 },
+  entrada: [
+    { id:'kb-basic',  name:'Teclado Membrana + Ratón Óptico',          specs:['USB', 'Plug & Play'],                        price:30  },
+    { id:'kb-gaming', name:'Teclado Gaming RGB + Ratón 6400 DPI',      specs:['RGB', 'Polling 1000Hz', 'Antighostin'],     price:85  },
+    { id:'kb-mech',   name:'Teclado Mecánico Cherry MX + Ratón Pro',   specs:['Switches mec.', 'Wireless 2.4GHz'],         price:190 },
+    { id:'webcam-hd', name:'Cámara Web Full HD 1080p 30fps',           specs:['1920×1080', '30fps', 'USB 2.0'],            price:45  },
+    { id:'webcam-4k', name:'Cámara Web 4K 60fps (streaming)',          specs:['3840×2160', '60fps', 'USB 3.0'],            price:120 },
+    { id:'mic-usb',   name:'Micrófono USB Condensador Cardioide',      specs:['USB Plug&Play', '48kHz', 'Cardioide'],      price:40  },
+    { id:'gamepad',   name:'Control Gamepad USB/Bluetooth',            specs:['Dual vibración', 'Inalámbrico', 'PC/PS'],   price:40  },
+    { id:'scanner',   name:'Escáner de Documentos A4 600dpi',          specs:['A4', '600dpi', 'USB', 'Color'],             price:75  },
+    { id:'wacom',     name:'Tableta Digitalizadora 10×6"',             specs:['8192 niveles', 'Stylus incluido', 'USB'],   price:90  },
+  ],
+  salida: [
+    { id:'spk-20',    name:'Altavoces 2.0 Escritorio 20W',             specs:['20W RMS', 'Jack 3.5mm', 'Control volumen'], price:30  },
+    { id:'spk-21',    name:'Altavoces 2.1 + Subwoofer 40W',           specs:['40W RMS', 'Subwoofer 20cm', 'RCA'],        price:65  },
+    { id:'spk-51',    name:'Sistema 5.1 Surround 120W',                specs:['120W RMS', 'Dolby Digital', '6 canal'],    price:130 },
+    { id:'headset',   name:'Auriculares Gaming 7.1 Surround',          specs:['Cancelación ruido', 'Mic retráctil'],       price:55  },
+    { id:'headset-p', name:'Auriculares Hi-Fi 50mm + DAC USB',         specs:['Hi-Fi', '50mm drivers', 'DAC 24bit'],      price:95  },
+    { id:'printer-i', name:'Impresora Multifunción Tinta + WiFi',      specs:['Color', 'WiFi', 'Escan/Copia/Imp'],        price:80  },
+    { id:'printer-l', name:'Impresora Láser Monocromática Red',        specs:['B&N', '30ppm', 'Red LAN', 'Dúplex'],      price:145 },
+    { id:'ups',       name:'UPS 650VA Protección Eléctrica',           specs:['650VA/360W', 'AVR', '6 tomas', 'USB'],    price:55  },
+    { id:'hub-usb',   name:'Hub USB 3.0 de 7 puertos con carga',       specs:['USB 3.0', '7 puertos', '5Gbps'],           price:22  },
+    { id:'ext-hdd',   name:'Disco Externo USB 3.0 — 1TB',             specs:['1TB', 'USB 3.0', '5Gbps', 'Plug&Play'],   price:55  },
   ],
 };
 
@@ -122,11 +159,15 @@ const SLOTS = [
   },
   {
     key: 'monitor', label: 'Monitor', icon: '🖥️', required: false,
-    specs: c => [c.res, `${c.hz} Hz`, `${c.inch} pulgadas`],
+    specs: c => [c.res, `${c.hz} Hz`, `${c.inch}"`],
   },
   {
-    key: 'peripherals', label: 'Periféricos', icon: '⌨️', required: false,
-    specs: () => [],
+    key: 'entrada', label: 'Periféricos Entrada', icon: '⌨️', required: false,
+    specs: c => c.specs || [],
+  },
+  {
+    key: 'salida', label: 'Periféricos Salida', icon: '🔊', required: false,
+    specs: c => c.specs || [],
   },
 ];
 
@@ -249,15 +290,13 @@ function CompPicker({ slotDef, build, onSelect, onClose }) {
 
         {/* Options grid */}
         <div style={{ padding:'1.1rem', display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(330px, 1fr))', gap:'.75rem', maxHeight:'65vh', overflowY:'auto' }}>
-          {/* Clear option for optional slots */}
-          {!slotDef.required && (
-            <button
-              onClick={() => onSelect(null)}
-              style={{ padding:'.75rem 1rem', background:'rgba(255,255,255,.04)', border:'1px dashed rgba(255,255,255,.15)', borderRadius:4, cursor:'pointer', color:'rgba(255,255,255,.4)', fontFamily:'monospace', fontSize:'.8rem', textAlign:'left' }}
-            >
-              — Sin componente (quitar)
-            </button>
-          )}
+          {/* Sin componente — siempre disponible */}
+          <button
+            onClick={() => onSelect(null)}
+            style={{ padding:'.75rem 1rem', background:'rgba(255,255,255,.03)', border:'1px dashed rgba(255,255,255,.12)', borderRadius:4, cursor:'pointer', color:'rgba(255,255,255,.35)', fontFamily:'monospace', fontSize:'.78rem', textAlign:'left' }}
+          >
+            — Sin componente {slotDef.required ? <span style={{ color:'rgba(239,68,68,.6)', fontSize:'.7rem' }}>(la PC no encenderá)</span> : '(quitar)'} —
+          </button>
           {options.map(comp => {
             const incompatNote = getCompatNote(slotDef.key, comp, build);
             const isSelected = current?.id === comp.id;
@@ -506,41 +545,132 @@ function ReportPanel({ build, analysis, tier, price }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════ CABLES ══════════════
+
+function CableConnector({ powered, hasMonitor }) {
+  const on = powered && hasMonitor;
+  const c = (r, g, b, a) => `rgba(${r},${g},${b},${on ? a : a * 0.12})`;
+  return (
+    <svg width="52" height="290" viewBox="0 0 52 290" style={{ flexShrink:0, overflow:'visible' }}>
+      {/* HDMI / DisplayPort — GPU output (~y155) → monitor input (~y80) */}
+      <path d="M 2,158 C 26,158 26,82 50,82"
+        stroke={c(96,165,250,.9)} strokeWidth="3" fill="none" strokeLinecap="round"
+        style={{ transition:'stroke .6s' }} />
+      <circle cx="2"  cy="158" r="3" fill={c(96,165,250,.7)} style={{ transition:'fill .6s' }} />
+      <circle cx="50" cy="82"  r="3" fill={c(96,165,250,.7)} style={{ transition:'fill .6s' }} />
+      <text x="26" y="112" textAnchor="middle" fill={c(96,165,250,.55)} fontSize="6"
+        fontFamily="monospace" transform="rotate(-62,26,112)" style={{ transition:'fill .6s' }}>
+        HDMI
+      </text>
+
+      {/* USB cable — PC (~y200) → peripheral */}
+      <path d="M 2,200 C 26,200 26,155 50,155"
+        stroke={c(34,197,94,.65)} strokeWidth="1.8" fill="none" strokeLinecap="round"
+        strokeDasharray={on ? '0' : '4 3'} style={{ transition:'stroke .6s' }} />
+      <circle cx="50" cy="155" r="2.5" fill={c(34,197,94,.6)} style={{ transition:'fill .6s' }} />
+      <text x="26" y="175" textAnchor="middle" fill={c(34,197,94,.4)} fontSize="5.5"
+        fontFamily="monospace" transform="rotate(-55,26,175)" style={{ transition:'fill .6s' }}>
+        USB
+      </text>
+
+      {/* Power cable — PSU (~y235) → monitor power */}
+      <path d="M 2,235 C 26,235 26,220 50,220"
+        stroke={c(251,191,36,.7)} strokeWidth="2.2" fill="none" strokeLinecap="round"
+        style={{ transition:'stroke .6s' }} />
+      <circle cx="50" cy="220" r="2.5" fill={c(251,191,36,.6)} style={{ transition:'fill .6s' }} />
+      <text x="26" y="232" textAnchor="middle" fill={c(251,191,36,.4)} fontSize="5.5"
+        fontFamily="monospace" transform="rotate(-10,26,232)" style={{ transition:'fill .6s' }}>
+        PWR
+      </text>
+    </svg>
+  );
+}
+
 // ═══════════════════════════════════════════════════════ MAIN ════════════════
 
 const EMPTY_BUILD = {
   cpu: null, motherboard: null, ram: null, storage: null,
-  gpu: CATALOG.gpu[0],  // integrated by default
-  psu: null, cooler: null, pcCase: null, monitor: null, peripherals: null,
+  gpu: CATALOG.gpu[0],
+  psu: null, cooler: null, pcCase: null, monitor: null,
+  entrada: null, salida: null,
 };
 
 const PRESET_BASIC = {
-  cpu: CATALOG.cpu[0], motherboard: CATALOG.motherboard[0], ram: CATALOG.ram[0],
+  cpu: CATALOG.cpu[2], motherboard: CATALOG.motherboard[0], ram: CATALOG.ram[0],
   storage: CATALOG.storage[0], gpu: CATALOG.gpu[0], psu: CATALOG.psu[0],
   cooler: CATALOG.cooler[0], pcCase: CATALOG.pcCase[0], monitor: CATALOG.monitor[0],
-  peripherals: CATALOG.peripherals[0],
+  entrada: CATALOG.entrada[0], salida: CATALOG.salida[0],
 };
 const PRESET_MID = {
-  cpu: CATALOG.cpu[4], motherboard: CATALOG.motherboard[2], ram: CATALOG.ram[2],
+  cpu: CATALOG.cpu[9], motherboard: CATALOG.motherboard[5], ram: CATALOG.ram[2],
   storage: CATALOG.storage[2], gpu: CATALOG.gpu[3], psu: CATALOG.psu[2],
   cooler: CATALOG.cooler[2], pcCase: CATALOG.pcCase[1], monitor: CATALOG.monitor[1],
-  peripherals: CATALOG.peripherals[1],
+  entrada: CATALOG.entrada[1], salida: CATALOG.salida[0],
 };
 const PRESET_HIGH = {
-  cpu: CATALOG.cpu[6], motherboard: CATALOG.motherboard[4], ram: CATALOG.ram[4],
+  cpu: CATALOG.cpu[12], motherboard: CATALOG.motherboard[7], ram: CATALOG.ram[4],
   storage: CATALOG.storage[3], gpu: CATALOG.gpu[5], psu: CATALOG.psu[4],
   cooler: CATALOG.cooler[4], pcCase: CATALOG.pcCase[2], monitor: CATALOG.monitor[3],
-  peripherals: CATALOG.peripherals[2],
+  entrada: CATALOG.entrada[2], salida: CATALOG.salida[1],
 };
 
 export default function PCBuilderSimulator() {
-  const [build, setBuild] = useState(EMPTY_BUILD);
-  const [picker, setPicker] = useState(null);
+  const [build, setBuild]           = useState(EMPTY_BUILD);
+  const [picker, setPicker]         = useState(null);
   const [showReport, setShowReport] = useState(false);
+  const [powered, setPowered]       = useState(false);
+  const [bootState, setBootState]   = useState('off'); // off | booting | bios | bsod | nosignal
+  const [postLines, setPostLines]   = useState([]);
+  const postTimers = useRef([]);
 
   const analysis = useMemo(() => analyzeBuild(build), [build]);
   const tier      = useMemo(() => getTier(build), [build]);
   const price     = useMemo(() => totalPrice(build), [build]);
+
+  // Power off when build changes while powered
+  useEffect(() => {
+    if (powered) handlePowerOff();
+  }, [build]); // eslint-disable-line
+
+  const clearTimers = () => {
+    postTimers.current.forEach(clearTimeout);
+    postTimers.current = [];
+  };
+
+  const handlePowerOff = () => {
+    clearTimers();
+    setPowered(false);
+    setBootState('off');
+    setPostLines([]);
+  };
+
+  const handlePowerOn = () => {
+    if (!build.monitor) {
+      setPowered(true);
+      setBootState('nosignal');
+      return;
+    }
+    if (!analysis.canPowerOn) {
+      setPowered(true);
+      setBootState('bsod');
+      return;
+    }
+    // Normal boot sequence
+    setPowered(true);
+    setBootState('booting');
+    setPostLines([]);
+    const lines = generatePostLines(build);
+    lines.forEach((line, i) => {
+      const t = setTimeout(() => {
+        setPostLines(prev => [...prev, line]);
+        if (i === lines.length - 1) {
+          const t2 = setTimeout(() => setBootState('bios'), 600);
+          postTimers.current.push(t2);
+        }
+      }, i * 120);
+      postTimers.current.push(t);
+    });
+  };
 
   const selectComp = (key, comp) => {
     setBuild(b => ({ ...b, [key]: comp }));
@@ -553,6 +683,7 @@ export default function PCBuilderSimulator() {
   };
 
   const resetBuild = () => {
+    handlePowerOff();
     setBuild(EMPTY_BUILD);
     setShowReport(false);
   };
@@ -561,106 +692,113 @@ export default function PCBuilderSimulator() {
     <div style={{ background:'#0a0a15', color:'#e2e8f0', borderRadius:6, overflow:'hidden', border:'1px solid rgba(255,255,255,.08)', fontFamily:'var(--mono, monospace)' }}>
 
       {/* ── Header ─── */}
-      <div style={{ padding:'1rem 1.5rem', borderBottom:'1px solid rgba(255,255,255,.08)', background:'#0d0d22', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem' }}>
+      <div style={{ padding:'.85rem 1.25rem', borderBottom:'1px solid rgba(255,255,255,.08)', background:'#0d0d22', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'.75rem' }}>
         <div>
-          <div style={{ fontSize:'.6rem', letterSpacing:'.14em', color:'rgba(255,255,255,.3)', marginBottom:'.25rem' }}>SIMULADOR · HARDWARE</div>
-          <div style={{ fontFamily:'var(--serif)', fontSize:'1.1rem', fontWeight:700 }}>🖥️ Armado de PC — Constructor Interactivo</div>
+          <div style={{ fontSize:'.58rem', letterSpacing:'.14em', color:'rgba(255,255,255,.28)', marginBottom:'.2rem' }}>SIMULADOR · HARDWARE</div>
+          <div style={{ fontFamily:'var(--serif)', fontSize:'1rem', fontWeight:700 }}>🖥️ Armado de PC — Constructor Interactivo</div>
         </div>
-        <div style={{ display:'flex', gap:'.5rem', flexWrap:'wrap' }}>
-          <span style={{ fontSize:'.65rem', color:'rgba(255,255,255,.3)', alignSelf:'center' }}>Presets:</span>
+        <div style={{ display:'flex', gap:'.45rem', flexWrap:'wrap', alignItems:'center' }}>
+          <span style={{ fontSize:'.6rem', color:'rgba(255,255,255,.28)' }}>Presets:</span>
           {[['Básica', PRESET_BASIC, '#22c55e'], ['Media', PRESET_MID, '#3b82f6'], ['Alta', PRESET_HIGH, '#a855f7']].map(([label, preset, color]) => (
-            <button key={label} onClick={() => loadPreset(preset)} style={{ padding:'.28rem .7rem', background:'transparent', border:`1px solid ${color}55`, color, borderRadius:2, cursor:'pointer', fontSize:'.72rem', fontFamily:'monospace' }}
+            <button key={label} onClick={() => loadPreset(preset)}
+              style={{ padding:'.24rem .6rem', background:'transparent', border:`1px solid ${color}55`, color, borderRadius:2, cursor:'pointer', fontSize:'.68rem', fontFamily:'monospace' }}
               onMouseEnter={e => e.currentTarget.style.background = `${color}18`}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >{label}</button>
           ))}
-          <button onClick={resetBuild} style={{ padding:'.28rem .7rem', background:'transparent', border:'1px solid rgba(255,255,255,.15)', color:'rgba(255,255,255,.4)', borderRadius:2, cursor:'pointer', fontSize:'.72rem', fontFamily:'monospace' }}>↺ Reiniciar</button>
+          <button onClick={resetBuild} style={{ padding:'.24rem .6rem', background:'transparent', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.35)', borderRadius:2, cursor:'pointer', fontSize:'.68rem', fontFamily:'monospace' }}>↺</button>
         </div>
       </div>
 
-      {/* ── 2-col layout ─── */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 240px' }}>
+      {/* ══ MAIN: componentes (izq) + visual (der) ══ */}
+      <div style={{ display:'grid', gridTemplateColumns:'minmax(320px,1fr) 480px' }}>
 
-        {/* Left: slots */}
-        <div style={{ padding:'1rem', borderRight:'1px solid rgba(255,255,255,.06)', display:'flex', flexDirection:'column', gap:'.5rem' }}>
-          <div style={{ fontSize:'.6rem', letterSpacing:'.12em', color:'rgba(255,255,255,.25)', marginBottom:'.25rem' }}>COMPONENTES</div>
-          {SLOTS.map(slot => (
-            <SlotRow key={slot.key} slotDef={slot} build={build} analysis={analysis} onOpen={() => setPicker(slot)} />
-          ))}
+        {/* ── Izquierda: slots ── */}
+        <div style={{ borderRight:'1px solid rgba(255,255,255,.06)', display:'flex', flexDirection:'column' }}>
+          <div style={{ padding:'.6rem 1rem', borderBottom:'1px solid rgba(255,255,255,.05)', fontSize:'.58rem', letterSpacing:'.12em', color:'rgba(255,255,255,.22)' }}>
+            COMPONENTES
+          </div>
+          <div style={{ padding:'.6rem .75rem', display:'flex', flexDirection:'column', gap:'.4rem', overflowY:'auto' }}>
+            {SLOTS.map(slot => (
+              <SlotRow key={slot.key} slotDef={slot} build={build} analysis={analysis} onOpen={() => setPicker(slot)} />
+            ))}
+          </div>
         </div>
 
-        {/* Right: status panel */}
-        <div style={{ padding:'1rem', display:'flex', flexDirection:'column', gap:'1rem', alignItems:'center' }}>
-          <div style={{ fontSize:'.6rem', letterSpacing:'.12em', color:'rgba(255,255,255,.25)', alignSelf:'flex-start' }}>ESTADO</div>
+        {/* ── Derecha: visual ── */}
+        <div style={{ background:'#070712', display:'flex', flexDirection:'column' }}>
 
-          {/* Power LED */}
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'.65rem', padding:'1.25rem', width:'100%', background:'rgba(255,255,255,.025)', borderRadius:4, border:'1px solid rgba(255,255,255,.07)' }}>
-            <div
-              className={analysis.canPowerOn ? 'pc-led-on' : 'pc-led-off'}
-              style={{
-                width:52, height:52, borderRadius:'50%',
-                background: analysis.canPowerOn ? '#22c55e' : '#374151',
-                border:`3px solid ${analysis.canPowerOn ? '#4ade80' : '#4b5563'}`,
-                '--c': analysis.canPowerOn ? '#22c55e' : '#ef4444',
-                '--c2': analysis.canPowerOn ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.15)',
-              }}
-            />
-            <div style={{ textAlign:'center' }}>
-              <div style={{ fontWeight:900, fontSize:'.88rem', color: analysis.canPowerOn ? '#4ade80' : '#ef4444', letterSpacing:'.06em' }}>
+          {/* Subheader visual */}
+          <div style={{ padding:'.55rem 1rem', borderBottom:'1px solid rgba(255,255,255,.05)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'.5rem' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'.5rem' }}>
+              <div className={analysis.canPowerOn ? 'pc-led-on' : 'pc-led-off'} style={{ width:10, height:10, borderRadius:'50%', background: analysis.canPowerOn ? '#22c55e' : '#374151', flexShrink:0 }} />
+              <span style={{ fontSize:'.7rem', fontWeight:700, color: analysis.canPowerOn ? '#4ade80' : '#ef4444' }}>
                 {analysis.canPowerOn ? '✓ ENCIENDE' : '✕ NO ENCIENDE'}
-              </div>
-              <div style={{ fontSize:'.68rem', color:'rgba(255,255,255,.35)', marginTop:'.15rem' }}>
-                {analysis.canPowerOn ? 'Equipo operativo' : analysis.missing.length > 0 ? `Faltan ${analysis.missing.length} componente(s)` : `${analysis.errors.length} incompatibilidad(es)`}
-              </div>
+              </span>
+              {tier && <span style={{ fontSize:'.62rem', padding:'.1rem .45rem', background:tier.glow, border:`1px solid ${tier.color}55`, color:tier.color, borderRadius:2, marginLeft:'.25rem' }}>{tier.label}</span>}
+              {price > 0 && <span style={{ fontSize:'.68rem', color:'#fbbf24', fontWeight:700, marginLeft:'.5rem' }}>${price.toLocaleString()}</span>}
+            </div>
+            <button
+              onClick={powered ? handlePowerOff : handlePowerOn}
+              style={{
+                padding:'.28rem .75rem', fontFamily:'monospace', fontSize:'.72rem',
+                background: powered ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.15)',
+                border: `1px solid ${powered ? 'rgba(239,68,68,.4)' : 'rgba(34,197,94,.35)'}`,
+                color: powered ? '#f87171' : '#4ade80',
+                borderRadius:2, cursor:'pointer', letterSpacing:'.04em', transition:'all .2s', flexShrink:0,
+              }}>
+              {powered ? '⏻ Apagar' : '⏻ Encender PC'}
+            </button>
+          </div>
+
+          {/* Case + cables + Monitor — fila central */}
+          <div style={{ flex:1, padding:'1rem .75rem', display:'flex', alignItems:'center', justifyContent:'center', gap:0 }}>
+            {/* PC Case */}
+            <div style={{ flexShrink:0, width:180 }}>
+              <div style={{ fontSize:'.52rem', letterSpacing:'.1em', color:'rgba(255,255,255,.18)', textAlign:'center', marginBottom:'.4rem' }}>INTERIOR DEL EQUIPO</div>
+              <PCCaseView build={build} powered={powered} />
+            </div>
+
+            {/* Cables SVG */}
+            <CableConnector powered={powered} hasMonitor={!!build.monitor} />
+
+            {/* Monitor */}
+            <div style={{ flexShrink:0 }}>
+              <div style={{ fontSize:'.52rem', letterSpacing:'.1em', color:'rgba(255,255,255,.18)', textAlign:'center', marginBottom:'.4rem' }}>MONITOR</div>
+              <MonitorDisplay bootState={bootState} postLines={postLines} build={build} analysis={analysis} />
             </div>
           </div>
 
-          {/* Quick stats */}
-          {tier && (
-            <div style={{ width:'100%', padding:'.75rem', background: tier.glow, border:`1px solid ${tier.color}44`, borderRadius:4, textAlign:'center' }}>
-              <div style={{ fontSize:'1.3rem' }}>{tier.emoji}</div>
-              <div style={{ fontWeight:900, color:tier.color, fontSize:'.9rem', letterSpacing:'.05em', marginTop:'.2rem' }}>{tier.label}</div>
-              <div style={{ fontSize:'.68rem', color:'rgba(255,255,255,.45)', marginTop:'.1rem' }}>{tier.sub}</div>
-            </div>
-          )}
-
-          {price > 0 && (
-            <div style={{ width:'100%', textAlign:'center', padding:'.65rem', background:'rgba(251,191,36,.08)', border:'1px solid rgba(251,191,36,.2)', borderRadius:4 }}>
-              <div style={{ fontSize:'.62rem', letterSpacing:'.1em', color:'rgba(255,255,255,.35)' }}>PRECIO ESTIMADO</div>
-              <div style={{ fontWeight:900, fontSize:'1.15rem', color:'#fbbf24', marginTop:'.2rem' }}>${price.toLocaleString()}</div>
-              <div style={{ fontSize:'.65rem', color:'rgba(255,255,255,.3)', marginTop:'.1rem' }}>USD aprox.</div>
-            </div>
-          )}
-
-          {/* Issues summary */}
-          {analysis.errors.length > 0 && (
-            <div style={{ width:'100%', padding:'.6rem .75rem', background:'rgba(239,68,68,.07)', border:'1px solid rgba(239,68,68,.2)', borderRadius:4 }}>
-              <div style={{ fontSize:'.62rem', letterSpacing:'.1em', color:'#fca5a5', marginBottom:'.4rem' }}>INCOMPATIBLE</div>
-              {analysis.errors.slice(0,2).map((e, i) => (
-                <div key={i} style={{ fontSize:'.68rem', color:'#fca5a5', lineHeight:1.4 }}>• {e}</div>
-              ))}
-            </div>
-          )}
-          {analysis.missing.length > 0 && (
-            <div style={{ width:'100%', padding:'.6rem .75rem', background:'rgba(107,114,128,.07)', border:'1px solid rgba(107,114,128,.2)', borderRadius:4 }}>
-              <div style={{ fontSize:'.62rem', letterSpacing:'.1em', color:'#9ca3af', marginBottom:'.4rem' }}>FALTANTES</div>
-              {analysis.missing.map((m, i) => (
-                <div key={i} style={{ fontSize:'.68rem', color:'#9ca3af', lineHeight:1.4 }}>• {m}</div>
-              ))}
-            </div>
-          )}
-
-          {/* Report button */}
-          <button
-            onClick={() => setShowReport(r => !r)}
-            style={{
-              width:'100%', padding:'.6rem', background: showReport ? 'rgba(99,102,241,.3)' : 'rgba(99,102,241,.15)',
-              border:'1px solid rgba(99,102,241,.4)', color:'#a5b4fc', borderRadius:3,
-              cursor:'pointer', fontFamily:'monospace', fontSize:'.78rem', letterSpacing:'.05em', transition:'background .15s',
-            }}
-          >
-            {showReport ? '▲ Ocultar reporte' : '▼ Ver reporte completo'}
-          </button>
+          {/* Barra inferior: estado + alertas + reporte */}
+          <div style={{ borderTop:'1px solid rgba(255,255,255,.05)', padding:'.65rem 1rem', display:'flex', flexDirection:'column', gap:'.45rem' }}>
+            {/* Boot state hint */}
+            {!powered && (
+              <div style={{ fontSize:'.65rem', color:'rgba(255,255,255,.22)', fontFamily:'monospace', textAlign:'center' }}>
+                {!build.monitor ? '⚠ Sin monitor conectado — agrega uno para ver la pantalla'
+                  : !analysis.canPowerOn && analysis.missing.length > 0 ? `Faltan: ${analysis.missing.join(', ')}`
+                  : !analysis.canPowerOn ? 'Hay incompatibilidades — enciende para ver el error'
+                  : '✓ Equipo listo — presiona ⏻ Encender PC'}
+              </div>
+            )}
+            {powered && (
+              <div style={{ fontSize:'.65rem', fontFamily:'monospace', textAlign:'center', color: bootState === 'bsod' ? '#f87171' : bootState === 'bios' ? '#4ade80' : '#fbbf24' }}>
+                { bootState === 'booting' ? '⟳ POST iniciando...' : bootState === 'bios' ? '✓ Sistema operativo cargado correctamente' : bootState === 'bsod' ? '✕ Error de hardware — pantalla azul' : '⚠ Sin señal de video' }
+              </div>
+            )}
+            {/* Errors inline */}
+            {analysis.errors.length > 0 && (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'.3rem' }}>
+                {analysis.errors.map((e, i) => (
+                  <span key={i} style={{ fontSize:'.6rem', color:'#fca5a5', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:2, padding:'.1rem .4rem' }}>✕ {e}</span>
+                ))}
+              </div>
+            )}
+            {/* Report button */}
+            <button onClick={() => setShowReport(r => !r)}
+              style={{ padding:'.3rem', background: showReport ? 'rgba(99,102,241,.25)' : 'transparent', border:'1px solid rgba(99,102,241,.3)', color:'#a5b4fc', borderRadius:2, cursor:'pointer', fontFamily:'monospace', fontSize:'.68rem', transition:'background .15s' }}>
+              {showReport ? '▲ Ocultar reporte' : '▼ Ver reporte completo'}
+            </button>
+          </div>
         </div>
       </div>
 
