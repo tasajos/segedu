@@ -39,6 +39,7 @@ import JefeActas from './pages/jefe/Actas';
 // Compartido
 import UnidadesLista from './pages/compartido/UnidadesLista';
 import CircuitosLogicos from './pages/compartido/CircuitosLogicos';
+import CalculoDerivadas from './pages/compartido/CalculoDerivadas';
 import PresentacionesVista from './pages/compartido/PresentacionesVista';
 
 // Jefe — unidades
@@ -91,6 +92,7 @@ export default function App() {
         <Route path="grupos" element={<EstudianteGrupos />} />
         <Route path="unidades" element={<UnidadesLista />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
       </Route>
 
@@ -107,6 +109,7 @@ export default function App() {
         <Route path="grupos-trabajo" element={<DocenteGruposTrabajo />} />
         <Route path="unidades" element={<UnidadesLista />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />
       </Route>
 
@@ -126,6 +129,7 @@ export default function App() {
         <Route path="actas" element={<JefeActas />} />
         <Route path="unidades" element={<JefeUnidades />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />

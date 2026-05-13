@@ -16,7 +16,8 @@ const TIPO_LABEL = {
 };
 
 const UNIT_ROUTES = {
-  'Circuitos Lógicos': 'circuitos-logicos'
+  'Circuitos Lógicos':    'circuitos-logicos',
+  'Cálculo — Derivadas':  'calculo-derivadas',
 };
 
 export default function UnidadesLista() {
