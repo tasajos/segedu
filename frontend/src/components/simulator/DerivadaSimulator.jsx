@@ -651,7 +651,6 @@ export default function DerivadaSimulator() {
                     display: 'flex', alignItems: 'center', gap: '.65rem', color: '#6ee7b7',
                     fontFamily: 'monospace', fontSize: '.82rem', fontWeight: 700
                   }}
-                  onClick={() => setActiveStep(activeStep === 4 ? null : 4)}
                 >
                   <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#6ee7b7', color: '#000', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '.65rem', fontWeight: 900, flexShrink: 0 }}>e</span>
                   e) Gráfico de la función
