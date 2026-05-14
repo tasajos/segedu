@@ -35,14 +35,16 @@ export default function DocenteGruposTrabajo() {
     try {
       const params = materia_id ? { materia_id } : {};
       const r = await api.get('/docente/grupos-trabajo', { params });
-      setGrupos(r.data);
+      setGrupos(Array.isArray(r.data) ? r.data : []);
+    } catch {
+      setGrupos([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    api.get('/docente/materias').then(r => setMaterias(r.data));
+    api.get('/docente/materias').then(r => setMaterias(Array.isArray(r.data) ? r.data : []));
     cargar('');
   }, []);
 
@@ -50,10 +52,10 @@ export default function DocenteGruposTrabajo() {
     cargar(filtroMateria);
     if (filtroMateria) {
       api.get(`/docente/materias/${filtroMateria}/estudiantes`)
-        .then(r => setEstudiantesPorMateria(r.data))
+        .then(r => setEstudiantesPorMateria(Array.isArray(r.data) ? r.data : []))
         .catch(() => setEstudiantesPorMateria([]));
       api.get('/docente/tareas', { params: { materia_id: filtroMateria } })
-        .then(r => setTareasPorMateria(r.data))
+        .then(r => setTareasPorMateria(Array.isArray(r.data) ? r.data : []))
         .catch(() => setTareasPorMateria([]));
     } else {
       setEstudiantesPorMateria([]);
@@ -100,8 +102,8 @@ export default function DocenteGruposTrabajo() {
       api.get(`/docente/materias/${grupo.materia_id}/estudiantes`),
       api.get('/docente/tareas', { params: { materia_id: grupo.materia_id } })
     ]);
-    if (estRes.status === 'fulfilled') setEstudiantesPorMateria(estRes.value.data);
-    if (tarRes.status === 'fulfilled') setTareasPorMateria(tarRes.value.data);
+    if (estRes.status === 'fulfilled') setEstudiantesPorMateria(Array.isArray(estRes.value.data) ? estRes.value.data : []);
+    if (tarRes.status === 'fulfilled') setTareasPorMateria(Array.isArray(tarRes.value.data) ? tarRes.value.data : []);
     setModalGestion(true);
   };
 
@@ -120,8 +122,9 @@ export default function DocenteGruposTrabajo() {
       });
       setMiembrosSeleccionados([]);
       const r = await api.get('/docente/grupos-trabajo', { params: filtroMateria ? { materia_id: filtroMateria } : {} });
-      setGrupos(r.data);
-      setGrupoActivo(r.data.find(g => g.id === grupoActivo.id) || null);
+      const lista = Array.isArray(r.data) ? r.data : [];
+      setGrupos(lista);
+      setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
       alert(err.response?.data?.error || 'Error al agregar miembros');
     } finally {
@@ -133,8 +136,9 @@ export default function DocenteGruposTrabajo() {
     try {
       await api.delete(`/docente/grupos-trabajo/${grupoActivo.id}/miembros/${estudianteId}`);
       const r = await api.get('/docente/grupos-trabajo', { params: filtroMateria ? { materia_id: filtroMateria } : {} });
-      setGrupos(r.data);
-      setGrupoActivo(r.data.find(g => g.id === grupoActivo.id) || null);
+      const lista = Array.isArray(r.data) ? r.data : [];
+      setGrupos(lista);
+      setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
       alert(err.response?.data?.error || 'Error al remover miembro');
     }
@@ -147,8 +151,9 @@ export default function DocenteGruposTrabajo() {
       await api.post(`/docente/grupos-trabajo/${grupoActivo.id}/tareas`, { tarea_id: tareaSeleccionada });
       setTareaSeleccionada('');
       const r = await api.get('/docente/grupos-trabajo', { params: filtroMateria ? { materia_id: filtroMateria } : {} });
-      setGrupos(r.data);
-      setGrupoActivo(r.data.find(g => g.id === grupoActivo.id) || null);
+      const lista = Array.isArray(r.data) ? r.data : [];
+      setGrupos(lista);
+      setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
       alert(err.response?.data?.error || 'Error al asignar tarea');
     } finally {
@@ -160,8 +165,9 @@ export default function DocenteGruposTrabajo() {
     try {
       await api.delete(`/docente/grupos-trabajo/${grupoActivo.id}/tareas/${tareaId}`);
       const r = await api.get('/docente/grupos-trabajo', { params: filtroMateria ? { materia_id: filtroMateria } : {} });
-      setGrupos(r.data);
-      setGrupoActivo(r.data.find(g => g.id === grupoActivo.id) || null);
+      const lista = Array.isArray(r.data) ? r.data : [];
+      setGrupos(lista);
+      setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
       alert(err.response?.data?.error || 'Error al remover tarea');
     }

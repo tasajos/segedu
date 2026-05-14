@@ -3,6 +3,8 @@
 -- Aplicar en producción: mysql -u root -p uni_tracking < v10_grupos_trabajo.sql
 -- ============================================================
 
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- Grupos de trabajo definidos por el docente por materia
 CREATE TABLE IF NOT EXISTS grupos_trabajo (
   id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -36,3 +38,5 @@ CREATE TABLE IF NOT EXISTS tareas_grupo_trabajo (
   FOREIGN KEY (grupo_id) REFERENCES grupos_trabajo(id) ON DELETE CASCADE,
   FOREIGN KEY (tarea_id) REFERENCES tareas(id)         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET FOREIGN_KEY_CHECKS = 1;

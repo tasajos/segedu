@@ -18,7 +18,8 @@ function SeccionGruposDocente({ estudianteId }) {
 
   useEffect(() => {
     api.get('/estudiante/grupos-docente')
-      .then(r => setGrupos(r.data))
+      .then(r => setGrupos(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setGrupos([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -151,7 +152,7 @@ export default function EstudianteGrupos() {
         api.get(`/estudiante/grupos/${tareaId}`),
         api.get(`/estudiante/grupos/${tareaId}/companeros`)
       ]);
-      setGrupos(gRes.data.grupos);
+      setGrupos(Array.isArray(gRes.data.grupos) ? gRes.data.grupos : []);
       setMiGrupoId(gRes.data.mi_grupo_id);
       setCompaneros(cRes.data);
     } finally {
