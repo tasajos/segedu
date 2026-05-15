@@ -43,13 +43,23 @@ import CalculoDerivadas from './pages/compartido/CalculoDerivadas';
 import ArmarPC from './pages/compartido/ArmarPC';
 import PresentacionesVista from './pages/compartido/PresentacionesVista';
 
-// Jefe — unidades
+// Jefe — unidades y cursos especiales
 import JefeUnidades from './pages/jefe/UnidadesInstruccion';
+import JefeCursosEspeciales from './pages/jefe/CursosEspeciales';
+import JefeCursoEspecialDetalle from './pages/jefe/CursoEspecialDetalle';
+
+// Estudiante — cursos especiales
+import EstudianteCursosEspeciales from './pages/estudiante/CursosEspeciales';
+import EstudianteMisCursosEspeciales from './pages/estudiante/MisCursosEspeciales';
 
 // Docente — presentaciones
 import DocentePresentaciones from './pages/docente/Presentaciones';
 import DocenteDatosPersonales from './pages/docente/DatosPersonales';
 import DocenteGruposTrabajo from './pages/docente/GruposDocente';
+
+// Instructor
+import InstructorInicio from './pages/instructor/Inicio';
+import InstructorMiCurso from './pages/instructor/MiCurso';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
@@ -74,6 +84,7 @@ const RootRedirect = () => {
   if (user.rol === 'docente') return <Navigate to="/docente" replace />;
   if (user.rol === 'jefe') return <Navigate to="/jefe" replace />;
   if (user.rol === 'admin') return <Navigate to="/admin" replace />;
+  if (user.rol === 'instructor') return <Navigate to="/instructor" replace />;
   return <Navigate to="/login" replace />;
 };
 
@@ -91,6 +102,8 @@ export default function App() {
         <Route path="asistencias" element={<EstudianteAsistencias />} />
         <Route path="tareas" element={<EstudianteTareas />} />
         <Route path="grupos" element={<EstudianteGrupos />} />
+        <Route path="cursos-especiales" element={<EstudianteCursosEspeciales />} />
+        <Route path="mis-cursos-especiales" element={<EstudianteMisCursosEspeciales />} />
         <Route path="unidades" element={<UnidadesLista />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
@@ -130,6 +143,8 @@ export default function App() {
         <Route path="materias" element={<JefeMaterias />} />
         <Route path="notificaciones" element={<JefeNotificaciones />} />
         <Route path="actas" element={<JefeActas />} />
+        <Route path="cursos-especiales" element={<JefeCursosEspeciales />} />
+        <Route path="cursos-especiales/:id" element={<JefeCursoEspecialDetalle />} />
         <Route path="unidades" element={<JefeUnidades />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
@@ -138,6 +153,12 @@ export default function App() {
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
         <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />
+      </Route>
+
+      {/* Instructor */}
+      <Route path="/instructor" element={<Protected roles={['instructor']}><Layout /></Protected>}>
+        <Route index element={<InstructorInicio />} />
+        <Route path="curso/:id" element={<InstructorMiCurso />} />
       </Route>
 
       {/* Admin */}

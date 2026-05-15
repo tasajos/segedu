@@ -10,6 +10,7 @@ import estudianteRoutes from './routes/estudiante.js';
 import docenteRoutes from './routes/docente.js';
 import jefeRoutes from './routes/jefe.js';
 import adminRoutes from './routes/admin.js';
+import instructorRoutes from './routes/instructor.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/estudiante', estudianteRoutes);
 app.use('/api/docente', docenteRoutes);
 app.use('/api/jefe', jefeRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/instructor', instructorRoutes);
 
 // React Router: cualquier ruta no-API devuelve index.html (sin caché)
 app.get('*', (req, res) => {

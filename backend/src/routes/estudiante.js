@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 import { upload, uploadEntrega } from '../middleware/upload.js';
 import {
+  listarCursosEstudiante, inscribirseEnCurso, cancelarInscripcion,
+  misCursosAprobados, materialCursoEstudiante, miAsistenciaCurso, misNotasCurso
+} from '../controllers/cursosEspecialesController.js';
+import {
   listarCursos, crearCurso, eliminarCurso,
   actualizarInfoPersonal, cambiarContrasena,
   listarMateriasEstudiante, listarAsistenciasEstudiante,
@@ -55,5 +59,14 @@ router.delete('/grupos/:grupoId', eliminarGrupo);
 
 // Grupos de trabajo creados por docente
 router.get('/grupos-docente', listarMisGruposDocente);
+
+// Cursos especiales (creados por jefe de carrera)
+router.get('/cursos-especiales', listarCursosEstudiante);
+router.post('/cursos-especiales/:id/inscribir', inscribirseEnCurso);
+router.delete('/cursos-especiales/:id/inscripcion', cancelarInscripcion);
+router.get('/mis-cursos-especiales', misCursosAprobados);
+router.get('/mis-cursos-especiales/:id/material', materialCursoEstudiante);
+router.get('/mis-cursos-especiales/:id/asistencia', miAsistenciaCurso);
+router.get('/mis-cursos-especiales/:id/notas', misNotasCurso);
 
 export default router;

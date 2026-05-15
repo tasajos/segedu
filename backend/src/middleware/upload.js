@@ -29,6 +29,12 @@ export const uploadTarea = multer({
   }
 });
 
+// Para material de cursos especiales: cualquier tipo de archivo
+export const uploadMaterial = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
 // Para entregas de estudiantes: Word (doc / docx) o PDF
 export const uploadEntrega = multer({
   storage,

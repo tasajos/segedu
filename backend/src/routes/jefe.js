@@ -1,7 +1,15 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, uploadMaterial } from '../middleware/upload.js';
 import { listarUnidades, crearUnidad, actualizarUnidad, eliminarUnidad } from '../controllers/unidadesController.js';
+import {
+  listarCursosJefe, detalleCursoJefe, crearCursoJefe, actualizarCursoJefe, eliminarCursoJefe,
+  listarInscritosJefe, actualizarInscripcionJefe,
+  listarInstructoresJefe, crearInstructorJefe, asignarInstructorJefe,
+  listarMaterialJefe, subirMaterialJefe, agregarEnlaceJefe, eliminarMaterialJefe,
+  listarFechasAsistenciaJefe, listarAsistenciaJefe, registrarAsistenciaJefe,
+  listarNotasJefe, guardarNotasJefe
+} from '../controllers/cursosEspecialesController.js';
 import {
   miCarrera,
   listarTodosPGO, revisarPGO, eliminarPGO,
@@ -77,5 +85,25 @@ router.get('/unidades', listarUnidades);
 router.post('/unidades', crearUnidad);
 router.put('/unidades/:id', actualizarUnidad);
 router.delete('/unidades/:id', eliminarUnidad);
+
+router.get('/cursos-especiales', listarCursosJefe);
+router.post('/cursos-especiales', crearCursoJefe);
+router.get('/cursos-especiales/instructores', listarInstructoresJefe);
+router.post('/cursos-especiales/instructores', crearInstructorJefe);
+router.get('/cursos-especiales/:id', detalleCursoJefe);
+router.put('/cursos-especiales/:id', actualizarCursoJefe);
+router.delete('/cursos-especiales/:id', eliminarCursoJefe);
+router.get('/cursos-especiales/:id/inscritos', listarInscritosJefe);
+router.put('/cursos-especiales/:id/inscritos/:inscripcionId', actualizarInscripcionJefe);
+router.put('/cursos-especiales/:id/instructor', asignarInstructorJefe);
+router.get('/cursos-especiales/:id/material', listarMaterialJefe);
+router.post('/cursos-especiales/:id/material', uploadMaterial.single('archivo'), subirMaterialJefe);
+router.post('/cursos-especiales/:id/material/enlace', agregarEnlaceJefe);
+router.delete('/cursos-especiales/:id/material/:materialId', eliminarMaterialJefe);
+router.get('/cursos-especiales/:id/asistencia/fechas', listarFechasAsistenciaJefe);
+router.get('/cursos-especiales/:id/asistencia', listarAsistenciaJefe);
+router.post('/cursos-especiales/:id/asistencia', registrarAsistenciaJefe);
+router.get('/cursos-especiales/:id/notas', listarNotasJefe);
+router.post('/cursos-especiales/:id/notas', guardarNotasJefe);
 
 export default router;

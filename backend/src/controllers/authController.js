@@ -32,6 +32,9 @@ export const login = async (req, res) => {
     } else if (user.rol === 'docente') {
       const [doc] = await pool.query('SELECT * FROM docentes WHERE usuario_id = ?', [user.id]);
       if (doc[0]) extra = { docente_id: doc[0].id, especialidad: doc[0].especialidad };
+    } else if (user.rol === 'instructor') {
+      const [inst] = await pool.query('SELECT * FROM instructores_cursos WHERE usuario_id = ?', [user.id]);
+      if (inst[0]) extra = { instructor_id: inst[0].id, especialidad: inst[0].especialidad };
     }
 
     const payload = { id: user.id, email: user.email, rol: user.rol, ...extra };

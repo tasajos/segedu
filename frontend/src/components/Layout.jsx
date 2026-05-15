@@ -7,12 +7,14 @@ const menuByRole = {
   estudiante: [
     { to: '/estudiante', label: 'Inicio', num: '01' },
     { to: '/estudiante/cursos', label: 'Capacitaciones', num: '02' },
-    { to: '/estudiante/info', label: 'Datos personales', num: '03' },
-    { to: '/estudiante/asistencias', label: 'Asistencias y permisos', num: '04' },
-    { to: '/estudiante/tareas', label: 'Mis tareas', num: '05' },
-    { to: '/estudiante/grupos', label: 'Grupos de trabajo', num: '06' },
-    { to: '/estudiante/unidades', label: 'Unidades instrucción', num: '07' },
-    { to: '/estudiante/presentaciones', label: 'Presentaciones', num: '08' }
+    { to: '/estudiante/cursos-especiales', label: 'Cursos especiales', num: '03' },
+    { to: '/estudiante/mis-cursos-especiales', label: 'Mis cursos', num: '04' },
+    { to: '/estudiante/info', label: 'Datos personales', num: '05' },
+    { to: '/estudiante/asistencias', label: 'Asistencias y permisos', num: '06' },
+    { to: '/estudiante/tareas', label: 'Mis tareas', num: '07' },
+    { to: '/estudiante/grupos', label: 'Grupos de trabajo', num: '08' },
+    { to: '/estudiante/unidades', label: 'Unidades instrucción', num: '09' },
+    { to: '/estudiante/presentaciones', label: 'Presentaciones', num: '10' }
   ],
   docente: [
     { to: '/docente', label: 'Inicio', num: '01' },
@@ -41,7 +43,11 @@ const menuByRole = {
     { to: '/jefe/notificaciones', label: 'Notificaciones', num: '11' },
     { to: '/jefe/actas', label: 'Actas', num: '12' },
     { to: '/jefe/unidades', label: 'Unidades instrucción', num: '13' },
-    { to: '/jefe/presentaciones', label: 'Presentaciones', num: '14' }
+    { to: '/jefe/presentaciones', label: 'Presentaciones', num: '14' },
+    { to: '/jefe/cursos-especiales', label: 'Cursos especiales', num: '15' }
+  ],
+  instructor: [
+    { to: '/instructor', label: 'Mis cursos', num: '01' },
   ],
   admin: [
     { to: '/admin', label: 'Dashboard', num: '01' },
@@ -55,7 +61,8 @@ const roleLabel = {
   estudiante: 'Estudiante',
   docente: 'Docente',
   jefe: 'Jefe de carrera',
-  admin: 'Administrador'
+  admin: 'Administrador',
+  instructor: 'Instructor'
 };
 
 export default function Layout() {
