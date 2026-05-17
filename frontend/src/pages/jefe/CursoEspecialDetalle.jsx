@@ -15,6 +15,8 @@ const ESTADO_COLOR = {
 function TabInscritos({ cursoId }) {
   const [inscritos, setInscritos] = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [filtro, setFiltro]       = useState('todos');
+  const [procesando, setProcesando] = useState(null);
 
   const cargar = () => api.get(`/jefe/cursos-especiales/${cursoId}/inscritos`)
     .then(r => setInscritos(r.data)).finally(() => setLoading(false));
@@ -22,67 +24,166 @@ function TabInscritos({ cursoId }) {
   useEffect(() => { cargar(); }, [cursoId]);
 
   const cambiarEstado = async (inscripcionId, estado) => {
+    setProcesando(inscripcionId);
     try {
       await api.put(`/jefe/cursos-especiales/${cursoId}/inscritos/${inscripcionId}`, { estado });
       cargar();
     } catch (err) { alert(err.response?.data?.error || 'Error'); }
+    finally { setProcesando(null); }
   };
+
+  const FILTROS = [
+    { key:'todos',     label:'Todos',     color:'var(--ink)',   bg:'var(--paper-dark)', border:'var(--line)' },
+    { key:'pendiente', label:'Pendiente', color:'#d97706',      bg:'rgba(217,119,6,.08)', border:'rgba(217,119,6,.3)' },
+    { key:'aprobado',  label:'Aprobado',  color:'#16a34a',      bg:'rgba(22,163,74,.08)', border:'rgba(22,163,74,.3)' },
+    { key:'rechazado', label:'Rechazado', color:'#dc2626',      bg:'rgba(220,38,38,.08)', border:'rgba(220,38,38,.25)' },
+  ];
+
+  const conteo = (k) => k === 'todos' ? inscritos.length : inscritos.filter(i => i.estado === k).length;
+  const visibles = filtro === 'todos' ? inscritos : inscritos.filter(i => i.estado === filtro);
 
   if (loading) return <Spinner />;
   if (inscritos.length === 0) return <Empty text="Aún no hay solicitudes de inscripción" />;
 
   return (
     <div>
-      <div style={{ display:'flex', gap:'1rem', marginBottom:'1rem', flexWrap:'wrap' }}>
-        {['pendiente','aprobado','rechazado'].map(e => {
-          const cnt = inscritos.filter(i => i.estado === e).length;
-          const cfg = ESTADO_COLOR[e];
+      {/* ── Filtros / contadores ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'.6rem', marginBottom:'1.5rem' }}>
+        {FILTROS.map(f => {
+          const activo = filtro === f.key;
+          const cnt = conteo(f.key);
           return (
-            <div key={e} style={{ padding:'.45rem 1rem', borderRadius:'999px', fontSize:'.78rem',
-              fontFamily:'var(--mono)', background:cfg.bg, border:`1px solid ${cfg.border}`, color:cfg.color }}>
-              {cfg.label}: {cnt}
-            </div>
+            <button key={f.key} onClick={() => setFiltro(f.key)}
+              style={{
+                padding:'.75rem 1rem', borderRadius:'10px', border:`1px solid`,
+                borderColor: activo ? f.color : f.border,
+                background:  activo ? f.color : f.bg,
+                color:       activo ? '#fff'  : f.color,
+                cursor:'pointer', transition:'all .15s',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:'.2rem',
+                boxShadow: activo ? `0 4px 14px ${f.color}33` : 'none'
+              }}>
+              <span style={{ fontFamily:'var(--serif)', fontSize:'1.6rem', fontWeight:700, lineHeight:1 }}>
+                {cnt}
+              </span>
+              <span style={{ fontFamily:'var(--mono)', fontSize:'.68rem', letterSpacing:'.08em',
+                textTransform:'uppercase', fontWeight:600 }}>
+                {f.label}
+              </span>
+            </button>
           );
         })}
       </div>
 
-      <div style={{ display:'flex', flexDirection:'column', gap:'.6rem' }}>
-        {inscritos.map(i => {
-          const cfg = ESTADO_COLOR[i.estado];
-          return (
-            <div key={i.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-              gap:'1rem', padding:'1rem 1.25rem', background:'var(--paper-dark)',
-              borderRadius:'8px', border:`1px solid ${cfg.border}` }}>
-              <div>
-                <div style={{ fontWeight:600, fontSize:'.95rem' }}>{i.nombre} {i.apellido}</div>
-                <div style={{ fontFamily:'var(--mono)', fontSize:'.72rem', color:'var(--ink-light)', marginTop:'.2rem' }}>
-                  Cód. {i.codigo_estudiante || '—'} · Sem. {i.semestre} · {new Date(i.fecha_inscripcion).toLocaleDateString('es-ES')}
+      {/* ── Barra de búsqueda rápida ── */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+        <span style={{ fontFamily:'var(--mono)', fontSize:'.78rem', color:'var(--ink-light)' }}>
+          {visibles.length} de {inscritos.length} estudiante{inscritos.length !== 1 ? 's' : ''}
+          {filtro !== 'todos' && ` · filtrando por ${ESTADO_COLOR[filtro]?.label}`}
+        </span>
+        {filtro !== 'todos' && (
+          <button onClick={() => setFiltro('todos')}
+            style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'var(--mono)',
+              fontSize:'.75rem', color:'var(--ink-light)', textDecoration:'underline' }}>
+            Ver todos
+          </button>
+        )}
+      </div>
+
+      {/* ── Lista con scroll elegante ── */}
+      {visibles.length === 0 ? (
+        <Empty text={`Sin estudiantes con estado "${ESTADO_COLOR[filtro]?.label}"`} />
+      ) : (
+        <div style={{
+          maxHeight:'60vh', overflowY:'auto', display:'flex', flexDirection:'column', gap:'.5rem',
+          paddingRight:'.35rem',
+          scrollbarWidth:'thin', scrollbarColor:'var(--line-strong) transparent'
+        }}>
+          {visibles.map((i, idx) => {
+            const cfg = ESTADO_COLOR[i.estado];
+            const enProceso = procesando === i.id;
+            return (
+              <div key={i.id}
+                style={{
+                  display:'flex', justifyContent:'space-between', alignItems:'center',
+                  gap:'1rem', padding:'1rem 1.25rem',
+                  background:'var(--paper-dark)', borderRadius:'10px',
+                  border:`1px solid var(--line)`,
+                  borderLeft:`4px solid ${cfg.color}`,
+                  transition:'box-shadow .15s',
+                  opacity: enProceso ? .6 : 1
+                }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow='0 2px 12px rgba(0,0,0,.08)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow='none'}
+              >
+                {/* Info estudiante */}
+                <div style={{ display:'flex', alignItems:'center', gap:'1rem', minWidth:0 }}>
+                  <div style={{ width:'36px', height:'36px', borderRadius:'50%', flexShrink:0,
+                    background:cfg.bg, border:`1px solid ${cfg.border}`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontFamily:'var(--serif)', fontWeight:700, fontSize:'.85rem', color:cfg.color }}>
+                    {i.nombre?.[0]}{i.apellido?.[0]}
+                  </div>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:'.95rem',
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {i.nombre} {i.apellido}
+                    </div>
+                    <div style={{ fontFamily:'var(--mono)', fontSize:'.7rem', color:'var(--ink-light)', marginTop:'.15rem' }}>
+                      Cód. {i.codigo_estudiante || '—'} · Sem. {i.semestre}
+                      {' · '}{new Date(i.fecha_inscripcion).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'})}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div style={{ display:'flex', gap:'.5rem', alignItems:'center', flexShrink:0 }}>
+                  {/* Badge estado actual */}
+                  <span style={{ padding:'.22rem .75rem', borderRadius:'999px', fontSize:'.7rem',
+                    fontFamily:'var(--mono)', fontWeight:700,
+                    background:cfg.bg, border:`1px solid ${cfg.border}`, color:cfg.color }}>
+                    {cfg.label}
+                  </span>
+
+                  {i.estado !== 'aprobado' && (
+                    <button onClick={() => cambiarEstado(i.id, 'aprobado')} disabled={enProceso}
+                      style={{ padding:'.35rem .85rem', borderRadius:'8px', cursor:'pointer',
+                        background:'#f0fdf4', color:'#16a34a', border:'1px solid #bbf7d0',
+                        fontFamily:'var(--mono)', fontSize:'.78rem', fontWeight:700,
+                        transition:'all .15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background='#16a34a'; e.currentTarget.style.color='#fff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background='#f0fdf4'; e.currentTarget.style.color='#16a34a'; }}>
+                      ✓ Aprobar
+                    </button>
+                  )}
+                  {i.estado !== 'pendiente' && (
+                    <button onClick={() => cambiarEstado(i.id, 'pendiente')} disabled={enProceso}
+                      style={{ padding:'.35rem .85rem', borderRadius:'8px', cursor:'pointer',
+                        background:'#fffbeb', color:'#d97706', border:'1px solid #fde68a',
+                        fontFamily:'var(--mono)', fontSize:'.78rem', fontWeight:700,
+                        transition:'all .15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background='#d97706'; e.currentTarget.style.color='#fff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background='#fffbeb'; e.currentTarget.style.color='#d97706'; }}>
+                      ⏳ Pendiente
+                    </button>
+                  )}
+                  {i.estado !== 'rechazado' && (
+                    <button onClick={() => cambiarEstado(i.id, 'rechazado')} disabled={enProceso}
+                      style={{ padding:'.35rem .85rem', borderRadius:'8px', cursor:'pointer',
+                        background:'#fef2f2', color:'#dc2626', border:'1px solid #fecaca',
+                        fontFamily:'var(--mono)', fontSize:'.78rem', fontWeight:700,
+                        transition:'all .15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background='#dc2626'; e.currentTarget.style.color='#fff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background='#fef2f2'; e.currentTarget.style.color='#dc2626'; }}>
+                      ✕ Rechazar
+                    </button>
+                  )}
                 </div>
               </div>
-              <div style={{ display:'flex', gap:'.5rem', alignItems:'center', flexShrink:0 }}>
-                <span style={{ padding:'.2rem .7rem', borderRadius:'999px', fontSize:'.72rem',
-                  fontFamily:'var(--mono)', background:cfg.bg, border:`1px solid ${cfg.border}`, color:cfg.color }}>
-                  {cfg.label}
-                </span>
-                {i.estado !== 'aprobado' && (
-                  <button className="btn btn-sm" onClick={() => cambiarEstado(i.id, 'aprobado')}
-                    style={{ background:'rgba(22,163,74,.12)', color:'#16a34a', border:'1px solid rgba(22,163,74,.3)',
-                      borderRadius:'6px', cursor:'pointer', padding:'.3rem .75rem', fontSize:'.78rem', fontWeight:600 }}>
-                    Aprobar
-                  </button>
-                )}
-                {i.estado !== 'rechazado' && (
-                  <button className="btn btn-sm" onClick={() => cambiarEstado(i.id, 'rechazado')}
-                    style={{ background:'rgba(220,38,38,.08)', color:'#dc2626', border:'1px solid rgba(220,38,38,.25)',
-                      borderRadius:'6px', cursor:'pointer', padding:'.3rem .75rem', fontSize:'.78rem', fontWeight:600 }}>
-                    Rechazar
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
