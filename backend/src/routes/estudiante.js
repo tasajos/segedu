@@ -3,7 +3,9 @@ import { verifyToken, requireRole } from '../middleware/auth.js';
 import { upload, uploadEntrega } from '../middleware/upload.js';
 import {
   listarCursosEstudiante, inscribirseEnCurso, cancelarInscripcion,
-  misCursosAprobados, materialCursoEstudiante, miAsistenciaCurso, misNotasCurso
+  misCursosAprobados, materialCursoEstudiante, miAsistenciaCurso, misNotasCurso,
+  listarTareasEspecialEst, verArchivoTareaEspecialEst,
+  entregarTareaEspecialEst, miEntregaTareaEspecialEst
 } from '../controllers/cursosEspecialesController.js';
 import {
   listarCursos, crearCurso, eliminarCurso,
@@ -68,5 +70,9 @@ router.get('/mis-cursos-especiales', misCursosAprobados);
 router.get('/mis-cursos-especiales/:id/material', materialCursoEstudiante);
 router.get('/mis-cursos-especiales/:id/asistencia', miAsistenciaCurso);
 router.get('/mis-cursos-especiales/:id/notas', misNotasCurso);
+router.get('/mis-cursos-especiales/:id/tareas', listarTareasEspecialEst);
+router.get('/mis-cursos-especiales/:id/tareas/:tareaId/ver', verArchivoTareaEspecialEst);
+router.post('/mis-cursos-especiales/:id/tareas/:tareaId/entrega', uploadEntrega.single('archivo'), entregarTareaEspecialEst);
+router.get('/mis-cursos-especiales/:id/tareas/:tareaId/mi-entrega', miEntregaTareaEspecialEst);
 
 export default router;

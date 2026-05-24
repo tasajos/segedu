@@ -11,6 +11,7 @@ import docenteRoutes from './routes/docente.js';
 import jefeRoutes from './routes/jefe.js';
 import adminRoutes from './routes/admin.js';
 import instructorRoutes from './routes/instructor.js';
+import { initSchema } from './controllers/cursosEspecialesController.js';
 
 dotenv.config();
 
@@ -64,6 +65,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🎓 SEGEDU API corriendo en http://localhost:${PORT}`);
+  await initSchema();
 });

@@ -221,7 +221,9 @@ export default function EstudianteCursosEspeciales() {
     try {
       const { data } = await api.get('/estudiante/cursos-especiales');
       setCursos(data);
-    } catch { /* silent */ } finally { setCargando(false); }
+    } catch (err) {
+      console.error('cursos-especiales error:', err?.response?.data || err);
+    } finally { setCargando(false); }
   };
 
   useEffect(() => { cargar(); }, []);
@@ -269,7 +271,7 @@ export default function EstudianteCursosEspeciales() {
         num="03"
         eyebrow="Oferta académica"
         title={<>Cursos <span className="display-italic">especiales</span></>}
-        lead="Cursos opcionales habilitados para tu carrera. Solicita tu inscripción y el jefe de carrera la aprobará."
+        lead="Cursos opcionales disponibles. Incluye cursos de tu carrera y cursos abiertos al público general. Solicita tu inscripción y el jefe de carrera la aprobará."
       />
 
       {cargando && (

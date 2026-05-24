@@ -256,12 +256,11 @@ export default function EstudianteInicio() {
   useEffect(() => {
     (async () => {
       try {
-        const [r, c, m, rk, ce] = await Promise.all([
+        const [r, c, m, rk] = await Promise.all([
           api.get('/estudiante/asistencias/resumen'),
           api.get('/estudiante/cursos'),
           api.get('/estudiante/materias'),
           api.get('/estudiante/ranking-grupo'),
-          api.get('/estudiante/cursos-especiales')
         ]);
         setResumen(r.data);
         setCursos(c.data);
@@ -270,9 +269,14 @@ export default function EstudianteInicio() {
         setClasificados(rk.data.clasificados || []);
         setMiGrupo(rk.data.miGrupo);
         setMejorGrupo(rk.data.mejorGrupo);
-        setCursosEsp(ce.data);
       } catch { /* silent */ }
       finally { setRankingReady(true); }
+      try {
+        const { data } = await api.get('/estudiante/cursos-especiales');
+        setCursosEsp(data);
+      } catch (err) {
+        console.error('cursos-especiales error:', err?.response?.data || err);
+      }
     })();
   }, []);
 

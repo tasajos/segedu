@@ -4,7 +4,7 @@ import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 
-const EMPTY_FORM = { nombre: '', descripcion: '', requisitos: '', max_estudiantes: 30 };
+const EMPTY_FORM = { nombre: '', descripcion: '', requisitos: '', max_estudiantes: 30, publico_general: false };
 
 export default function JefeCursosEspeciales() {
   const navigate = useNavigate();
@@ -38,7 +38,8 @@ export default function JefeCursosEspeciales() {
       nombre: curso.nombre,
       descripcion: curso.descripcion || '',
       requisitos: curso.requisitos || '',
-      max_estudiantes: curso.max_estudiantes
+      max_estudiantes: curso.max_estudiantes,
+      publico_general: !!curso.publico_general
     });
     setError('');
     setModal(true);
@@ -115,6 +116,11 @@ export default function JefeCursosEspeciales() {
                     <span className={`chip ${c.activo ? 'chip-forest' : 'chip-crimson'}`}>
                       {c.activo ? 'Habilitado' : 'Deshabilitado'}
                     </span>
+                    {!!c.publico_general && (
+                      <span className="chip chip-gold" title="Visible para estudiantes de cualquier carrera">
+                        Público general
+                      </span>
+                    )}
                   </div>
 
                   {c.descripcion && (
@@ -227,6 +233,22 @@ export default function JefeCursosEspeciales() {
               value={form.max_estudiantes}
               onChange={(e) => setForm({ ...form, max_estudiantes: parseInt(e.target.value) || 1 })}
             />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '.75rem', padding: '.75rem 1rem', background: 'var(--surface-alt, #f9f6f0)', border: '1px solid var(--line-strong)', borderRadius: '4px' }}>
+            <input
+              id="publico_general"
+              type="checkbox"
+              checked={form.publico_general}
+              onChange={(e) => setForm({ ...form, publico_general: e.target.checked })}
+              style={{ marginTop: '2px', flexShrink: 0, accentColor: 'var(--gold-dark)' }}
+            />
+            <label htmlFor="publico_general" style={{ cursor: 'pointer', lineHeight: 1.4 }}>
+              <span style={{ fontSize: '.9rem', fontWeight: 600, display: 'block' }}>Habilitar para público general</span>
+              <span style={{ fontSize: '.8rem', color: 'var(--ink-light)' }}>
+                Permite que estudiantes de otras carreras también puedan inscribirse a este curso.
+              </span>
+            </label>
           </div>
 
           {error && (

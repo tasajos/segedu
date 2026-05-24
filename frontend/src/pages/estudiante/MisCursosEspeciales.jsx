@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
+import mammoth from 'mammoth';
 import PageHeader from '../../components/PageHeader';
 
-const TABS = ['Material', 'Asistencia', 'Notas'];
+const TABS = ['Material', 'Asistencia', 'Notas', 'Tareas'];
 
 const ASIST_COLOR = { presente: 'var(--forest)', falta: 'var(--crimson)', permiso: '#d97706' };
 const ASIST_ICON  = { presente: '✓', falta: '✕', permiso: '⏳' };
@@ -250,6 +251,297 @@ const Empty = ({ text }) => (
     borderRadius:'8px', color:'var(--ink-light)', fontStyle:'italic' }}>{text}</div>
 );
 
+// ── Visor de archivo (PDF / Word) ─────────────────────────────────────────────
+function VisorArchivo({ url, nombre, tipo, onClose }) {
+  const [html, setHtml]    = useState('');
+  const [loading, setLoad] = useState(true);
+  const [error, setError]  = useState('');
+
+  useEffect(() => {
+    if (!url) return;
+    setLoad(true); setError(''); setHtml('');
+    if (tipo === 'pdf') {
+      setLoad(false);
+    } else {
+      api.get(url, { responseType: 'arraybuffer' })
+        .then(r => mammoth.convertToHtml({ arrayBuffer: r.data }))
+        .then(r => { setHtml(r.value); setLoad(false); })
+        .catch(() => { setError('No se pudo cargar el documento.'); setLoad(false); });
+    }
+  }, [url, tipo]);
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.7)', backdropFilter:'blur(4px)',
+        zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+      <div style={{ background:'var(--paper-light)', borderRadius:'14px', width:'100%', maxWidth:'900px',
+        maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden',
+        boxShadow:'0 24px 80px rgba(0,0,0,.4)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+          padding:'1rem 1.5rem', borderBottom:'1px solid var(--line)' }}>
+          <div style={{ fontFamily:'var(--serif)', fontWeight:600 }}>{nombre}</div>
+          <button onClick={onClose} style={{ background:'var(--paper-dark)', border:'1px solid var(--line)',
+            borderRadius:'8px', padding:'.4rem .85rem', cursor:'pointer',
+            fontFamily:'var(--mono)', fontSize:'.8rem' }}>✕ Cerrar</button>
+        </div>
+        <div style={{ flex:1, overflow:'auto', position:'relative' }}>
+          {loading && <Spinner />}
+          {error && <div style={{ padding:'2rem', color:'var(--crimson)', textAlign:'center' }}>{error}</div>}
+          {!loading && !error && tipo === 'pdf' && (
+            <div style={{ position:'relative', height:'100%', minHeight:'65vh' }}>
+              <div style={{ position:'absolute', inset:0, zIndex:2, userSelect:'none' }}
+                onContextMenu={e => e.preventDefault()} />
+              <iframe src={url} style={{ width:'100%', height:'100%', minHeight:'65vh', border:'none' }}
+                title={nombre} />
+            </div>
+          )}
+          {!loading && !error && tipo !== 'pdf' && html && (
+            <div style={{ position:'relative' }}>
+              <div style={{ position:'absolute', inset:0, zIndex:2, userSelect:'none' }}
+                onContextMenu={e => e.preventDefault()} />
+              <div style={{ padding:'2rem', fontFamily:'Georgia,serif', fontSize:'1rem',
+                lineHeight:1.7, maxWidth:'780px', margin:'0 auto' }}
+                dangerouslySetInnerHTML={{ __html: html }} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TAB Tareas (estudiante) ───────────────────────────────────────────────────
+function TabTareas({ cursoId }) {
+  const [tareas, setTareas]       = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [visor, setVisor]         = useState(null);
+  const [entregaModal, setEntregaModal] = useState(null); // tarea para subir entrega
+  const [archivo, setArchivo]     = useState(null);
+  const [subiendo, setSubiendo]   = useState(false);
+  const [subirError, setSubirError] = useState('');
+  const fileRef = useRef(null);
+
+  const getApiUrl = (path) => {
+    const base = api.defaults.baseURL || '';
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    return `${base}${path}?token=${token}`;
+  };
+
+  const cargar = () => {
+    setLoading(true);
+    api.get(`/estudiante/mis-cursos-especiales/${cursoId}/tareas`)
+      .then(r => setTareas(r.data)).catch(() => {}).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { cargar(); }, [cursoId]);
+
+  const abrirVisorMaterial = (tarea) => {
+    const url = getApiUrl(`/estudiante/mis-cursos-especiales/${cursoId}/tareas/${tarea.id}/ver`);
+    setVisor({ url, nombre: tarea.archivo_nombre, tipo: tarea.tipo_archivo });
+  };
+
+  const abrirEntregar = (tarea) => {
+    setEntregaModal(tarea);
+    setArchivo(null);
+    setSubirError('');
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const entregar = async () => {
+    if (!archivo) { setSubirError('Selecciona un archivo para entregar'); return; }
+    const maxMB = 20;
+    if (archivo.size > maxMB * 1024 * 1024) { setSubirError(`El archivo no debe superar ${maxMB} MB`); return; }
+    setSubiendo(true); setSubirError('');
+    try {
+      const fd = new FormData();
+      fd.append('archivo', archivo);
+      await api.post(
+        `/estudiante/mis-cursos-especiales/${cursoId}/tareas/${entregaModal.id}/entrega`,
+        fd, { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setEntregaModal(null);
+      cargar();
+    } catch (err) { setSubirError(err.response?.data?.error || 'Error al subir la entrega'); }
+    finally { setSubiendo(false); }
+  };
+
+  const diasRestantes = (fecha) => {
+    if (!fecha) return null;
+    return Math.ceil((new Date(fecha) - new Date()) / 86400000);
+  };
+
+  if (loading) return <Spinner />;
+  if (!tareas.length) return <Empty text="No hay tareas publicadas aún" />;
+
+  return (
+    <div>
+      <div style={{ display:'flex', flexDirection:'column', gap:'.75rem' }}>
+        {tareas.map((t, i) => {
+          const dias       = diasRestantes(t.fecha_entrega);
+          const vencida    = dias !== null && dias < 0;
+          const urgente    = dias !== null && dias >= 0 && dias <= 3;
+          const entregada  = !!t.mi_entrega_id;
+          const calificada = entregada && t.calificacion != null;
+          const statusColor = calificada ? 'var(--forest)' : entregada ? '#1d4ed8' : 'var(--crimson)';
+          const statusLabel = calificada ? 'Calificada' : entregada ? 'Entregada' : 'Pendiente';
+          const borderColor = calificada ? 'var(--forest)' : entregada ? '#1d4ed8' : (vencida ? 'var(--crimson)' : urgente ? '#d97706' : 'var(--line-strong)');
+
+          return (
+            <div key={t.id} style={{ background:'var(--paper-dark)', borderRadius:'12px',
+              border:'1px solid var(--line)', padding:'1.1rem 1.25rem',
+              borderLeft:`4px solid ${borderColor}` }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'1rem' }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'.6rem', flexWrap:'wrap', marginBottom:'.3rem' }}>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:'.65rem', color:'var(--gold-dark)' }}>
+                      {String(i+1).padStart(2,'0')}
+                    </span>
+                    <span style={{ fontFamily:'var(--serif)', fontSize:'1rem', fontWeight:600 }}>{t.titulo}</span>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:'.65rem', padding:'.15rem .55rem',
+                      borderRadius:'999px', background: calificada ? '#f0fdf4' : entregada ? '#eff6ff' : '#fef2f2',
+                      color: statusColor, border:`1px solid ${calificada ? '#bbf7d0' : entregada ? '#bfdbfe' : '#fecaca'}`,
+                      fontWeight:700 }}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                  {t.descripcion && (
+                    <p style={{ fontSize:'.83rem', color:'var(--ink-light)', margin:'0 0 .45rem', lineHeight:1.5 }}>
+                      {t.descripcion}
+                    </p>
+                  )}
+                  <div style={{ display:'flex', gap:'1rem', flexWrap:'wrap', alignItems:'center' }}>
+                    {t.fecha_entrega && (
+                      <span style={{ fontFamily:'var(--mono)', fontSize:'.72rem',
+                        color: vencida ? 'var(--crimson)' : urgente ? '#d97706' : 'var(--ink-light)' }}>
+                        {vencida ? '⚠ Vencida' : `⏱ ${dias === 0 ? 'Vence hoy' : `${dias}d restantes`}`}
+                        {' — '}{new Date(t.fecha_entrega).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'})}
+                      </span>
+                    )}
+                    {calificada && (
+                      <span style={{ fontFamily:'var(--mono)', fontSize:'.72rem', fontWeight:700, color:'var(--forest)' }}>
+                        Nota: {parseFloat(t.calificacion).toFixed(1)}/100
+                      </span>
+                    )}
+                    {calificada && t.comentario_calificacion && (
+                      <span style={{ fontSize:'.78rem', color:'var(--ink-light)', fontStyle:'italic' }}>
+                        "{t.comentario_calificacion}"
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:'.5rem', flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                  {t.archivo_nombre && (
+                    <button onClick={() => abrirVisorMaterial(t)}
+                      style={{ padding:'.4rem .85rem', borderRadius:'6px', border:'1px solid var(--line)',
+                        background:'var(--paper-light)', cursor:'pointer',
+                        fontFamily:'var(--mono)', fontSize:'.75rem', whiteSpace:'nowrap' }}>
+                      📄 Material
+                    </button>
+                  )}
+                  {!entregada && (
+                    <button onClick={() => abrirEntregar(t)}
+                      style={{ padding:'.4rem .85rem', borderRadius:'6px', border:'none',
+                        background:'var(--ink)', color:'#fff', cursor:'pointer',
+                        fontFamily:'var(--mono)', fontSize:'.75rem', whiteSpace:'nowrap' }}>
+                      ↑ Entregar
+                    </button>
+                  )}
+                  {entregada && (
+                    <span style={{ fontFamily:'var(--mono)', fontSize:'.72rem', padding:'.4rem .75rem',
+                      borderRadius:'6px', background:'var(--paper-light)', border:'1px solid var(--line)',
+                      color:'var(--ink-light)', whiteSpace:'nowrap' }}>
+                      ✓ Enviada
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Modal de entrega ── */}
+      {entregaModal && (
+        <div onClick={e => { if (e.target === e.currentTarget && !subiendo) setEntregaModal(null); }}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', backdropFilter:'blur(4px)',
+            zIndex:9990, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+          <div style={{ background:'var(--paper-light)', borderRadius:'14px', width:'100%', maxWidth:'520px',
+            boxShadow:'0 24px 80px rgba(0,0,0,.4)', overflow:'hidden' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'1rem 1.5rem', borderBottom:'1px solid var(--line)' }}>
+              <div style={{ fontFamily:'var(--serif)', fontWeight:700, fontSize:'1rem' }}>
+                Entregar — {entregaModal.titulo}
+              </div>
+              <button onClick={() => setEntregaModal(null)} disabled={subiendo}
+                style={{ background:'var(--paper-dark)', border:'1px solid var(--line)', borderRadius:'8px',
+                  padding:'.4rem .85rem', cursor:'pointer', fontFamily:'var(--mono)', fontSize:'.8rem' }}>
+                ✕
+              </button>
+            </div>
+            <div style={{ padding:'1.5rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
+              <div style={{ padding:'.75rem 1rem', background:'#eff6ff', border:'1px solid #bfdbfe',
+                borderRadius:'8px', fontSize:'.83rem', color:'#1e40af', lineHeight:1.6 }}>
+                Sube tu trabajo en formato <strong>PDF, DOC o DOCX</strong>. Máx. 20 MB.
+                Solo puedes entregar una vez.
+              </div>
+
+              <div>
+                <label style={{ display:'block', fontFamily:'var(--mono)', fontSize:'.78rem',
+                  color:'var(--ink-light)', marginBottom:'.4rem', letterSpacing:'.06em', textTransform:'uppercase' }}>
+                  Archivo de entrega
+                </label>
+                <div style={{ padding:'1.25rem', background:'var(--paper-dark)', borderRadius:'10px',
+                  border:'2px dashed var(--line-strong)', display:'flex', flexDirection:'column',
+                  alignItems:'center', gap:'.75rem', cursor:'pointer' }}
+                  onClick={() => fileRef.current?.click()}>
+                  <span style={{ fontSize:'2rem' }}>📎</span>
+                  <span style={{ fontFamily:'var(--mono)', fontSize:'.82rem', color:'var(--ink-light)', textAlign:'center' }}>
+                    {archivo ? archivo.name : 'Clic para seleccionar archivo'}
+                  </span>
+                  {archivo && (
+                    <span style={{ fontFamily:'var(--mono)', fontSize:'.72rem', color:'var(--ink-light)' }}>
+                      {(archivo.size/1024/1024).toFixed(1)} MB
+                    </span>
+                  )}
+                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx"
+                    style={{ display:'none' }}
+                    onChange={e => { setArchivo(e.target.files[0] || null); setSubirError(''); }} />
+                </div>
+              </div>
+
+              {subirError && (
+                <div style={{ padding:'.65rem 1rem', background:'#fef2f2', border:'1px solid #fecaca',
+                  borderRadius:'6px', color:'#b91c1c', fontSize:'.85rem' }}>{subirError}</div>
+              )}
+
+              <div style={{ display:'flex', gap:'.75rem', justifyContent:'flex-end' }}>
+                <button onClick={() => setEntregaModal(null)} disabled={subiendo}
+                  style={{ padding:'.55rem 1.25rem', borderRadius:'8px', border:'1px solid var(--line)',
+                    background:'var(--paper-dark)', cursor:'pointer',
+                    fontFamily:'var(--mono)', fontSize:'.82rem' }}>
+                  Cancelar
+                </button>
+                <button onClick={entregar} disabled={subiendo || !archivo}
+                  style={{ padding:'.55rem 1.4rem', borderRadius:'8px', border:'none',
+                    background: (!archivo || subiendo) ? 'var(--line-strong)' : 'var(--ink)',
+                    color:'#fff', cursor: (!archivo || subiendo) ? 'not-allowed' : 'pointer',
+                    fontFamily:'var(--mono)', fontSize:'.82rem', fontWeight:700 }}>
+                  {subiendo ? 'Enviando...' : '↑ Enviar entrega'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {visor && (
+        <VisorArchivo url={visor.url} nombre={visor.nombre} tipo={visor.tipo}
+          onClose={() => setVisor(null)} />
+      )}
+    </div>
+  );
+}
+
 export default function MisCursosEspeciales() {
   const [cursos, setCursos]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -354,6 +646,7 @@ export default function MisCursosEspeciales() {
                 {activeTab === 0 && <TabMaterial   cursoId={curso.id} key={`mat-${curso.id}`}  />}
                 {activeTab === 1 && <TabAsistencia cursoId={curso.id} key={`asi-${curso.id}`}  />}
                 {activeTab === 2 && <TabNotas      cursoId={curso.id} key={`not-${curso.id}`}  />}
+                {activeTab === 3 && <TabTareas     cursoId={curso.id} key={`tar-${curso.id}`}  />}
               </>
             )}
           </div>

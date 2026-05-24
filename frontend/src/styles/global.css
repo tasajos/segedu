@@ -53,6 +53,23 @@
   --font:      'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
+  /* ── Alias semánticos usados en componentes inline ── */
+  --ink:        #1e3a5f;
+  --ink-light:  #64748b;
+  --ink-xlight: #94a3b8;
+  --paper:      #ffffff;
+  --paper-light:#f8fafc;
+  --paper-dark: #f1f5f9;
+  --line:       #e2e8f0;
+  --line-strong:#cbd5e1;
+  --serif:      'Georgia', 'Times New Roman', serif;
+  --mono:       'JetBrains Mono', 'Fira Code', monospace;
+  --sans:       'Plus Jakarta Sans', 'Inter', sans-serif;
+  --forest:     #16a34a;
+  --crimson:    #dc2626;
+  --gold:       #d97706;
+  --gold-dark:  #92400e;
+
   /* Radios */
   --radius-sm: 6px;
   --radius:    10px;

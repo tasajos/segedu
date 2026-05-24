@@ -1,10 +1,22 @@
 import pool from '../config/db.js';
 import fs from 'fs/promises';
+import { createReadStream, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
+
+const resolveFilePath = (archivoPath) => {
+  if (!archivoPath) return null;
+  const fileName = path.basename(archivoPath);
+  const candidates = [
+    path.resolve(process.cwd(), 'uploads', fileName),
+    path.resolve(process.cwd(), 'backend', 'uploads', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', fileName),
+  ];
+  return candidates.find(c => existsSync(c)) || null;
+};
 
 // Obtener el registro de instructor del usuario logueado
 const getInstructor = async (userId) => {
@@ -244,5 +256,218 @@ export const guardarNotas = async (req, res) => {
       `, [req.params.cursoId, n.estudiante_id, n.nota ?? null, n.descripcion || null, req.user.id]);
     }
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INSTRUCTOR — TAREAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const listarTareasInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[curso]] = await pool.query('SELECT id FROM cursos_especiales WHERE id=? AND instructor_id=?', [req.params.cursoId, inst.id]);
+    if (!curso) return res.status(403).json({ error: 'Acceso denegado' });
+
+    const [rows] = await pool.query(`
+      SELECT t.*,
+        (SELECT COUNT(*) FROM entregas_tareas_cursos_especiales e WHERE e.tarea_id=t.id) AS total_entregas,
+        (SELECT COUNT(*) FROM entregas_tareas_cursos_especiales e WHERE e.tarea_id=t.id AND e.visto_por_instructor=0) AS nuevas_entregas,
+        (SELECT COUNT(*) FROM inscripciones_cursos_especiales i WHERE i.curso_id=t.curso_id AND i.estado='aprobado') AS total_inscritos
+      FROM tareas_cursos_especiales t
+      WHERE t.curso_id=?
+      ORDER BY t.created_at DESC
+    `, [req.params.cursoId]);
+
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const crearTareaInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[curso]] = await pool.query('SELECT id FROM cursos_especiales WHERE id=? AND instructor_id=?', [req.params.cursoId, inst.id]);
+    if (!curso) {
+      if (req.file) await fs.unlink(req.file.path).catch(() => {});
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    const { titulo, descripcion, fecha_entrega } = req.body;
+    if (!titulo?.trim()) return res.status(400).json({ error: 'El título es obligatorio' });
+
+    let archivo_nombre = null, archivo_path = null, tipo_archivo = null;
+    if (req.file) {
+      archivo_nombre = req.file.originalname;
+      archivo_path = `/uploads/${req.file.filename}`;
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      tipo_archivo = ext === '.pdf' ? 'pdf' : 'word';
+    }
+
+    const [r] = await pool.query(
+      `INSERT INTO tareas_cursos_especiales
+         (curso_id, titulo, descripcion, fecha_entrega, archivo_nombre, archivo_path, tipo_archivo, creado_por)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      [req.params.cursoId, titulo.trim(), descripcion || null, fecha_entrega || null,
+       archivo_nombre, archivo_path, tipo_archivo, req.user.id]
+    );
+    const [[tarea]] = await pool.query('SELECT * FROM tareas_cursos_especiales WHERE id=?', [r.insertId]);
+    res.status(201).json(tarea);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const eliminarTareaInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[tarea]] = await pool.query(`
+      SELECT t.* FROM tareas_cursos_especiales t
+      JOIN cursos_especiales ce ON ce.id=t.curso_id
+      WHERE t.id=? AND ce.instructor_id=?
+    `, [req.params.tareaId, inst.id]);
+    if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+
+    if (tarea.archivo_path) {
+      const fp = resolveFilePath(tarea.archivo_path);
+      if (fp) await fs.unlink(fp).catch(() => {});
+    }
+    await pool.query('DELETE FROM tareas_cursos_especiales WHERE id=?', [req.params.tareaId]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const listarEntregasInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[tarea]] = await pool.query(`
+      SELECT t.* FROM tareas_cursos_especiales t
+      JOIN cursos_especiales ce ON ce.id=t.curso_id
+      WHERE t.id=? AND ce.instructor_id=?
+    `, [req.params.tareaId, inst.id]);
+    if (!tarea) return res.status(403).json({ error: 'No autorizado' });
+
+    const [rows] = await pool.query(`
+      SELECT e.*, u.nombre, u.apellido, est.codigo_estudiante
+      FROM entregas_tareas_cursos_especiales e
+      JOIN estudiantes est ON est.id=e.estudiante_id
+      JOIN usuarios u ON u.id=est.usuario_id
+      WHERE e.tarea_id=?
+      ORDER BY e.fecha_entrega DESC
+    `, [req.params.tareaId]);
+
+    await pool.query(
+      'UPDATE entregas_tareas_cursos_especiales SET visto_por_instructor=1 WHERE tarea_id=?',
+      [req.params.tareaId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const calificarEntregaInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[entrega]] = await pool.query(`
+      SELECT e.id FROM entregas_tareas_cursos_especiales e
+      JOIN tareas_cursos_especiales t ON t.id=e.tarea_id
+      JOIN cursos_especiales ce ON ce.id=t.curso_id
+      WHERE e.id=? AND ce.instructor_id=?
+    `, [req.params.entregaId, inst.id]);
+    if (!entrega) return res.status(403).json({ error: 'No autorizado' });
+
+    const { calificacion, comentario_calificacion } = req.body;
+    await pool.query(
+      `UPDATE entregas_tareas_cursos_especiales
+       SET calificacion=?, comentario_calificacion=?, fecha_calificacion=NOW()
+       WHERE id=?`,
+      [calificacion, comentario_calificacion || null, req.params.entregaId]
+    );
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const verArchivoTareaInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[tarea]] = await pool.query(`
+      SELECT t.* FROM tareas_cursos_especiales t
+      JOIN cursos_especiales ce ON ce.id=t.curso_id
+      WHERE t.id=? AND ce.instructor_id=?
+    `, [req.params.tareaId, inst.id]);
+    if (!tarea || !tarea.archivo_path) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+    const filePath = resolveFilePath(tarea.archivo_path);
+    if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
+
+    const ext = path.extname(tarea.archivo_nombre).toLowerCase();
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/msword';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(tarea.archivo_nombre)}"`);
+    res.setHeader('Cache-Control', 'private, no-cache');
+    createReadStream(filePath).pipe(res);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const verEntregaInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[entrega]] = await pool.query(`
+      SELECT e.* FROM entregas_tareas_cursos_especiales e
+      JOIN tareas_cursos_especiales t ON t.id=e.tarea_id
+      JOIN cursos_especiales ce ON ce.id=t.curso_id
+      WHERE e.id=? AND ce.instructor_id=?
+    `, [req.params.entregaId, inst.id]);
+    if (!entrega) return res.status(403).json({ error: 'No autorizado' });
+
+    const filePath = resolveFilePath(entrega.archivo_path);
+    if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
+
+    const ext = path.extname(entrega.archivo_nombre).toLowerCase();
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/msword';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(entrega.archivo_nombre)}"`);
+    res.setHeader('Cache-Control', 'private, no-cache');
+    createReadStream(filePath).pipe(res);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const descargarEntregaInstructor = async (req, res) => {
+  try {
+    const inst = await getInstructor(req.user.id);
+    if (!inst) return res.status(404).json({ error: 'Instructor no encontrado' });
+
+    const [[entrega]] = await pool.query(`
+      SELECT e.* FROM entregas_tareas_cursos_especiales e
+      JOIN tareas_cursos_especiales t ON t.id=e.tarea_id
+      JOIN cursos_especiales ce ON ce.id=t.curso_id
+      WHERE e.id=? AND ce.instructor_id=?
+    `, [req.params.entregaId, inst.id]);
+    if (!entrega) return res.status(403).json({ error: 'No autorizado' });
+
+    const filePath = resolveFilePath(entrega.archivo_path);
+    if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
+
+    const ext = path.extname(entrega.archivo_nombre).toLowerCase();
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/msword';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(entrega.archivo_nombre)}"`);
+    createReadStream(filePath).pipe(res);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };

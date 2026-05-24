@@ -1,6 +1,7 @@
 import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
 import fs from 'fs/promises';
+import { createReadStream, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -9,6 +10,7 @@ const __dirname  = path.dirname(__filename);
 
 // ── Auto-create tables if needed ────────────────────────────────────────────
 let schemaReady = false;
+export const initSchema = async () => { try { await ready(); } catch (e) { console.error('initSchema error:', e.message); } };
 const ready = async () => {
   if (schemaReady) return;
   await pool.query(`
@@ -92,6 +94,38 @@ const ready = async () => {
       FOREIGN KEY (registrado_por) REFERENCES usuarios(id)
     )`);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tareas_cursos_especiales (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      curso_id INT NOT NULL,
+      titulo VARCHAR(200) NOT NULL,
+      descripcion TEXT,
+      fecha_entrega DATETIME NULL,
+      archivo_nombre VARCHAR(300) NULL,
+      archivo_path VARCHAR(500) NULL,
+      tipo_archivo ENUM('pdf','word') NULL,
+      creado_por INT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (curso_id) REFERENCES cursos_especiales(id) ON DELETE CASCADE,
+      FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+    )`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS entregas_tareas_cursos_especiales (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tarea_id INT NOT NULL,
+      estudiante_id INT NOT NULL,
+      archivo_nombre VARCHAR(300) NOT NULL,
+      archivo_path VARCHAR(500) NOT NULL,
+      fecha_entrega DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      calificacion DECIMAL(4,2) NULL,
+      comentario_calificacion TEXT NULL,
+      fecha_calificacion DATETIME NULL,
+      visto_por_instructor TINYINT(1) NOT NULL DEFAULT 0,
+      UNIQUE KEY uq_entrega_esp (tarea_id, estudiante_id),
+      FOREIGN KEY (tarea_id) REFERENCES tareas_cursos_especiales(id) ON DELETE CASCADE,
+      FOREIGN KEY (estudiante_id) REFERENCES estudiantes(id) ON DELETE CASCADE
+    )`);
+
   // Add columns if missing (idempotent upgrades)
   const [cols] = await pool.query(
     `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -111,6 +145,9 @@ const ready = async () => {
   if (!ceSet.has('instructor_id')) {
     await pool.query(`ALTER TABLE cursos_especiales ADD COLUMN instructor_id INT NULL AFTER carrera_id`);
   }
+  if (!ceSet.has('publico_general')) {
+    await pool.query(`ALTER TABLE cursos_especiales ADD COLUMN publico_general TINYINT(1) NOT NULL DEFAULT 0 AFTER activo`);
+  }
 
   // Columnas de enlace en material
   const [matCol] = await pool.query(
@@ -128,6 +165,17 @@ const ready = async () => {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+const resolveFilePath = (archivoPath) => {
+  if (!archivoPath) return null;
+  const fileName = path.basename(archivoPath);
+  const candidates = [
+    path.resolve(process.cwd(), 'uploads', fileName),
+    path.resolve(process.cwd(), 'backend', 'uploads', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', fileName),
+  ];
+  return candidates.find(c => existsSync(c)) || null;
+};
+
 const getCarreraJefe = async (userId) => {
   const [[row]] = await pool.query('SELECT id FROM carreras WHERE jefe_id = ?', [userId]);
   return row?.id ?? null;
@@ -191,13 +239,13 @@ export const crearCursoJefe = async (req, res) => {
     const carreraId = await getCarreraJefe(req.user.id);
     if (!carreraId) return res.status(404).json({ error: 'Sin carrera asignada' });
 
-    const { nombre, descripcion, requisitos, max_estudiantes } = req.body;
+    const { nombre, descripcion, requisitos, max_estudiantes, publico_general } = req.body;
     if (!nombre?.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
 
     const [r] = await pool.query(
-      `INSERT INTO cursos_especiales (nombre, descripcion, requisitos, max_estudiantes, carrera_id, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [nombre.trim(), descripcion || null, requisitos || null, max_estudiantes || 30, carreraId, req.user.id]
+      `INSERT INTO cursos_especiales (nombre, descripcion, requisitos, max_estudiantes, carrera_id, publico_general, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [nombre.trim(), descripcion || null, requisitos || null, max_estudiantes || 30, carreraId, publico_general ? 1 : 0, req.user.id]
     );
     const [[curso]] = await pool.query('SELECT * FROM cursos_especiales WHERE id = ?', [r.insertId]);
     res.status(201).json(curso);
@@ -214,10 +262,10 @@ export const actualizarCursoJefe = async (req, res) => {
     const [[curso]] = await pool.query('SELECT * FROM cursos_especiales WHERE id = ? AND carrera_id = ?', [id, carreraId]);
     if (!curso) return res.status(404).json({ error: 'Curso no encontrado' });
 
-    const { nombre, descripcion, requisitos, max_estudiantes, activo } = req.body;
+    const { nombre, descripcion, requisitos, max_estudiantes, activo, publico_general } = req.body;
     await pool.query(`
       UPDATE cursos_especiales
-      SET nombre=?, descripcion=?, requisitos=?, max_estudiantes=?, activo=?
+      SET nombre=?, descripcion=?, requisitos=?, max_estudiantes=?, activo=?, publico_general=?
       WHERE id=?
     `, [
       nombre?.trim() ?? curso.nombre,
@@ -225,6 +273,7 @@ export const actualizarCursoJefe = async (req, res) => {
       requisitos  !== undefined ? requisitos  : curso.requisitos,
       max_estudiantes ?? curso.max_estudiantes,
       activo !== undefined ? activo : curso.activo,
+      publico_general !== undefined ? (publico_general ? 1 : 0) : curso.publico_general,
       id
     ]);
 
@@ -592,7 +641,7 @@ export const listarCursosEstudiante = async (req, res) => {
         (SELECT i.estado FROM inscripciones_cursos_especiales i WHERE i.curso_id=ce.id AND i.estudiante_id=? LIMIT 1) AS mi_estado
       FROM cursos_especiales ce
       LEFT JOIN instructores_cursos ic ON ic.id = ce.instructor_id
-      WHERE ce.activo=1 AND ce.carrera_id=?
+      WHERE ce.activo=1 AND (ce.carrera_id=? OR ce.publico_general=1)
       ORDER BY ce.created_at DESC
     `, [est.id, est.id, est.carrera_id]);
 
@@ -606,7 +655,7 @@ export const inscribirseEnCurso = async (req, res) => {
     const est = await getEstudiante(req.user.id);
     if (!est) return res.status(404).json({ error: 'Estudiante no encontrado' });
 
-    const [[curso]] = await pool.query('SELECT * FROM cursos_especiales WHERE id=? AND activo=1 AND carrera_id=?', [req.params.id, est.carrera_id]);
+    const [[curso]] = await pool.query('SELECT * FROM cursos_especiales WHERE id=? AND activo=1 AND (carrera_id=? OR publico_general=1)', [req.params.id, est.carrera_id]);
     if (!curso) return res.status(404).json({ error: 'Curso no disponible' });
 
     // Verificar registro existente antes de insertar
@@ -732,5 +781,115 @@ export const misNotasCurso = async (req, res) => {
       [req.params.id, est.id]
     );
     res.json(nota || { nota: null, descripcion: null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ESTUDIANTE — TAREAS DE CURSOS ESPECIALES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const listarTareasEspecialEst = async (req, res) => {
+  try {
+    await ready();
+    const est = await getEstudiante(req.user.id);
+    if (!est) return res.status(404).json({ error: 'Estudiante no encontrado' });
+
+    const [[ins]] = await pool.query(
+      `SELECT id FROM inscripciones_cursos_especiales WHERE curso_id=? AND estudiante_id=? AND estado='aprobado'`,
+      [req.params.id, est.id]
+    );
+    if (!ins) return res.status(403).json({ error: 'No tienes acceso a este curso' });
+
+    const [rows] = await pool.query(`
+      SELECT t.*,
+        e.id AS entrega_id, e.calificacion, e.fecha_entrega AS fecha_mi_entrega,
+        e.comentario_calificacion, e.archivo_nombre AS entrega_nombre
+      FROM tareas_cursos_especiales t
+      LEFT JOIN entregas_tareas_cursos_especiales e ON e.tarea_id=t.id AND e.estudiante_id=?
+      WHERE t.curso_id=?
+      ORDER BY t.created_at DESC
+    `, [est.id, req.params.id]);
+
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const verArchivoTareaEspecialEst = async (req, res) => {
+  try {
+    await ready();
+    const est = await getEstudiante(req.user.id);
+    if (!est) return res.status(404).json({ error: 'Estudiante no encontrado' });
+
+    const [[ins]] = await pool.query(
+      `SELECT id FROM inscripciones_cursos_especiales WHERE curso_id=? AND estudiante_id=? AND estado='aprobado'`,
+      [req.params.id, est.id]
+    );
+    if (!ins) return res.status(403).json({ error: 'No tienes acceso a este curso' });
+
+    const [[tarea]] = await pool.query(
+      'SELECT * FROM tareas_cursos_especiales WHERE id=? AND curso_id=?',
+      [req.params.tareaId, req.params.id]
+    );
+    if (!tarea || !tarea.archivo_path) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+    const filePath = resolveFilePath(tarea.archivo_path);
+    if (!filePath) return res.status(404).json({ error: 'Archivo no disponible' });
+
+    const ext = path.extname(tarea.archivo_nombre).toLowerCase();
+    const mime = ext === '.pdf' ? 'application/pdf'
+      : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      : 'application/msword';
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(tarea.archivo_nombre)}"`);
+    res.setHeader('Cache-Control', 'private, no-cache');
+    createReadStream(filePath).pipe(res);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const entregarTareaEspecialEst = async (req, res) => {
+  try {
+    await ready();
+    const est = await getEstudiante(req.user.id);
+    if (!est) return res.status(404).json({ error: 'Estudiante no encontrado' });
+
+    const [[ins]] = await pool.query(
+      `SELECT id FROM inscripciones_cursos_especiales WHERE curso_id=? AND estudiante_id=? AND estado='aprobado'`,
+      [req.params.id, est.id]
+    );
+    if (!ins) return res.status(403).json({ error: 'No tienes acceso a este curso' });
+
+    const [[tarea]] = await pool.query(
+      'SELECT id FROM tareas_cursos_especiales WHERE id=? AND curso_id=?',
+      [req.params.tareaId, req.params.id]
+    );
+    if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+    if (!req.file) return res.status(400).json({ error: 'Debe adjuntar un archivo Word (.doc/.docx) o PDF' });
+
+    await pool.query(
+      `INSERT INTO entregas_tareas_cursos_especiales
+         (tarea_id, estudiante_id, archivo_nombre, archivo_path, visto_por_instructor)
+       VALUES (?,?,?,?,0)
+       ON DUPLICATE KEY UPDATE
+         archivo_nombre=VALUES(archivo_nombre), archivo_path=VALUES(archivo_path),
+         fecha_entrega=NOW(), calificacion=NULL, comentario_calificacion=NULL,
+         fecha_calificacion=NULL, visto_por_instructor=0`,
+      [req.params.tareaId, est.id, req.file.originalname, `/uploads/${req.file.filename}`]
+    );
+    res.status(201).json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const miEntregaTareaEspecialEst = async (req, res) => {
+  try {
+    await ready();
+    const est = await getEstudiante(req.user.id);
+    if (!est) return res.status(404).json({ error: 'Estudiante no encontrado' });
+
+    const [[row]] = await pool.query(
+      'SELECT * FROM entregas_tareas_cursos_especiales WHERE tarea_id=? AND estudiante_id=?',
+      [req.params.tareaId, est.id]
+    );
+    res.json(row || null);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };

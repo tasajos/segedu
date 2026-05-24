@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import mammoth from 'mammoth';
 
 // ── Constantes de asistencia (misma lógica que asistencia regular) ─────────────
 const ASIST_ESTADOS = ['presente', 'falta', 'permiso'];
@@ -9,7 +10,7 @@ const ASIST_BG     = { presente: '#f0fdf4', falta: '#fef2f2', permiso: '#fffbeb'
 const ASIST_BORDER = { presente: '#bbf7d0', falta: '#fecaca', permiso: '#fde68a' };
 const ASIST_LABEL  = { presente: 'Presente', falta: 'Falta',    permiso: 'Permiso'  };
 
-const TABS = ['Participantes', 'Asistencia', 'Material', 'Notas'];
+const TABS = ['Participantes', 'Asistencia', 'Material', 'Notas', 'Tareas'];
 
 const getTodayLocal = () => {
   const d = new Date();
@@ -539,6 +540,438 @@ function TabNotas({ cursoId }) {
   );
 }
 
+// ── Visor de archivo (PDF / Word) ─────────────────────────────────────────────
+function VisorArchivo({ url, nombre, tipo, onClose }) {
+  const [html, setHtml]     = useState('');
+  const [loading, setLoad]  = useState(true);
+  const [error, setError]   = useState('');
+
+  useEffect(() => {
+    if (!url) return;
+    setLoad(true); setError(''); setHtml('');
+    if (tipo === 'pdf') {
+      setLoad(false);
+    } else {
+      api.get(url, { responseType: 'arraybuffer' })
+        .then(r => mammoth.convertToHtml({ arrayBuffer: r.data }))
+        .then(r => { setHtml(r.value); setLoad(false); })
+        .catch(() => { setError('No se pudo cargar el documento.'); setLoad(false); });
+    }
+  }, [url, tipo]);
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.7)', backdropFilter:'blur(4px)',
+        zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+      <div style={{ background:'var(--paper-light)', borderRadius:'14px', width:'100%', maxWidth:'900px',
+        maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden',
+        boxShadow:'0 24px 80px rgba(0,0,0,.4)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+          padding:'1rem 1.5rem', borderBottom:'1px solid var(--line)' }}>
+          <div style={{ fontFamily:'var(--serif)', fontWeight:600 }}>{nombre}</div>
+          <button onClick={onClose} className="btn btn-secondary btn-sm">✕ Cerrar</button>
+        </div>
+        <div style={{ flex:1, overflow:'auto', position:'relative' }}>
+          {loading && <Spinner />}
+          {error && <div style={{ padding:'2rem', color:'var(--crimson)', textAlign:'center' }}>{error}</div>}
+          {!loading && !error && tipo === 'pdf' && (
+            <div style={{ position:'relative', height:'100%', minHeight:'65vh' }}>
+              <div style={{ position:'absolute', inset:0, zIndex:2, userSelect:'none' }}
+                onContextMenu={e => e.preventDefault()} />
+              <iframe src={url} style={{ width:'100%', height:'100%', minHeight:'65vh', border:'none' }}
+                title={nombre} />
+            </div>
+          )}
+          {!loading && !error && tipo !== 'pdf' && html && (
+            <div style={{ position:'relative' }}>
+              <div style={{ position:'absolute', inset:0, zIndex:2, userSelect:'none' }}
+                onContextMenu={e => e.preventDefault()} />
+              <div style={{ padding:'2rem', fontFamily:'Georgia,serif', fontSize:'1rem',
+                lineHeight:1.7, maxWidth:'780px', margin:'0 auto' }}
+                dangerouslySetInnerHTML={{ __html: html }} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TAB Tareas ────────────────────────────────────────────────────────────────
+function TabTareas({ cursoId }) {
+  const [tareas, setTareas]           = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [showForm, setShowForm]       = useState(false);
+  const [form, setForm]               = useState({ titulo:'', descripcion:'', fecha_entrega:'' });
+  const [archivo, setArchivo]         = useState(null);
+  const [guardando, setGuardando]     = useState(false);
+  const [formError, setFormError]     = useState('');
+  const [visor, setVisor]             = useState(null);   // { url, nombre, tipo }
+  const [entregasModal, setEntregasModal] = useState(null); // tarea
+  const [entregas, setEntregas]       = useState([]);
+  const [loadingEntr, setLoadingEntr] = useState(false);
+  const [calificando, setCalificando] = useState(null);  // entrega
+  const [calForm, setCalForm]         = useState({ calificacion:'', comentario:'' });
+  const [savingCal, setSavingCal]     = useState(false);
+  const [visorEntrega, setVisorEntrega] = useState(null);
+  const fileRef = useRef(null);
+
+  const cargar = () => {
+    setLoading(true);
+    api.get(`/instructor/cursos/${cursoId}/tareas`)
+      .then(r => setTareas(r.data)).catch(() => {}).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { cargar(); }, [cursoId]);
+
+  const crearTarea = async () => {
+    if (!form.titulo.trim()) { setFormError('El título es obligatorio'); return; }
+    setGuardando(true); setFormError('');
+    try {
+      const fd = new FormData();
+      fd.append('titulo', form.titulo.trim());
+      fd.append('descripcion', form.descripcion);
+      fd.append('fecha_entrega', form.fecha_entrega);
+      if (archivo) fd.append('archivo', archivo);
+      await api.post(`/instructor/cursos/${cursoId}/tareas`, fd, { headers:{ 'Content-Type':'multipart/form-data' } });
+      setForm({ titulo:'', descripcion:'', fecha_entrega:'' });
+      setArchivo(null);
+      if (fileRef.current) fileRef.current.value = '';
+      setShowForm(false);
+      cargar();
+    } catch (err) { setFormError(err.response?.data?.error || 'Error al crear tarea'); }
+    finally { setGuardando(false); }
+  };
+
+  const eliminarTarea = async (id) => {
+    if (!confirm('¿Eliminar esta tarea y todas sus entregas?')) return;
+    try { await api.delete(`/instructor/cursos/${cursoId}/tareas/${id}`); cargar(); }
+    catch (err) { alert(err.response?.data?.error || 'Error'); }
+  };
+
+  const abrirEntregas = async (tarea) => {
+    setEntregasModal(tarea);
+    setLoadingEntr(true);
+    try {
+      const { data } = await api.get(`/instructor/cursos/${cursoId}/tareas/${tarea.id}/entregas`);
+      setEntregas(data);
+    } catch { setEntregas([]); }
+    finally { setLoadingEntr(false); }
+    cargar(); // actualiza badge
+  };
+
+  const guardarCalificacion = async () => {
+    if (calForm.calificacion === '') { alert('Ingresa una calificación'); return; }
+    setSavingCal(true);
+    try {
+      await api.put(`/instructor/entregas-especiales/${calificando.id}/calificar`, {
+        calificacion: parseFloat(calForm.calificacion),
+        comentario_calificacion: calForm.comentario,
+      });
+      const { data } = await api.get(`/instructor/cursos/${cursoId}/tareas/${entregasModal.id}/entregas`);
+      setEntregas(data);
+      setCalificando(null);
+    } catch (err) { alert(err.response?.data?.error || 'Error'); }
+    finally { setSavingCal(false); }
+  };
+
+  const getApiUrl = (path) => {
+    const base = api.defaults.baseURL || '';
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    return `${base}${path}?token=${token}`;
+  };
+
+  const abrirVisorTarea = (tarea) => {
+    const url = getApiUrl(`/instructor/cursos/${cursoId}/tareas/${tarea.id}/ver`);
+    setVisor({ url, nombre: tarea.archivo_nombre, tipo: tarea.tipo_archivo });
+  };
+
+  const abrirVisorEntrega = (entrega) => {
+    const url = getApiUrl(`/instructor/entregas-especiales/${entrega.id}/ver`);
+    const ext = entrega.archivo_nombre?.split('.').pop()?.toLowerCase();
+    setVisorEntrega({ url, nombre: entrega.archivo_nombre, tipo: ext === 'pdf' ? 'pdf' : 'word' });
+  };
+
+  const diasRestantes = (fecha) => {
+    if (!fecha) return null;
+    const diff = Math.ceil((new Date(fecha) - new Date()) / 86400000);
+    return diff;
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      {/* ── Botón nueva tarea ── */}
+      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'1.25rem' }}>
+        <button onClick={() => { setShowForm(s => !s); setFormError(''); }}
+          style={{ padding:'.55rem 1.25rem', borderRadius:'8px', border:'none',
+            background:'var(--ink)', color:'#fff', cursor:'pointer',
+            fontFamily:'var(--mono)', fontSize:'.82rem', fontWeight:700 }}>
+          {showForm ? '✕ Cancelar' : '+ Nueva tarea'}
+        </button>
+      </div>
+
+      {/* ── Formulario ── */}
+      {showForm && (
+        <div style={{ background:'var(--paper-dark)', borderRadius:'12px',
+          border:'1px solid var(--line)', padding:'1.25rem 1.5rem', marginBottom:'1.5rem' }}>
+          <h3 style={{ fontFamily:'var(--serif)', fontSize:'1rem', margin:'0 0 1rem' }}>Nueva tarea</h3>
+          <div style={{ display:'flex', flexDirection:'column', gap:'.85rem' }}>
+            <div>
+              <label className="form-label">Título *</label>
+              <input className="form-input" value={form.titulo}
+                onChange={e => setForm(f => ({...f, titulo: e.target.value}))}
+                placeholder="Ej: Entrega parcial — semana 3" />
+            </div>
+            <div>
+              <label className="form-label">Descripción / instrucciones</label>
+              <textarea className="form-input" rows={3} style={{ resize:'vertical' }}
+                value={form.descripcion}
+                onChange={e => setForm(f => ({...f, descripcion: e.target.value}))}
+                placeholder="Descripción detallada de la tarea..." />
+            </div>
+            <div>
+              <label className="form-label">Fecha límite de entrega</label>
+              <input className="form-input" type="datetime-local" value={form.fecha_entrega}
+                onChange={e => setForm(f => ({...f, fecha_entrega: e.target.value}))} />
+            </div>
+            <div>
+              <label className="form-label">Material adjunto — PDF o Word (opcional, máx. 30 MB)</label>
+              <div style={{ display:'flex', alignItems:'center', gap:'1rem', padding:'.75rem 1rem',
+                background:'var(--paper-light)', borderRadius:'8px', border:'2px dashed var(--line-strong)', marginTop:'.35rem' }}>
+                <span style={{ fontSize:'1.3rem' }}>📎</span>
+                <input ref={fileRef} type="file" accept=".pdf,.doc,.docx"
+                  onChange={e => setArchivo(e.target.files[0] || null)}
+                  style={{ flex:1, fontFamily:'var(--mono)', fontSize:'.82rem' }} />
+              </div>
+              {archivo && (
+                <div style={{ marginTop:'.4rem', fontFamily:'var(--mono)', fontSize:'.75rem', color:'var(--ink-light)' }}>
+                  {archivo.name.toLowerCase().endsWith('.pdf') ? '📄' : '📝'} {archivo.name}
+                  {' '}({(archivo.size/1024/1024).toFixed(1)} MB)
+                </div>
+              )}
+            </div>
+            {formError && (
+              <div style={{ padding:'.65rem 1rem', background:'#fef2f2', border:'1px solid #fecaca',
+                borderRadius:'6px', color:'#b91c1c', fontSize:'.85rem' }}>{formError}</div>
+            )}
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:'.75rem' }}>
+              <button onClick={() => setShowForm(false)} className="btn btn-secondary">Cancelar</button>
+              <button onClick={crearTarea} disabled={guardando} className="btn btn-primary">
+                {guardando ? 'Creando...' : 'Crear tarea'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lista de tareas ── */}
+      {!tareas.length && !showForm && <Empty text="Sin tareas creadas aún" />}
+      <div style={{ display:'flex', flexDirection:'column', gap:'.75rem' }}>
+        {tareas.map((t, i) => {
+          const dias = diasRestantes(t.fecha_entrega);
+          const vencida = dias !== null && dias < 0;
+          const urgente = dias !== null && dias >= 0 && dias <= 3;
+          return (
+            <div key={t.id} style={{ background:'var(--paper-dark)', borderRadius:'12px',
+              border:'1px solid var(--line)', padding:'1.1rem 1.25rem',
+              borderLeft:`4px solid ${vencida ? 'var(--crimson)' : urgente ? '#d97706' : 'var(--forest)'}` }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'1rem' }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'.6rem', flexWrap:'wrap', marginBottom:'.3rem' }}>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:'.65rem', color:'var(--gold-dark)' }}>
+                      {String(i+1).padStart(2,'0')}
+                    </span>
+                    <span style={{ fontFamily:'var(--serif)', fontSize:'1rem', fontWeight:600 }}>{t.titulo}</span>
+                    {t.tipo_archivo && (
+                      <span style={{ fontFamily:'var(--mono)', fontSize:'.65rem', padding:'.15rem .5rem',
+                        borderRadius:'999px', background: t.tipo_archivo === 'pdf' ? '#fef2f2' : '#eff6ff',
+                        color: t.tipo_archivo === 'pdf' ? '#b91c1c' : '#1d4ed8',
+                        border: `1px solid ${t.tipo_archivo === 'pdf' ? '#fecaca' : '#bfdbfe'}` }}>
+                        {t.tipo_archivo === 'pdf' ? 'PDF' : 'Word'}
+                      </span>
+                    )}
+                  </div>
+                  {t.descripcion && (
+                    <p style={{ fontSize:'.83rem', color:'var(--ink-light)', margin:'0 0 .4rem', lineHeight:1.5 }}>
+                      {t.descripcion}
+                    </p>
+                  )}
+                  <div style={{ display:'flex', gap:'1rem', flexWrap:'wrap', alignItems:'center' }}>
+                    {t.fecha_entrega && (
+                      <span style={{ fontFamily:'var(--mono)', fontSize:'.72rem',
+                        color: vencida ? 'var(--crimson)' : urgente ? '#d97706' : 'var(--ink-light)' }}>
+                        {vencida ? '⚠ Vencida' : `⏱ ${dias === 0 ? 'Vence hoy' : `${dias}d restantes`}`}
+                        {' — '}{new Date(t.fecha_entrega).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'})}
+                      </span>
+                    )}
+                    <span style={{ fontFamily:'var(--mono)', fontSize:'.72rem', color:'var(--ink-light)' }}>
+                      {t.total_entregas}/{t.total_inscritos} entregas
+                    </span>
+                    {parseInt(t.nuevas_entregas) > 0 && (
+                      <span style={{ fontFamily:'var(--mono)', fontSize:'.68rem', padding:'.1rem .55rem',
+                        borderRadius:'999px', background:'#fef2f2', color:'#b91c1c',
+                        border:'1px solid #fecaca', fontWeight:700 }}>
+                        {t.nuevas_entregas} nueva{t.nuevas_entregas > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:'.5rem', flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                  {t.archivo_nombre && (
+                    <button onClick={() => abrirVisorTarea(t)}
+                      style={{ padding:'.4rem .85rem', borderRadius:'6px', border:'1px solid var(--line)',
+                        background:'var(--paper-light)', cursor:'pointer', fontFamily:'var(--mono)',
+                        fontSize:'.75rem', whiteSpace:'nowrap' }}>
+                      📄 Material
+                    </button>
+                  )}
+                  <button onClick={() => abrirEntregas(t)}
+                    style={{ padding:'.4rem .85rem', borderRadius:'6px', border:'none',
+                      background:'var(--ink)', color:'#fff', cursor:'pointer',
+                      fontFamily:'var(--mono)', fontSize:'.75rem', whiteSpace:'nowrap' }}>
+                    Ver entregas
+                  </button>
+                  <button onClick={() => eliminarTarea(t.id)}
+                    style={{ padding:'.4rem .65rem', borderRadius:'6px',
+                      border:'1px solid #fecaca', background:'#fef2f2',
+                      color:'#dc2626', cursor:'pointer', fontSize:'.8rem' }}>
+                    ×
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Modal entregas ── */}
+      {entregasModal && (
+        <div onClick={e => { if (e.target === e.currentTarget) { setEntregasModal(null); setCalificando(null); } }}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', backdropFilter:'blur(4px)',
+            zIndex:9990, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+          <div style={{ background:'var(--paper-light)', borderRadius:'14px', width:'100%', maxWidth:'720px',
+            maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden',
+            boxShadow:'0 24px 80px rgba(0,0,0,.4)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'1rem 1.5rem', borderBottom:'1px solid var(--line)', flexShrink:0 }}>
+              <div>
+                <div style={{ fontFamily:'var(--serif)', fontWeight:700, fontSize:'1rem' }}>
+                  Entregas — {entregasModal.titulo}
+                </div>
+                <div style={{ fontFamily:'var(--mono)', fontSize:'.72rem', color:'var(--ink-light)', marginTop:'.15rem' }}>
+                  {entregas.length} entrega{entregas.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+              <button onClick={() => { setEntregasModal(null); setCalificando(null); }}
+                className="btn btn-secondary btn-sm">✕</button>
+            </div>
+
+            <div style={{ overflowY:'auto', flex:1, padding:'1rem 1.5rem',
+              display:'flex', flexDirection:'column', gap:'.75rem' }}>
+              {loadingEntr && <Spinner />}
+              {!loadingEntr && !entregas.length && <Empty text="Sin entregas aún" />}
+              {entregas.map(e => {
+                const calificado = e.calificacion != null;
+                const ext = e.archivo_nombre?.split('.').pop()?.toLowerCase();
+                return (
+                  <div key={e.id} style={{ background:'var(--paper-dark)', borderRadius:'10px',
+                    border:'1px solid var(--line)',
+                    borderLeft:`4px solid ${calificado ? 'var(--forest)' : '#d97706'}` }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+                      gap:'1rem', padding:'1rem 1.1rem' }}>
+                      <div>
+                        <div style={{ fontFamily:'var(--serif)', fontWeight:600, fontSize:'.95rem' }}>
+                          {e.nombre} {e.apellido}
+                        </div>
+                        <div style={{ fontFamily:'var(--mono)', fontSize:'.7rem', color:'var(--ink-light)', marginTop:'.15rem' }}>
+                          {e.codigo_estudiante}
+                          {' · '}{new Date(e.fecha_entrega).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+                        </div>
+                        <div style={{ fontFamily:'var(--mono)', fontSize:'.72rem', marginTop:'.2rem',
+                          color: calificado ? 'var(--forest)' : '#d97706', fontWeight:700 }}>
+                          {calificado ? `✓ Calificado: ${parseFloat(e.calificacion).toFixed(1)}/100` : '⏳ Sin calificar'}
+                        </div>
+                        {calificado && e.comentario_calificacion && (
+                          <div style={{ fontSize:'.78rem', color:'var(--ink-light)', marginTop:'.2rem',
+                            fontStyle:'italic' }}>"{e.comentario_calificacion}"</div>
+                        )}
+                      </div>
+                      <div style={{ display:'flex', gap:'.45rem', flexShrink:0 }}>
+                        <button onClick={() => abrirVisorEntrega(e)}
+                          style={{ padding:'.35rem .8rem', borderRadius:'6px', border:'1px solid var(--line)',
+                            background:'var(--paper-light)', cursor:'pointer',
+                            fontFamily:'var(--mono)', fontSize:'.73rem' }}>
+                          {ext === 'pdf' ? '📄' : '📝'} Ver
+                        </button>
+                        <a href={`${api.defaults.baseURL}/instructor/entregas-especiales/${e.id}/descargar?token=${localStorage.getItem('token')||''}`}
+                          download={e.archivo_nombre}
+                          style={{ padding:'.35rem .8rem', borderRadius:'6px', border:'1px solid var(--line)',
+                            background:'var(--paper-light)', textDecoration:'none',
+                            fontFamily:'var(--mono)', fontSize:'.73rem', color:'var(--ink)' }}>
+                          ↓
+                        </a>
+                        <button
+                          onClick={() => { setCalificando(e); setCalForm({ calificacion: e.calificacion != null ? String(e.calificacion) : '', comentario: e.comentario_calificacion || '' }); }}
+                          style={{ padding:'.35rem .8rem', borderRadius:'6px',
+                            background: calificado ? 'var(--paper-dark)' : 'var(--ink)',
+                            color: calificado ? 'var(--ink)' : '#fff', cursor:'pointer',
+                            fontFamily:'var(--mono)', fontSize:'.73rem',
+                            border: calificado ? '1px solid var(--line)' : 'none' }}>
+                          {calificado ? 'Editar nota' : 'Calificar'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Inline calificar */}
+                    {calificando?.id === e.id && (
+                      <div style={{ padding:'.85rem 1.1rem', borderTop:'1px solid var(--line)',
+                        background:'var(--paper-light)', display:'flex', flexDirection:'column', gap:'.65rem' }}>
+                        <div style={{ display:'flex', gap:'.75rem', alignItems:'center', flexWrap:'wrap' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:'.5rem' }}>
+                            <label style={{ fontFamily:'var(--mono)', fontSize:'.78rem' }}>Nota (0–100):</label>
+                            <input type="number" min={0} max={100} step={0.1}
+                              value={calForm.calificacion}
+                              onChange={ev => setCalForm(f => ({...f, calificacion: ev.target.value}))}
+                              style={{ width:'80px', padding:'.35rem .6rem', borderRadius:'6px',
+                                border:'1px solid var(--line)', fontFamily:'var(--mono)',
+                                fontSize:'.88rem', textAlign:'center' }} />
+                          </div>
+                          <input className="form-input" placeholder="Comentario (opcional)"
+                            value={calForm.comentario}
+                            onChange={ev => setCalForm(f => ({...f, comentario: ev.target.value}))}
+                            style={{ flex:1, minWidth:'180px' }} />
+                        </div>
+                        <div style={{ display:'flex', gap:'.5rem', justifyContent:'flex-end' }}>
+                          <button onClick={() => setCalificando(null)} className="btn btn-secondary btn-sm">Cancelar</button>
+                          <button onClick={guardarCalificacion} disabled={savingCal} className="btn btn-primary btn-sm">
+                            {savingCal ? 'Guardando...' : 'Guardar nota'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Visores ── */}
+      {visor && (
+        <VisorArchivo url={visor.url} nombre={visor.nombre} tipo={visor.tipo}
+          onClose={() => setVisor(null)} />
+      )}
+      {visorEntrega && (
+        <VisorArchivo url={visorEntrega.url} nombre={visorEntrega.nombre} tipo={visorEntrega.tipo}
+          onClose={() => setVisorEntrega(null)} />
+      )}
+    </div>
+  );
+}
+
 // ── PAGE ──────────────────────────────────────────────────────────────────────
 export default function InstructorMiCurso() {
   const { id }   = useParams();
@@ -607,6 +1040,7 @@ export default function InstructorMiCurso() {
       {activeTab === 1 && <TabAsistencia    cursoId={id} key={`a-${id}`} />}
       {activeTab === 2 && <TabMaterial      cursoId={id} key={`m-${id}`} />}
       {activeTab === 3 && <TabNotas         cursoId={id} key={`n-${id}`} />}
+      {activeTab === 4 && <TabTareas        cursoId={id} key={`t-${id}`} />}
     </div>
   );
 }
