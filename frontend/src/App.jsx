@@ -41,6 +41,7 @@ import UnidadesLista from './pages/compartido/UnidadesLista';
 import CircuitosLogicos from './pages/compartido/CircuitosLogicos';
 import CalculoDerivadas from './pages/compartido/CalculoDerivadas';
 import ArmarPC from './pages/compartido/ArmarPC';
+import CanvasNegocio from './pages/compartido/CanvasNegocio';
 import PresentacionesVista from './pages/compartido/PresentacionesVista';
 
 // Jefe — unidades y cursos especiales
@@ -108,6 +109,7 @@ export default function App() {
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
         <Route path="unidades/armar-pc" element={<ArmarPC />} />
+        <Route path="unidades/canvas-negocio" element={<CanvasNegocio />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
       </Route>
 
@@ -126,6 +128,7 @@ export default function App() {
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
         <Route path="unidades/armar-pc" element={<ArmarPC />} />
+        <Route path="unidades/canvas-negocio" element={<CanvasNegocio />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />
       </Route>
 
@@ -149,6 +152,7 @@ export default function App() {
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />
         <Route path="unidades/armar-pc" element={<ArmarPC />} />
+        <Route path="unidades/canvas-negocio" element={<CanvasNegocio />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />

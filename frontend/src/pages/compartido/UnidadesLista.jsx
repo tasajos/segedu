@@ -16,9 +16,10 @@ const TIPO_LABEL = {
 };
 
 const UNIT_ROUTES = {
-  'Circuitos Lógicos':    'circuitos-logicos',
-  'Cálculo — Derivadas':  'calculo-derivadas',
-  'Armar una PC':         'armar-pc',
+  'Circuitos Lógicos':                      'circuitos-logicos',
+  'Cálculo — Derivadas':                    'calculo-derivadas',
+  'Armar una PC':                           'armar-pc',
+  'Canvas inteligente — Modelo de negocio': 'canvas-negocio',
 };
 
 export default function UnidadesLista() {
