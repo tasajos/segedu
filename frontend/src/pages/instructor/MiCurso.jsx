@@ -552,8 +552,9 @@ function VisorArchivo({ url, nombre, tipo, onClose }) {
     if (tipo === 'pdf') {
       setLoad(false);
     } else {
-      api.get(url, { responseType: 'arraybuffer' })
-        .then(r => mammoth.convertToHtml({ arrayBuffer: r.data }))
+      fetch(url)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(buf => mammoth.convertToHtml({ arrayBuffer: buf }))
         .then(r => { setHtml(r.value); setLoad(false); })
         .catch(() => { setError('No se pudo cargar el documento.'); setLoad(false); });
     }

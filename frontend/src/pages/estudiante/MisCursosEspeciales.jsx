@@ -263,8 +263,9 @@ function VisorArchivo({ url, nombre, tipo, onClose }) {
     if (tipo === 'pdf') {
       setLoad(false);
     } else {
-      api.get(url, { responseType: 'arraybuffer' })
-        .then(r => mammoth.convertToHtml({ arrayBuffer: r.data }))
+      fetch(url)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(buf => mammoth.convertToHtml({ arrayBuffer: buf }))
         .then(r => { setHtml(r.value); setLoad(false); })
         .catch(() => { setError('No se pudo cargar el documento.'); setLoad(false); });
     }
@@ -315,10 +316,11 @@ function TabTareas({ cursoId }) {
   const [tareas, setTareas]       = useState([]);
   const [loading, setLoading]     = useState(true);
   const [visor, setVisor]         = useState(null);
-  const [entregaModal, setEntregaModal] = useState(null); // tarea para subir entrega
+  const [entregaModal, setEntregaModal] = useState(null);
   const [archivo, setArchivo]     = useState(null);
   const [subiendo, setSubiendo]   = useState(false);
   const [subirError, setSubirError] = useState('');
+  const [exitoMsg, setExitoMsg]   = useState('');
   const fileRef = useRef(null);
 
   const getApiUrl = (path) => {
@@ -360,6 +362,8 @@ function TabTareas({ cursoId }) {
         fd, { headers: { 'Content-Type': 'multipart/form-data' } }
       );
       setEntregaModal(null);
+      setExitoMsg(`Tarea "${entregaModal.titulo}" entregada correctamente.`);
+      setTimeout(() => setExitoMsg(''), 5000);
       cargar();
     } catch (err) { setSubirError(err.response?.data?.error || 'Error al subir la entrega'); }
     finally { setSubiendo(false); }
@@ -375,12 +379,20 @@ function TabTareas({ cursoId }) {
 
   return (
     <div>
+      {exitoMsg && (
+        <div style={{ marginBottom:'1rem', padding:'.85rem 1.1rem',
+          background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'8px',
+          color:'#15803d', fontFamily:'var(--mono)', fontSize:'.85rem', display:'flex',
+          alignItems:'center', gap:'.6rem' }}>
+          ✓ {exitoMsg}
+        </div>
+      )}
       <div style={{ display:'flex', flexDirection:'column', gap:'.75rem' }}>
         {tareas.map((t, i) => {
           const dias       = diasRestantes(t.fecha_entrega);
           const vencida    = dias !== null && dias < 0;
           const urgente    = dias !== null && dias >= 0 && dias <= 3;
-          const entregada  = !!t.mi_entrega_id;
+          const entregada  = !!t.entrega_id;
           const calificada = entregada && t.calificacion != null;
           const statusColor = calificada ? 'var(--forest)' : entregada ? '#1d4ed8' : 'var(--crimson)';
           const statusLabel = calificada ? 'Calificada' : entregada ? 'Entregada' : 'Pendiente';

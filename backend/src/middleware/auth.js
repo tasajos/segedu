@@ -2,10 +2,14 @@ import jwt from 'jsonwebtoken';
 
 export const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token no proporcionado' });
+  let token = null;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query.token) {
+    // Needed for iframe src and <a download> links that can't set headers
+    token = req.query.token;
   }
-  const token = authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Token no proporcionado' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
