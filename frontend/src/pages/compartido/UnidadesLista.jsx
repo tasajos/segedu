@@ -20,6 +20,7 @@ const UNIT_ROUTES = {
   'Cálculo — Derivadas':                    'calculo-derivadas',
   'Armar una PC':                           'armar-pc',
   'Canvas inteligente — Modelo de negocio': 'canvas-negocio',
+  'Analizador de mercado con IA — Bolivia': 'analizador-mercado',
 };
 
 export default function UnidadesLista() {

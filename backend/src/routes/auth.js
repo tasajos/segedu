@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { login, register, getProfile, updateProfile } from '../controllers/authController.js';
 import { listarUnidades } from '../controllers/unidadesController.js';
 import { listarPresentaciones, listarPresentacionesPorMateria, verPresentacion, slidesPresentacion } from '../controllers/presentacionesController.js';
+import { analizarNegocio } from '../controllers/geminiController.js';
 import { verifyToken } from '../middleware/auth.js';
 
 const router = Router();
@@ -15,5 +16,6 @@ router.get('/presentaciones', verifyToken, listarPresentaciones);
 router.get('/mis-presentaciones', verifyToken, listarPresentacionesPorMateria);
 router.get('/presentaciones/:id/ver', verifyToken, verPresentacion);
 router.get('/presentaciones/:id/slides', verifyToken, slidesPresentacion);
+router.post('/analizar-negocio', verifyToken, analizarNegocio);
 
 export default router;
