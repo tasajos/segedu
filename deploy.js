@@ -138,11 +138,14 @@ function main() {
   // ── BASE DE DATOS (migraciones añadidas) ─────────────────
   // Busca en backend/ (patrón viejo: migration_v\d+.sql)
   // y en migrations/ raíz (patrón nuevo: v\d+_*.sql)
+  // y en sql/ raíz (patrón actual: \d{3}_*.sql)
   const sqlOld = diffFiles(fromRef, head, 'backend', 'A')
     .filter((f) => /migration_v\d+\.sql$/.test(f));
   const sqlNew = diffFiles(fromRef, head, 'migrations', 'A')
     .filter((f) => /v\d+.*\.sql$/.test(f));
-  const sqlFiles = [...sqlOld, ...sqlNew];
+  const sqlCurrent = diffFiles(fromRef, head, 'sql', 'A')
+    .filter((f) => /\d{3}_.*\.sql$/.test(f));
+  const sqlFiles = [...sqlOld, ...sqlNew, ...sqlCurrent];
 
   if (sqlFiles.length > 0) {
     sep();

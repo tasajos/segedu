@@ -21,6 +21,8 @@ const UNIT_ROUTES = {
   'Armar una PC':                           'armar-pc',
   'Canvas inteligente — Modelo de negocio': 'canvas-negocio',
   'Analizador de mercado con IA — Bolivia': 'analizador-mercado',
+  'Sprint de Validación Lean':              'validador-lean',
+  'Pitch Arena':                            'pitch-arena',
 };
 
 export default function UnidadesLista() {

@@ -43,6 +43,8 @@ import CalculoDerivadas from './pages/compartido/CalculoDerivadas';
 import ArmarPC from './pages/compartido/ArmarPC';
 import CanvasNegocio from './pages/compartido/CanvasNegocio';
 import AnalizadorMercado from './pages/compartido/AnalizadorMercado';
+import ValidadorLean from './pages/compartido/ValidadorLean';
+import PitchArena from './pages/compartido/PitchArena';
 import PresentacionesVista from './pages/compartido/PresentacionesVista';
 
 // Jefe — unidades y cursos especiales
@@ -112,6 +114,8 @@ export default function App() {
         <Route path="unidades/armar-pc" element={<ArmarPC />} />
         <Route path="unidades/canvas-negocio" element={<CanvasNegocio />} />
         <Route path="unidades/analizador-mercado" element={<AnalizadorMercado />} />
+        <Route path="unidades/validador-lean" element={<ValidadorLean />} />
+        <Route path="unidades/pitch-arena" element={<PitchArena />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
       </Route>
 
@@ -132,6 +136,8 @@ export default function App() {
         <Route path="unidades/armar-pc" element={<ArmarPC />} />
         <Route path="unidades/canvas-negocio" element={<CanvasNegocio />} />
         <Route path="unidades/analizador-mercado" element={<AnalizadorMercado />} />
+        <Route path="unidades/validador-lean" element={<ValidadorLean />} />
+        <Route path="unidades/pitch-arena" element={<PitchArena />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />
       </Route>
 
@@ -157,6 +163,8 @@ export default function App() {
         <Route path="unidades/armar-pc" element={<ArmarPC />} />
         <Route path="unidades/canvas-negocio" element={<CanvasNegocio />} />
         <Route path="unidades/analizador-mercado" element={<AnalizadorMercado />} />
+        <Route path="unidades/validador-lean" element={<ValidadorLean />} />
+        <Route path="unidades/pitch-arena" element={<PitchArena />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
