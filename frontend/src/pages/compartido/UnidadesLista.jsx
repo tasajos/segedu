@@ -23,6 +23,8 @@ const UNIT_ROUTES = {
   'Analizador de mercado con IA — Bolivia': 'analizador-mercado',
   'Sprint de Validación Lean':              'validador-lean',
   'Pitch Arena':                            'pitch-arena',
+  'Startup Cards':                          'startup-cards',
+  'Mercado Virtual':                        'mercado-virtual',
 };
 
 export default function UnidadesLista() {

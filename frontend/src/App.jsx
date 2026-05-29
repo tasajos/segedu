@@ -45,6 +45,8 @@ import CanvasNegocio from './pages/compartido/CanvasNegocio';
 import AnalizadorMercado from './pages/compartido/AnalizadorMercado';
 import ValidadorLean from './pages/compartido/ValidadorLean';
 import PitchArena from './pages/compartido/PitchArena';
+import StartupCards from './pages/compartido/StartupCards';
+import MercadoVirtual from './pages/compartido/MercadoVirtual';
 import PresentacionesVista from './pages/compartido/PresentacionesVista';
 
 // Jefe — unidades y cursos especiales
@@ -116,6 +118,8 @@ export default function App() {
         <Route path="unidades/analizador-mercado" element={<AnalizadorMercado />} />
         <Route path="unidades/validador-lean" element={<ValidadorLean />} />
         <Route path="unidades/pitch-arena" element={<PitchArena />} />
+        <Route path="unidades/startup-cards" element={<StartupCards />} />
+        <Route path="unidades/mercado-virtual" element={<MercadoVirtual />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
       </Route>
 
@@ -138,6 +142,8 @@ export default function App() {
         <Route path="unidades/analizador-mercado" element={<AnalizadorMercado />} />
         <Route path="unidades/validador-lean" element={<ValidadorLean />} />
         <Route path="unidades/pitch-arena" element={<PitchArena />} />
+        <Route path="unidades/startup-cards" element={<StartupCards />} />
+        <Route path="unidades/mercado-virtual" element={<MercadoVirtual />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />
       </Route>
 
@@ -165,6 +171,8 @@ export default function App() {
         <Route path="unidades/analizador-mercado" element={<AnalizadorMercado />} />
         <Route path="unidades/validador-lean" element={<ValidadorLean />} />
         <Route path="unidades/pitch-arena" element={<PitchArena />} />
+        <Route path="unidades/startup-cards" element={<StartupCards />} />
+        <Route path="unidades/mercado-virtual" element={<MercadoVirtual />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
