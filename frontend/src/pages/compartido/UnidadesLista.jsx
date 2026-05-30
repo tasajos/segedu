@@ -25,6 +25,7 @@ const UNIT_ROUTES = {
   'Pitch Arena':                            'pitch-arena',
   'Startup Cards':                          'startup-cards',
   'Mercado Virtual':                        'mercado-virtual',
+  'QA Lab':                                 'qa-lab',
 };
 
 export default function UnidadesLista() {
