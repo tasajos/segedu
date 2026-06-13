@@ -676,3 +676,12 @@ export const listarDocentesAdmin = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const listarUsuariosEquipo = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nombre, apellido, email, rol FROM usuarios WHERE activo = 1 ORDER BY nombre`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};

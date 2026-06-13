@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { login, register, getProfile, updateProfile } from '../controllers/authController.js';
 import { listarUnidades } from '../controllers/unidadesController.js';
 import { listarPresentaciones, listarPresentacionesPorMateria, verPresentacion, slidesPresentacion } from '../controllers/presentacionesController.js';
-import { analizarNegocio, validarHipotesis, generarEscenarioPitch, evaluarPitch, construirPitch, generarCartas, construirEmpresa, buscarCandidato, generarProductos, generarEscenarioVentas, interactuarVenta, picoTerminos, picoBuscar } from '../controllers/geminiController.js';
+import { analizarNegocio, validarHipotesis, generarEscenarioPitch, evaluarPitch, construirPitch, generarCartas, construirEmpresa, buscarCandidato, generarProductos, generarEscenarioVentas, interactuarVenta, picoTerminos, picoBuscar, quirofanoGenerarCaso, quirofanoSimularPaso, quirofanoInforme } from '../controllers/geminiController.js';
+import { listarUsuariosEquipo } from '../controllers/adminController.js';
 import { listarBugs, crearBug, actualizarBug, eliminarBug, asignarQA, listarTestCases, crearTestCase, actualizarTestCase, ejecutarTestCase, eliminarTestCase, listarComentariosBug, crearComentarioBug, listarEquipos, crearEquipo, eliminarEquipo, listarMiembrosEquipo, agregarMiembroEquipo, eliminarMiembroEquipo, listarUsuariosQA, getDashboardStats, listarImagenesBug, subirImagenesBug, eliminarImagenBug, uploadBugImages } from '../controllers/qaController.js';
 import { verifyToken } from '../middleware/auth.js';
 
@@ -30,6 +31,10 @@ router.post('/generar-escenario-ventas',verifyToken, generarEscenarioVentas);
 router.post('/interactuar-venta',       verifyToken, interactuarVenta);
 router.post('/pico-terminos',           verifyToken, picoTerminos);
 router.post('/pico-buscar',             verifyToken, picoBuscar);
+router.get('/usuarios-equipo',          verifyToken, listarUsuariosEquipo);
+router.post('/quirofano-caso',          verifyToken, quirofanoGenerarCaso);
+router.post('/quirofano-paso',          verifyToken, quirofanoSimularPaso);
+router.post('/quirofano-informe',       verifyToken, quirofanoInforme);
 
 // QA Lab
 router.get('/qa/bugs',                        verifyToken, listarBugs);

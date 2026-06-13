@@ -27,6 +27,7 @@ const UNIT_ROUTES = {
   'Mercado Virtual':                        'mercado-virtual',
   'QA Lab':                                 'qa-lab',
   'Buscador PICO':                          'busqueda-pico',
+  'Sala de Operaciones':                    'sala-operaciones',
 };
 
 export default function UnidadesLista() {

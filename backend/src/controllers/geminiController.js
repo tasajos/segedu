@@ -914,3 +914,187 @@ REGLAS CRÍTICAS PARA EL JSON:
     res.end();
   }
 }
+
+// ─── Quirófano Simulator ──────────────────────────────────────────────────────
+const HAIKU = 'claude-haiku-4-5-20251001';
+
+function extractJSON(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (ch === '\\' && inStr) { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') { depth--; if (depth === 0) return text.slice(start, i + 1); }
+  }
+  return null;
+}
+
+function repairJSON(str) {
+  let s = str;
+  s = s.replace(/,\s*([}\]])/g, '$1');
+  s = s.replace(/\/\/[^\n"]*(?=\n|$)/g, '');
+  s = s.replace(/\/\*[\s\S]*?\*\//g, '');
+  s = s.replace(/:\s*True\b/g, ': true').replace(/:\s*False\b/g, ': false').replace(/:\s*None\b/g, ': null');
+  s = s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+  return s;
+}
+
+async function callClaudeJSON(prompt, maxTokens = 2000, model = HAIKU) {
+  const resp = await fetch(ANTHROPIC_URL, {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!resp.ok) {
+    const e = await resp.json().catch(() => ({}));
+    throw new Error(e?.error?.message || `HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  const text = data.content?.[0]?.text || '';
+  const clean = text.replace(/```(?:json)?/gi, '').trim();
+  const raw = extractJSON(clean);
+  if (!raw) throw new Error('El modelo no devolvió JSON válido.');
+  try {
+    return JSON.parse(raw);
+  } catch {
+    try { return JSON.parse(repairJSON(raw)); }
+    catch (e2) { throw new Error(`JSON inválido: ${e2.message} — fragmento: ${raw.slice(0, 120)}`); }
+  }
+}
+
+export async function quirofanoGenerarCaso(req, res) {
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada.' });
+  try {
+    const caso = await callClaudeJSON(`Eres un simulador médico para entrenamiento quirúrgico.
+Genera UN caso de emergencia ALEATORIA y REALISTA. Varía el tipo cada vez (abdomen agudo, trauma, cardiovascular, neurológico, obstétrico, vascular, torácico, etc.).
+Responde SOLO con JSON válido, sin texto adicional:
+{
+  "paciente": { "nombre_ficticio": "Nombre Apellido inventado", "edad": número, "sexo": "masculino|femenino", "peso_kg": número, "grupo_sanguineo": "A+|A-|B+|B-|AB+|AB-|O+|O-" },
+  "emergencia": "Nombre corto de la emergencia",
+  "especialidad": "Cirugía general|Cardiovascular|Neurocirugía|Traumatología|Obstetricia|Urología|Tórax",
+  "diagnostico_presuntivo": "Diagnóstico completo en términos médicos",
+  "contexto_clinico": "2-3 oraciones: cómo llegó el paciente, síntomas, tiempo de evolución",
+  "tipo_cirugia_requerida": "Nombre de la cirugía",
+  "urgencia": "inmediata|alta|media",
+  "antecedentes_patologicos": ["antecedente1"],
+  "alergias": ["alergia1"],
+  "tiempo_evolucion": "ej: 3 horas",
+  "signos_vitales_ingreso": { "pa": "120/80", "fc": número, "fr": número, "temp": número, "spo2": número },
+  "hallazgos_relevantes": ["hallazgo1", "hallazgo2", "hallazgo3"],
+  "descripcion_imagen": "Hallazgo principal en imagen diagnóstica",
+  "nivel_dificultad": "moderado|alto|extremo"
+}`, 1200);
+    res.json(caso);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+}
+
+export async function quirofanoSimularPaso(req, res) {
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada.' });
+  const { caso, equipo, historial = [], paso_numero } = req.body;
+  const equipoStr = equipo.map(m => `${m.nombre} ${m.apellido || ''} (${m.rol_quirurgico})`).join(', ');
+  const histStr = historial.length
+    ? historial.map((h, i) => `Paso ${i+1}: ${h.situacion_titulo} — Decisión: "${h.decision_texto}" — Resultado: ${h.resultado_breve}`).join('\n')
+    : 'Inicio — paciente llegando a quirófano.';
+  const vitalesAnt = historial.length ? historial[historial.length-1].vitales : caso.signos_vitales_ingreso;
+  const esFinal = paso_numero >= 5;
+
+  try {
+    const paso = await callClaudeJSON(`Simulador quirúrgico educativo. Simula el PASO ${paso_numero} de máximo 5.
+
+CASO: ${caso.emergencia} | Paciente: ${caso.paciente.nombre_ficticio}, ${caso.paciente.edad}a ${caso.paciente.sexo}
+Cirugía: ${caso.tipo_cirugia_requerida}
+Antecedentes: ${(caso.antecedentes_patologicos||[]).join(', ')||'Ninguno'}
+Alergias: ${(caso.alergias||[]).join(', ')||'Ninguna'}
+
+EQUIPO: ${equipoStr}
+
+VITALES ACTUALES: PA ${vitalesAnt.pa} | FC ${vitalesAnt.fc} | SpO2 ${vitalesAnt.spo2}% | Temp ${vitalesAnt.temp}°C
+
+HISTORIAL:
+${histStr}
+
+${esFinal ? 'ESTE ES EL PASO FINAL (5/5). Genera el desenlace definitivo basado en las decisiones previas. "fin_operacion": true. Incluye "resultado_final".' : `Genera el paso ${paso_numero}/5, coherente con el historial. "fin_operacion": false.`}
+
+Responde SOLO con JSON válido:
+{
+  "paso": ${paso_numero},
+  "fase_cirugia": "nombre de la fase",
+  "situacion_titulo": "Título breve (max 7 palabras)",
+  "descripcion": "Descripción vívida de 3-4 oraciones de lo que ocurre ahora en el quirófano",
+  "vitales": { "pa": "ej:95/60", "fc": número, "fr": número, "temp": número, "spo2": número, "estado": "Estable|Inestable|Crítico|PCR" },
+  "opciones": ${esFinal ? '[]' : `[
+    { "id":"A", "titulo":"acción corta", "descripcion":"descripción y consecuencia en 1-2 oraciones", "riesgo":"bajo|medio|alto", "requiere_rol":"rol o null", "icono":"emoji médico" },
+    { "id":"B", ... },
+    { "id":"C", ... },
+    { "id":"D", ... }
+  ]`},
+  "alerta_critica": boolean (true si spo2<90 o fc>145 o estado Crítico/PCR),
+  "mensaje_alerta": "texto de alerta o null",
+  "fin_operacion": ${esFinal},
+  "resultado_final": ${esFinal ? '{ "exitoso": boolean, "descripcion": "3-4 oraciones del resultado", "estado_paciente_final": "texto", "complicaciones": [] }' : 'null'}
+}`, 2000);
+    res.json(paso);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+}
+
+export async function quirofanoInforme(req, res) {
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada.' });
+  const { caso, equipo, historial, resultado_final } = req.body;
+  const equipoStr = equipo.map(m => `${m.nombre} ${m.apellido||''} — ${m.rol_quirurgico}`).join('\n');
+  const histStr = historial.map((h, i) => `Paso ${i+1} [${h.situacion_titulo}]: decisión "${h.decision_texto}" → ${h.resultado_breve}`).join('\n');
+  try {
+    const informe = await callClaudeJSON(`Eres un especialista en docencia médica. Analiza esta simulación quirúrgica y genera un informe educativo.
+INSTRUCCION CRITICA: responde ÚNICAMENTE con JSON puro. Sin texto antes o después. Sin comentarios. Sin markdown. Solo el objeto JSON.
+
+DATOS DE LA SIMULACION:
+Caso: ${caso.emergencia} — ${caso.tipo_cirugia_requerida}
+Paciente: ${caso.paciente.nombre_ficticio}, ${caso.paciente.edad} años
+Equipo (${equipo.length} personas):
+${equipoStr}
+Historial de decisiones (${historial.length} pasos):
+${histStr}
+Resultado final: ${resultado_final?.exitoso ? 'EXITOSO' : 'FALLIDO'} — ${resultado_final?.descripcion||''}
+
+ESTRUCTURA JSON REQUERIDA (todos los campos son obligatorios):
+{
+  "resultado_global": "Exitoso",
+  "score_global": 0,
+  "nivel_competencia": "Competente",
+  "resumen_operacion": "texto",
+  "cronologia": [
+    { "paso": 1, "evento": "texto", "decision": "texto", "impacto": "positivo", "explicacion_medica": "texto" }
+  ],
+  "evaluacion_equipo": [
+    { "nombre": "texto", "rol": "texto", "desempeno": "Bueno", "observacion": "texto" }
+  ],
+  "decisiones_criticas": [
+    { "paso": 1, "decision": "texto", "fue_correcta": true, "alternativa_correcta": "texto", "explicacion": "texto" }
+  ],
+  "puntos_de_aprendizaje": ["texto"],
+  "errores_identificados": [],
+  "recomendaciones": ["texto"],
+  "complicaciones_presentadas": [],
+  "conclusion": "texto"
+}
+
+Notas sobre los valores:
+- resultado_global: uno de "Exitoso", "Parcial" o "Fallido"
+- score_global: entero entre 0 y 100
+- nivel_competencia: uno de "Experto", "Competente", "En desarrollo", "Requiere mejora"
+- cronologia: exactamente ${historial.length} entradas, una por paso del historial
+- evaluacion_equipo: exactamente ${equipo.length} entradas, una por miembro del equipo
+- impacto: uno de "positivo", "negativo" o "neutral"
+- desempeno: uno de "Excelente", "Bueno", "Regular" o "Deficiente"
+- errores_identificados y complicaciones_presentadas: array de strings, puede ser array vacío []`, 6000, CLAUDE_SONNET);
+    res.json(informe);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+}

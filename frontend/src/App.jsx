@@ -49,6 +49,7 @@ import StartupCards from './pages/compartido/StartupCards';
 import MercadoVirtual from './pages/compartido/MercadoVirtual';
 import QAPage from './pages/compartido/QAPage';
 import PICOSearch from './pages/compartido/PICOSearch';
+import Quirofano from './pages/compartido/Quirofano';
 import PresentacionesVista from './pages/compartido/PresentacionesVista';
 
 // Jefe — unidades y cursos especiales
@@ -124,6 +125,7 @@ export default function App() {
         <Route path="unidades/mercado-virtual" element={<MercadoVirtual />} />
         <Route path="unidades/qa-lab" element={<QAPage />} />
         <Route path="unidades/busqueda-pico" element={<PICOSearch />} />
+        <Route path="unidades/sala-operaciones" element={<Quirofano />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
       </Route>
 
@@ -150,6 +152,7 @@ export default function App() {
         <Route path="unidades/mercado-virtual" element={<MercadoVirtual />} />
         <Route path="unidades/qa-lab" element={<QAPage />} />
         <Route path="unidades/busqueda-pico" element={<PICOSearch />} />
+        <Route path="unidades/sala-operaciones" element={<Quirofano />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />
       </Route>
 
@@ -181,6 +184,7 @@ export default function App() {
         <Route path="unidades/mercado-virtual" element={<MercadoVirtual />} />
         <Route path="unidades/qa-lab" element={<QAPage />} />
         <Route path="unidades/busqueda-pico" element={<PICOSearch />} />
+        <Route path="unidades/sala-operaciones" element={<Quirofano />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
