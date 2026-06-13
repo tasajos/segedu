@@ -20,6 +20,10 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
+    if (user.activo === 0) {
+      return res.status(403).json({ error: 'Tu cuenta ha sido deshabilitada. Contacta al administrador.' });
+    }
+
     // Datos adicionales según rol
     let extra = {};
     if (user.rol === 'estudiante') {

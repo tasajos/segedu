@@ -4,8 +4,8 @@ import { upload } from '../middleware/upload.js';
 import {
   dashboard,
   listarCarreras, crearCarrera, actualizarCarrera, eliminarCarrera,
-  listarUsuarios, crearUsuario, importarEstudiantesExcel, actualizarUsuario, eliminarUsuario,
-  listarJefes, resetPassword,
+  listarUsuarios, crearUsuario, importarEstudiantesExcel, importarCsvUsuarios, actualizarUsuario, eliminarUsuario,
+  listarJefes, resetPassword, toggleUsuarioActivo, toggleBulkActivo,
   listarMaterias, obtenerMateria, crearMateria, actualizarMateria, eliminarMateria,
   listarDocentesAdmin
 } from '../controllers/adminController.js';
@@ -23,9 +23,12 @@ router.delete('/carreras/:id', eliminarCarrera);
 router.get('/usuarios', listarUsuarios);
 router.post('/usuarios', crearUsuario);
 router.post('/usuarios/importar-excel', upload.single('archivo'), importarEstudiantesExcel);
+router.post('/usuarios/importar-csv', upload.single('archivo'), importarCsvUsuarios);
+router.put('/usuarios/bulk-activo', toggleBulkActivo);
 router.put('/usuarios/:id', actualizarUsuario);
 router.delete('/usuarios/:id', eliminarUsuario);
 router.put('/usuarios/:id/reset-password', resetPassword);
+router.put('/usuarios/:id/toggle-activo', toggleUsuarioActivo);
 
 router.get('/jefes', listarJefes);
 

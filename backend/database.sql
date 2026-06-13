@@ -18,6 +18,7 @@ CREATE TABLE usuarios (
   ci VARCHAR(20),
   telefono VARCHAR(30),
   foto VARCHAR(255),
+  activo TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

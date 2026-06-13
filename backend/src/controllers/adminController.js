@@ -123,9 +123,9 @@ export const eliminarCarrera = async (req, res) => {
 // ============ USUARIOS ============
 export const listarUsuarios = async (req, res) => {
   try {
-    const { rol } = req.query;
+    const { rol, email, ci, activo, codigo } = req.query;
     let query = `
-      SELECT u.id, u.nombre, u.apellido, u.email, u.rol, u.ci, u.telefono, u.created_at,
+      SELECT u.id, u.nombre, u.apellido, u.email, u.rol, u.ci, u.telefono, u.activo, u.created_at,
              CASE
                WHEN u.rol = 'estudiante' THEN (
                  SELECT JSON_OBJECT('id', e.id, 'codigo', e.codigo_estudiante, 'semestre', e.semestre,
@@ -141,12 +141,135 @@ export const listarUsuarios = async (req, res) => {
       FROM usuarios u WHERE 1=1`;
     const params = [];
     if (rol) { query += ' AND u.rol = ?'; params.push(rol); }
+    if (email) { query += ' AND u.email LIKE ?'; params.push(`%${email}%`); }
+    if (ci) { query += ' AND u.ci LIKE ?'; params.push(`%${ci}%`); }
+    if (activo === '1' || activo === '0') { query += ' AND u.activo = ?'; params.push(Number(activo)); }
+    if (codigo) {
+      query += ' AND EXISTS (SELECT 1 FROM estudiantes e WHERE e.usuario_id = u.id AND e.codigo_estudiante LIKE ?)';
+      params.push(`%${codigo}%`);
+    }
     query += ' ORDER BY u.rol, u.apellido';
     const [rows] = await pool.query(query, params);
     res.json(rows.map(r => ({
       ...r,
       perfil: r.perfil ? (typeof r.perfil === 'string' ? JSON.parse(r.perfil) : r.perfil) : null
     })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const importarCsvUsuarios = async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Debe adjuntar un archivo CSV' });
+
+  const conn = await pool.getConnection();
+  try {
+    const raw = fs.readFileSync(req.file.path, 'utf8').replace(/^﻿/, '');
+    const lines = raw.split(/\r?\n/).filter((l) => l.trim());
+
+    if (lines.length < 2) return res.status(400).json({ error: 'El CSV no tiene datos' });
+
+    const headers = lines[0].split(';').map((h) => h.trim().toLowerCase());
+    const idx = {
+      correo:    headers.indexOf('correo'),
+      nombre:    headers.indexOf('nombre'),
+      apellidos: headers.indexOf('apellidos'),
+      telefono:  headers.indexOf('telefono'),
+      password:  headers.indexOf('password'),
+      codigo:    headers.indexOf('codigo'),
+    };
+
+    const { carrera_id, semestre = 1, fecha_ingreso, prefijo = 'CE' } = req.body;
+    const fechaIngreso = fecha_ingreso || new Date().toISOString().split('T')[0];
+
+    const [existingCodes] = await conn.query(
+      `SELECT codigo_estudiante FROM estudiantes WHERE codigo_estudiante REGEXP ?`,
+      [`^${prefijo}-[0-9]+$`]
+    );
+    let maxN = existingCodes.reduce((acc, { codigo_estudiante }) => {
+      const n = parseInt(codigo_estudiante.split('-').pop(), 10);
+      return !isNaN(n) && n > acc ? n : acc;
+    }, 0);
+
+    await conn.beginTransaction();
+
+    const result = { created: 0, skipped: 0, errores: [], nuevosUsuarios: [] };
+    const seenEmails = new Set();
+    let codeN = maxN + 1;
+
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(';').map((p) => p.trim());
+      const email    = parts[idx.correo]    || '';
+      const nombre   = parts[idx.nombre]    || '';
+      const apellido = parts[idx.apellidos] || '';
+      const telefono = parts[idx.telefono]  || '';
+      const password = parts[idx.password]  || 'password123';
+      const codigoCSV = idx.codigo >= 0 ? (parts[idx.codigo] || '') : '';
+
+      if (!email || !nombre) continue;
+      if (seenEmails.has(email.toLowerCase())) { result.skipped++; continue; }
+      seenEmails.add(email.toLowerCase());
+
+      const [[existing]] = await conn.query('SELECT id FROM usuarios WHERE email = ?', [email]);
+      if (existing) { result.skipped++; continue; }
+
+      try {
+        const hash = await bcrypt.hash(password, 10);
+        const codigo = codigoCSV || `${prefijo}-${codeN++}`;
+
+        const [ur] = await conn.query(
+          'INSERT INTO usuarios (nombre, apellido, email, password, rol, ci, telefono, activo) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+          [nombre, apellido, email, hash, 'estudiante', telefono, telefono]
+        );
+
+        await conn.query(
+          'INSERT INTO estudiantes (usuario_id, carrera_id, semestre, codigo_estudiante, fecha_ingreso) VALUES (?, ?, ?, ?, ?)',
+          [ur.insertId, carrera_id || null, semestre || 1, codigo, fechaIngreso]
+        );
+
+        result.created++;
+        result.nuevosUsuarios.push({ nombre, apellido, email, codigo_estudiante: codigo });
+      } catch (rowErr) {
+        result.errores.push({ email, error: rowErr.message });
+      }
+    }
+
+    await conn.commit();
+    res.status(201).json({ message: 'Importación completada', ...result });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    conn.release();
+  }
+};
+
+export const toggleUsuarioActivo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [[user]] = await pool.query('SELECT rol, activo FROM usuarios WHERE id = ?', [id]);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (user.rol === 'admin') return res.status(403).json({ error: 'No se puede deshabilitar al administrador' });
+    const nuevoEstado = user.activo ? 0 : 1;
+    await pool.query('UPDATE usuarios SET activo = ? WHERE id = ?', [nuevoEstado, id]);
+    res.json({ activo: nuevoEstado });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const toggleBulkActivo = async (req, res) => {
+  try {
+    const { ids, activo } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Se requiere una lista de IDs' });
+    if (activo !== 0 && activo !== 1) return res.status(400).json({ error: 'El campo activo debe ser 0 o 1' });
+    const placeholders = ids.map(() => '?').join(',');
+    await pool.query(
+      `UPDATE usuarios SET activo = ? WHERE id IN (${placeholders}) AND rol != 'admin'`,
+      [activo, ...ids]
+    );
+    res.json({ message: 'Usuarios actualizados', activo });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
