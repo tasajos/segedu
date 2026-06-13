@@ -26,6 +26,7 @@ const UNIT_ROUTES = {
   'Startup Cards':                          'startup-cards',
   'Mercado Virtual':                        'mercado-virtual',
   'QA Lab':                                 'qa-lab',
+  'Buscador PICO':                          'busqueda-pico',
 };
 
 export default function UnidadesLista() {

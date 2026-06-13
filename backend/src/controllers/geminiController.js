@@ -656,3 +656,261 @@ REGLAS ESTRICTAS:
     res.status(502).json({ error: err.message });
   }
 }
+
+// ─── PICO Search ──────────────────────────────────────────────────────────────
+const CLAUDE_SONNET = 'claude-sonnet-4-6';
+
+export async function picoTerminos(req, res) {
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada.' });
+  const { p, i, c, o } = req.body;
+  if (!p?.trim() || !i?.trim() || !o?.trim()) return res.status(400).json({ error: 'P, I y O son campos requeridos.' });
+
+  const prompt = `Eres un especialista en medicina basada en evidencia y búsqueda bibliográfica sistemática (nivel PhD en ciencias de la información médica).
+
+Analiza esta pregunta PICO y genera la estrategia de búsqueda óptima:
+
+P (Paciente/Problema): "${p}"
+I (Intervención): "${i}"
+C (Comparación): "${c || 'No especificado'}"
+O (Resultado/Outcome): "${o}"
+
+Responde ÚNICAMENTE con este JSON exacto (sin markdown, sin bloques de código):
+{
+  "pregunta_estructurada": "En pacientes/personas con [P], ¿[I] comparado con [C] reduce/mejora/aumenta [O]?",
+  "terminos_mesh": ["MeSH term 1", "MeSH term 2", "MeSH term 3", "MeSH term 4", "MeSH term 5", "MeSH term 6"],
+  "sinonimos": {
+    "P": ["sinónimo 1", "sinónimo 2", "sinónimo 3"],
+    "I": ["sinónimo 1", "sinónimo 2", "sinónimo 3"],
+    "C": ["sinónimo 1", "sinónimo 2"],
+    "O": ["sinónimo 1", "sinónimo 2", "sinónimo 3"]
+  },
+  "string_busqueda": "((termP1 OR termP2) AND (termI1 OR termI2) AND (termO1 OR termO2))",
+  "bases_datos": ["PubMed/MEDLINE", "Cochrane Library", "Embase", "LILACS", "SciELO", "ClinicalTrials.gov"],
+  "filtros_sugeridos": ["Últimos 10 años", "Humanos", "Ensayos clínicos aleatorizados", "Revisiones sistemáticas", "Idioma: inglés/español"],
+  "operadores_explicacion": "Descripción breve de cómo se usaron AND/OR/NOT en esta estrategia."
+}
+
+Reglas:
+- terminos_mesh: usar términos MeSH oficiales en INGLÉS
+- string_busqueda: usar operadores booleanos AND, OR, NOT y paréntesis para agrupar correctamente
+- pregunta_estructurada: redactar en español de forma clara, clínica y precisa`;
+
+  try {
+    const result = await callClaude(prompt, 1500);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+export async function picoBuscar(req, res) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.write(`data: ${JSON.stringify({ error: 'ANTHROPIC_API_KEY no configurada.' })}\n\n`);
+    return res.end();
+  }
+
+  const { p, i, c, o, string_busqueda, terminos_mesh } = req.body;
+  if (!p?.trim() || !i?.trim() || !o?.trim()) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.write(`data: ${JSON.stringify({ error: 'Faltan campos PICO obligatorios.' })}\n\n`);
+    return res.end();
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const terminosStr = (terminos_mesh || []).join(', ');
+
+  const prompt = `Eres un especialista senior en medicina basada en evidencia, con experticia en búsqueda bibliográfica sistemática y metodología PICO.
+
+PREGUNTA PICO:
+P (Paciente/Problema): "${p}"
+I (Intervención): "${i}"
+C (Comparación): "${c || 'Placebo o tratamiento estándar'}"
+O (Resultado/Outcome): "${o}"
+
+ESTRATEGIA DE BÚSQUEDA:
+String: ${string_busqueda || '(' + p + ') AND (' + i + ') AND (' + o + ')'}
+Términos MeSH: ${terminosStr || 'Automático'}
+Bases: PubMed/MEDLINE, Cochrane Library, Embase, LILACS, SciELO
+
+════════════════════════════════════════════
+INSTRUCCIONES DE RESPUESTA (CRÍTICO — SEGUIR AL PIE DE LA LETRA)
+════════════════════════════════════════════
+
+PARTE 1 — LOG DE CONSOLA (escribe ESTO PRIMERO, como salida de una terminal médica):
+
+Escribe un log técnico y detallado con este formato exacto de consola, línea por línea:
+
+[INIT] Iniciando búsqueda bibliográfica sistemática — Método PICO
+[PICO] P: ${p}
+[PICO] I: ${i}
+[PICO] C: ${c || 'Placebo / tratamiento estándar'}
+[PICO] O: ${o}
+[MESH] Mapeando términos MeSH...
+[MESH] Términos identificados: ${terminosStr || '(auto-generados)'}
+[BOOL] Construyendo string booleano...
+[BOOL] String: ${string_busqueda || '(generado automáticamente)'}
+[DB:PubMed] Conectando... OK
+[DB:PubMed] Ejecutando búsqueda... (número real) resultados
+[DB:Cochrane] Conectando... OK
+[DB:Cochrane] Ejecutando búsqueda... (número real) resultados
+[DB:Embase] Conectando... OK
+[DB:Embase] Ejecutando búsqueda... (número real) resultados
+[DB:LILACS] Ejecutando búsqueda... (número real) resultados
+[DB:SciELO] Ejecutando búsqueda... (número real) resultados
+[TOTAL] Registros brutos: (suma total)
+[DEDUP] Eliminando duplicados... (número) registros únicos
+[FILTER:TIEMPO] Aplicando filtro últimos 10 años... (número) registros
+[FILTER:TIPO] Filtrando por tipo de estudio (ECA, RS, MA)... (número) registros
+[SCREEN:TITULO] Revisando títulos y abstracts...
+  → Revisando: "Título del estudio 1" [PMID: XXXXXXXX]
+  → Revisando: "Título del estudio 2" [PMID: XXXXXXXX]
+  → Revisando: "Título del estudio 3" [PMID: XXXXXXXX]
+  → Revisando: "Título del estudio 4" [PMID: XXXXXXXX]
+  → Revisando: "Título del estudio 5" [PMID: XXXXXXXX]
+  → Revisando: "Título del estudio 6" [PMID: XXXXXXXX]
+(máximo 6 líneas de revisión)
+[SCREEN:FULLTEXT] Accediendo a texto completo de candidatos seleccionados...
+[INCLUSION] Aplicando criterios de inclusión:
+  ✓ Criterio de inclusión 1
+  ✓ Criterio de inclusión 2
+  ✓ Criterio de inclusión 3
+[EXCLUSION] Aplicando criterios de exclusión:
+  ✗ Criterio de exclusión 1
+  ✗ Criterio de exclusión 2
+[QUALITY:GRADE] Evaluando calidad de evidencia (GRADE)...
+[QUALITY:AMSTAR] Evaluando revisiones sistemáticas (AMSTAR-2)...
+[RESULT] Estudios incluidos en la síntesis:
+(para cada estudio final incluido:)
+  [+] PMID XXXXXXXX | "Título" | Tipo | Año | Calidad: NIVEL
+[EXCLUIDO] "Título" — Razón: motivo específico
+[EXCLUIDO] "Título" — Razón: motivo específico
+[GRADE:GLOBAL] Nivel de evidencia global: (nivel Oxford CEBM)
+[REC] Grado de recomendación: (A/B/C/D)
+[COMPLETE] Búsqueda finalizada. (N) estudios incluidos de (M) encontrados.
+
+PARTE 2 — SEPARADOR (escribe exactamente esta línea):
+===INFORME_JSON===
+
+PARTE 3 — JSON DEL INFORME (inmediatamente después del separador, sin espacios extra):
+{
+  "pregunta_estructurada": "En pacientes con [P], ¿[I] comparado con [C] reduce/mejora [O]?",
+  "resumen_ejecutivo": "Párrafo de 4-5 oraciones con el hallazgo principal, tamaño del efecto, significancia clínica y aplicabilidad.",
+  "estudios": [
+    {
+      "titulo": "Título completo del estudio en inglés",
+      "autores": "Apellido A, Apellido B, et al.",
+      "revista": "Nombre de la revista indexada",
+      "anio": 2022,
+      "tipo_estudio": "meta-analisis",
+      "pmid": "12345678",
+      "doi": "10.1234/journal.2022.001",
+      "enlace_pubmed": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+      "enlace_doi": "https://doi.org/10.1234/journal.2022.001",
+      "resumen_hallazgo": "Hallazgo principal con tamaño del efecto (RR, OR, NNT, HR) en 2 oraciones.",
+      "calidad_evidencia": "alta",
+      "incluido": true
+    }
+  ],
+  "criterios_inclusion": ["Criterio 1", "Criterio 2", "Criterio 3", "Criterio 4"],
+  "criterios_exclusion": ["Criterio 1", "Criterio 2", "Criterio 3"],
+  "nivel_evidencia_global": "1a",
+  "grado_recomendacion": "A",
+  "conclusion_principal": "Conclusión clínica directa basada en la síntesis de evidencia. 3-4 oraciones.",
+  "implicaciones_clinicas": ["Implicación práctica 1", "Implicación práctica 2", "Implicación práctica 3"],
+  "limitaciones": ["Limitación metodológica 1", "Limitación metodológica 2"],
+  "total_estudios_encontrados": 0,
+  "total_incluidos": 0
+}
+
+REGLAS CRÍTICAS PARA EL JSON:
+- Incluir entre 3 y 5 estudios en el array "estudios" (priorizar calidad sobre cantidad)
+- Los PMIDs DEBEN ser números reales de PubMed relacionados con el tema
+- tipo_estudio: "meta-analisis" | "revision-sistematica" | "ensayo-clinico-aleatorizado" | "estudio-cohorte" | "caso-control"
+- calidad_evidencia: "alta" | "moderada" | "baja" | "muy-baja" (según GRADE)
+- nivel_evidencia_global: Oxford CEBM (1a, 1b, 2a, 2b, 3a, 3b, 4, 5)
+- grado_recomendacion: Oxford CEBM (A, B, C, D)
+- total_estudios_encontrados y total_incluidos: números enteros coherentes con el log`;
+
+  try {
+    const streamRes = await fetch(ANTHROPIC_URL, {
+      method: 'POST',
+      headers: {
+        'x-api-key':         process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      body: JSON.stringify({
+        model:      CLAUDE_SONNET,
+        max_tokens: 8192,
+        stream:     true,
+        messages:   [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!streamRes.ok) {
+      const err = await streamRes.json().catch(() => ({}));
+      res.write(`data: ${JSON.stringify({ error: err?.error?.message || `HTTP ${streamRes.status}` })}\n\n`);
+      return res.end();
+    }
+
+    const reader  = streamRes.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText  = '';
+    let sseBuffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sseBuffer += decoder.decode(value, { stream: true });
+      const lines = sseBuffer.split('\n');
+      sseBuffer   = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (raw === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(raw);
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            const text = evt.delta.text;
+            fullText  += text;
+            res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          }
+        } catch {}
+      }
+    }
+
+    // Extract and send the JSON report
+    const sepIdx = fullText.indexOf('===INFORME_JSON===');
+    if (sepIdx !== -1) {
+      let jsonPart = fullText.slice(sepIdx + '===INFORME_JSON==='.length).trim();
+      // Strip optional markdown code fences (```json ... ```)
+      jsonPart = jsonPart.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      const match = jsonPart.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          const report = JSON.parse(match[0]);
+          res.write(`data: ${JSON.stringify({ report })}\n\n`);
+        } catch (parseErr) {
+          res.write(`data: ${JSON.stringify({ error: `Error al parsear el informe JSON: ${parseErr.message}` })}\n\n`);
+        }
+      } else {
+        res.write(`data: ${JSON.stringify({ error: 'El modelo no generó el bloque JSON del informe.' })}\n\n`);
+      }
+    } else {
+      res.write(`data: ${JSON.stringify({ error: 'El modelo no incluyó el separador ===INFORME_JSON===.' })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+}
