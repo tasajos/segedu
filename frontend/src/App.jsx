@@ -19,6 +19,7 @@ import DocenteAvance from './pages/docente/Avance';
 import DocenteComentarios from './pages/docente/Comentarios';
 import DocenteAsistencia from './pages/docente/Asistencia';
 import DocenteDisciplina from './pages/docente/MiDisciplina';
+import DocenteCarpetaPedagogica from './pages/docente/CarpetaPedagogica';
 
 // Jefe
 import JefeDashboard from './pages/jefe/Dashboard';
@@ -140,6 +141,7 @@ export default function App() {
         <Route path="disciplina" element={<DocenteDisciplina />} />
         <Route path="tareas" element={<DocenteTareas />} />
         <Route path="grupos-trabajo" element={<DocenteGruposTrabajo />} />
+        <Route path="carpeta-pedagogica" element={<DocenteCarpetaPedagogica />} />
         <Route path="unidades" element={<UnidadesLista />} />
         <Route path="unidades/circuitos-logicos" element={<CircuitosLogicos />} />
         <Route path="unidades/calculo-derivadas" element={<CalculoDerivadas />} />

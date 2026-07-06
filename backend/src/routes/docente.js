@@ -3,6 +3,8 @@ import { verifyToken, requireRole } from '../middleware/auth.js';
 import { upload, uploadTarea } from '../middleware/upload.js';
 import {
   listarMateriasDocente, listarEstudiantesPorMateria,
+  obtenerCarpetaPedagogica, guardarCarpetaPedagogica,
+  obtenerEvaluacionCarpetaPedagogica, guardarAsistenciaCarpetaPedagogica,
   listarPGO, crearPGO, eliminarPGO,
   listarAvance, crearAvance, listarPgoTareas, actualizarEstadoPgoTarea,
   listarComentarios, crearComentario,
@@ -30,6 +32,10 @@ router.use(verifyToken, requireRole('docente'));
 
 router.get('/materias', listarMateriasDocente);
 router.get('/materias/:materia_id/estudiantes', listarEstudiantesPorMateria);
+router.get('/carpeta-pedagogica/:materia_id', obtenerCarpetaPedagogica);
+router.put('/carpeta-pedagogica/:materia_id', guardarCarpetaPedagogica);
+router.get('/carpeta-pedagogica/:materia_id/evaluacion', obtenerEvaluacionCarpetaPedagogica);
+router.put('/carpeta-pedagogica/:materia_id/asistencia', guardarAsistenciaCarpetaPedagogica);
 
 router.get('/pgo', listarPGO);
 router.post('/pgo', upload.single('archivo'), crearPGO);

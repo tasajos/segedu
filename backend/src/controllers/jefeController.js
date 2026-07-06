@@ -104,16 +104,34 @@ const removeUploadedFile = async (archivoUrl) => {
   return false;
 };
 
+const gradePassedConditionSql = (alias = 'grd') => {
+  const regular = GRADE_MODALITIES.regular.passing;
+  const segundaInstancia = GRADE_MODALITIES.segunda_instancia.passing;
+  const examenMesa = GRADE_MODALITIES.examen_mesa.passing;
+  const examenGracia = GRADE_MODALITIES.examen_gracia.passing;
+
+  return `(
+    (${alias}.modalidad = 'regular' AND ${alias}.nota_final >= ${regular})
+    OR (${alias}.modalidad = 'segunda_instancia' AND ${alias}.nota_final >= ${segundaInstancia})
+    OR (${alias}.modalidad = 'examen_mesa' AND ${alias}.nota_final >= ${examenMesa})
+    OR (${alias}.modalidad = 'examen_gracia' AND ${alias}.nota_final >= ${examenGracia})
+  )`;
+};
+
+const getGradeStatus = (modalidad, notaFinal) => {
+  const type = modalidad || 'regular';
+  const config = GRADE_MODALITIES[type] || GRADE_MODALITIES.regular;
+  return Number(notaFinal || 0) >= config.passing ? 'aprobado' : 'reprobado';
+};
+
 const normalizeGradeDetail = (row) => {
   const modalidad = row.modalidad || 'regular';
-  const config = GRADE_MODALITIES[modalidad] || GRADE_MODALITIES.regular;
 
   if (modalidad === 'regular') {
     const primer = Number(row.primer_parcial || 0);
     const segundo = Number(row.segundo_parcial || 0);
     const final = Number(row.examen_final || 0);
     const notaFinal = Number((primer + segundo + final).toFixed(2));
-    const aprobado = primer >= 18 && notaFinal >= config.passing;
     return {
       modalidad,
       primer_parcial: primer,
@@ -121,12 +139,11 @@ const normalizeGradeDetail = (row) => {
       examen_final: final,
       examen_recuperacion: null,
       nota_final: notaFinal,
-      estado: aprobado ? 'aprobado' : 'reprobado'
+      estado: getGradeStatus(modalidad, notaFinal)
     };
   }
 
   const recuperacion = Number(row.examen_recuperacion || 0);
-  const aprobado = recuperacion >= config.passing;
   return {
     modalidad,
     primer_parcial: null,
@@ -134,7 +151,7 @@ const normalizeGradeDetail = (row) => {
     examen_final: null,
     examen_recuperacion: recuperacion,
     nota_final: recuperacion,
-    estado: aprobado ? 'aprobado' : 'reprobado'
+    estado: getGradeStatus(modalidad, recuperacion)
   };
 };
 
@@ -921,6 +938,8 @@ export const indicadoresActas = async (req, res) => {
     await ensureGradeReportSchema();
     const carrera = await getCarreraJefe(req.user.id);
     if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+    const passedCondition = gradePassedConditionSql('grd');
+    const failedCondition = `(grd.id IS NOT NULL AND NOT ${passedCondition})`;
 
     const [porMateria] = await pool.query(
       `SELECT m.id, m.nombre, m.codigo, m.grupo,
@@ -931,8 +950,8 @@ export const indicadoresActas = async (req, res) => {
               COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.segundo_parcial < 18 THEN 1 END) as reprobados_segundo_parcial,
               COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.examen_final >= 15 THEN 1 END) as aprobados_final,
               COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.examen_final < 15 THEN 1 END) as reprobados_final,
-              COUNT(CASE WHEN grd.estado = 'aprobado' THEN 1 END) as aprobados,
-              COUNT(CASE WHEN grd.estado = 'reprobado' THEN 1 END) as reprobados
+              COUNT(CASE WHEN ${passedCondition} THEN 1 END) as aprobados,
+              COUNT(CASE WHEN ${failedCondition} THEN 1 END) as reprobados
        FROM materias m
        LEFT JOIN grade_reports gr ON gr.materia_id = m.id
        LEFT JOIN grade_report_details grd ON grd.acta_id = gr.id
@@ -947,7 +966,8 @@ export const indicadoresActas = async (req, res) => {
     const [detalleReprobados] = await pool.query(
       `SELECT m.id as materia_id, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
               e.id as estudiante_id, e.codigo_estudiante, u.nombre, u.apellido,
-              grd.modalidad, grd.primer_parcial, grd.segundo_parcial, grd.examen_final, grd.nota_final, grd.estado
+              grd.modalidad, grd.primer_parcial, grd.segundo_parcial, grd.examen_final, grd.nota_final,
+              CASE WHEN ${passedCondition} THEN 'aprobado' ELSE 'reprobado' END as estado
        FROM materias m
        JOIN grade_reports gr ON gr.materia_id = m.id
        JOIN grade_report_details grd ON grd.acta_id = gr.id
@@ -1234,10 +1254,12 @@ export const detalleEstudiante = async (req, res) => {
       [id]
     );
 
+    const passedCondition = gradePassedConditionSql('grd');
     const [notas] = await pool.query(
       `SELECT m.id as materia_id, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
               gr.periodo, grd.modalidad, grd.primer_parcial, grd.segundo_parcial, grd.examen_final,
-              grd.examen_recuperacion, grd.nota_final, grd.estado,
+              grd.examen_recuperacion, grd.nota_final,
+              CASE WHEN ${passedCondition} THEN 'aprobado' ELSE 'reprobado' END as estado,
               ud.nombre as docente_nombre, ud.apellido as docente_apellido
        FROM grade_report_details grd
        JOIN grade_reports gr ON grd.acta_id = gr.id

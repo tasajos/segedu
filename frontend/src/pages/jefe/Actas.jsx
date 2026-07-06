@@ -69,7 +69,7 @@ const computeRow = (row, reglas) => {
     const minSegundo = 18;
     const minFinal = 15;
     const minMateria = reglas?.regular?.nota_minima || 51;
-    const aprobado = primer >= minPrimer && total >= minMateria;
+    const aprobado = total >= minMateria;
     return {
       total,
       faltante: Math.max(0, Number((minMateria - total).toFixed(2))),

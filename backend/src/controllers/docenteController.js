@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
+import { ensureGradeReportSchema } from '../utils/gradeReports.js';
 import { ensureNotificationSchema } from '../utils/notifications.js';
 import { ensurePgoTaskSchema } from '../utils/pgoTasks.js';
 import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
@@ -9,6 +10,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+let pedagogicalFolderSchemaEnsured = false;
 
 const parseDateParts = (value) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return null;
@@ -76,6 +79,38 @@ const removeUploadedFile = async (archivoUrl) => {
   return false;
 };
 
+const ensurePedagogicalFolderSchema = async () => {
+  if (pedagogicalFolderSchemaEnsured) return;
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pedagogical_folders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      docente_id INT NOT NULL,
+      materia_id INT NOT NULL,
+      data LONGTEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_pedagogical_folder (docente_id, materia_id),
+      FOREIGN KEY (docente_id) REFERENCES docentes(id) ON DELETE CASCADE,
+      FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE CASCADE
+    )
+  `);
+
+  pedagogicalFolderSchemaEnsured = true;
+};
+
+const getDocenteMateria = async (docenteId, materiaId) => {
+  const [[materia]] = await pool.query(
+    `SELECT m.id, m.nombre, m.codigo, m.grupo, m.semestre, m.creditos,
+            m.carrera_id, c.nombre as carrera_nombre
+     FROM materias m
+     LEFT JOIN carreras c ON m.carrera_id = c.id
+     WHERE m.id = ? AND m.docente_id = ?`,
+    [materiaId, docenteId]
+  );
+  return materia;
+};
+
 // ============ MATERIAS DEL DOCENTE ============
 export const listarMateriasDocente = async (req, res) => {
   try {
@@ -111,6 +146,141 @@ export const listarEstudiantesPorMateria = async (req, res) => {
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// ============ CARPETA PEDAGOGICA ============
+export const obtenerCarpetaPedagogica = async (req, res) => {
+  try {
+    await ensurePedagogicalFolderSchema();
+    const docenteId = req.user.docente_id;
+    const { materia_id } = req.params;
+
+    const materia = await getDocenteMateria(docenteId, materia_id);
+    if (!materia) return res.status(404).json({ error: 'Materia no asignada al docente' });
+
+    const [[folder]] = await pool.query(
+      `SELECT id, data, updated_at
+       FROM pedagogical_folders
+       WHERE docente_id = ? AND materia_id = ?`,
+      [docenteId, materia_id]
+    );
+
+    let data = null;
+    if (folder?.data) {
+      try {
+        data = JSON.parse(folder.data);
+      } catch {
+        data = null;
+      }
+    }
+
+    res.json({
+      materia,
+      data,
+      updated_at: folder?.updated_at || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const guardarCarpetaPedagogica = async (req, res) => {
+  try {
+    await ensurePedagogicalFolderSchema();
+    const docenteId = req.user.docente_id;
+    const { materia_id } = req.params;
+    const { data } = req.body;
+
+    const materia = await getDocenteMateria(docenteId, materia_id);
+    if (!materia) return res.status(404).json({ error: 'Materia no asignada al docente' });
+    if (!data || typeof data !== 'object') {
+      return res.status(400).json({ error: 'La carpeta pedagogica es requerida' });
+    }
+
+    await pool.query(
+      `INSERT INTO pedagogical_folders (docente_id, materia_id, data)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP`,
+      [docenteId, materia_id, JSON.stringify(data)]
+    );
+
+    res.json({ message: 'Carpeta pedagogica guardada correctamente' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const obtenerEvaluacionCarpetaPedagogica = async (req, res) => {
+  try {
+    await ensureGradeReportSchema();
+    const docenteId = req.user.docente_id;
+    const { materia_id } = req.params;
+
+    const materia = await getDocenteMateria(docenteId, materia_id);
+    if (!materia) return res.status(404).json({ error: 'Materia no asignada al docente' });
+
+    const [[acta]] = await pool.query(
+      `SELECT id, periodo, observaciones, archivo_url, updated_at
+       FROM grade_reports
+       WHERE materia_id = ?`,
+      [materia_id]
+    );
+
+    if (!acta) {
+      return res.json({ materia, acta: null, detalles: [] });
+    }
+
+    const [detalles] = await pool.query(
+      `SELECT grd.*, e.codigo_estudiante, u.nombre, u.apellido
+       FROM grade_report_details grd
+       JOIN estudiantes e ON grd.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE grd.acta_id = ?
+       ORDER BY u.apellido, u.nombre`,
+      [acta.id]
+    );
+
+    res.json({ materia, acta, detalles });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const guardarAsistenciaCarpetaPedagogica = async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const docenteId = req.user.docente_id;
+    const { materia_id } = req.params;
+    const { registros } = req.body;
+
+    if (!Array.isArray(registros)) {
+      return res.status(400).json({ error: 'registros debe ser un arreglo' });
+    }
+
+    const materia = await getDocenteMateria(docenteId, materia_id);
+    if (!materia) return res.status(404).json({ error: 'Materia no asignada al docente' });
+
+    await conn.beginTransaction();
+    for (const row of registros) {
+      if (!row.estudiante_id || !row.fecha || !row.estado) continue;
+      if (!['presente', 'falta', 'permiso', 'tarde'].includes(row.estado)) continue;
+
+      await conn.query(
+        `INSERT INTO asistencias (estudiante_id, materia_id, fecha, estado, justificacion)
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE estado = VALUES(estado), justificacion = VALUES(justificacion)`,
+        [row.estudiante_id, materia_id, row.fecha, row.estado, row.justificacion || null]
+      );
+    }
+    await conn.commit();
+
+    res.json({ message: 'Asistencia actualizada correctamente' });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 };
 
