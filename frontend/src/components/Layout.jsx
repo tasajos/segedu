@@ -43,9 +43,10 @@ const menuByRole = {
     { to: '/jefe/materias', label: 'Materias', num: '10' },
     { to: '/jefe/notificaciones', label: 'Notificaciones', num: '11' },
     { to: '/jefe/actas', label: 'Actas', num: '12' },
-    { to: '/jefe/unidades', label: 'Unidades instrucción', num: '13' },
-    { to: '/jefe/presentaciones', label: 'Presentaciones', num: '14' },
-    { to: '/jefe/cursos-especiales', label: 'Cursos especiales', num: '15' }
+    { to: '/jefe/carpetas-pedagogicas', label: 'Carpetas pedagogicas', num: '13' },
+    { to: '/jefe/unidades', label: 'Unidades instrucción', num: '14' },
+    { to: '/jefe/presentaciones', label: 'Presentaciones', num: '15' },
+    { to: '/jefe/cursos-especiales', label: 'Cursos especiales', num: '16' }
   ],
   instructor: [
     { to: '/instructor', label: 'Mis cursos', num: '01' },
@@ -71,7 +72,9 @@ export default function Layout() {
   const location = useLocation();
   const items = menuByRole[user.rol] || [];
 
-  const pageName = items.find((item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/'))?.label || '';
+  const pageName = [...items]
+    .sort((a, b) => b.to.length - a.to.length)
+    .find((item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/'))?.label || '';
   const hasMandatoryNotifications = user.rol === 'docente' && docentePendientes.length > 0;
 
   const tipoChip = {

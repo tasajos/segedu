@@ -98,6 +98,17 @@ const makeSeguimientoRows = () => Array.from({ length: 18 }, (_, index) => ({
   observaciones: ''
 }));
 
+const makeSeguimientoRow = (index) => ({
+  semana: String(Math.floor(index / 2) + 1),
+  fecha: '',
+  numero: String(index + 1),
+  unidad: '',
+  contenidos: '',
+  practica: '',
+  estudiantes: '',
+  observaciones: ''
+});
+
 const makeBibliografiaRows = () => Array.from({ length: 10 }, (_, index) => ({
   numero: String(index + 1),
   titulo: '',
@@ -106,6 +117,20 @@ const makeBibliografiaRows = () => Array.from({ length: 10 }, (_, index) => ({
   edicion: '',
   lugar: ''
 }));
+
+const makeBibliografiaRow = (index) => ({
+  numero: String(index + 1),
+  titulo: '',
+  autor: '',
+  editorial: '',
+  edicion: '',
+  lugar: ''
+});
+
+const makeDiagnosticaQuestion = (index) => ({
+  numero: index + 1,
+  texto: ''
+});
 
 const makeInforme = (parcial) => ({
   fecha: today(),
@@ -435,6 +460,54 @@ export default function CarpetaPedagogica() {
         [section]: {
           ...prev[section],
           [key]: rows
+        }
+      };
+    });
+  };
+
+  const addSeguimientoRow = () => {
+    setFolder((prev) => {
+      const currentRows = prev.seguimiento?.rows || [];
+      return {
+        ...prev,
+        seguimiento: {
+          ...prev.seguimiento,
+          rows: [
+            ...currentRows,
+            makeSeguimientoRow(currentRows.length)
+          ]
+        }
+      };
+    });
+  };
+
+  const addBibliografiaRow = () => {
+    setFolder((prev) => {
+      const currentRows = prev.bibliografia?.rows || [];
+      return {
+        ...prev,
+        bibliografia: {
+          ...prev.bibliografia,
+          rows: [
+            ...currentRows,
+            makeBibliografiaRow(currentRows.length)
+          ]
+        }
+      };
+    });
+  };
+
+  const addDiagnosticaQuestion = () => {
+    setFolder((prev) => {
+      const currentRows = prev.diagnostica?.preguntas || [];
+      return {
+        ...prev,
+        diagnostica: {
+          ...prev.diagnostica,
+          preguntas: [
+            ...currentRows,
+            makeDiagnosticaQuestion(currentRows.length)
+          ]
         }
       };
     });
@@ -872,29 +945,41 @@ export default function CarpetaPedagogica() {
   };
 
   const renderSeguimiento = () => (
-    <div className="ped-table-wrap">
-      <table className="ped-table">
-        <thead>
-          <tr>
-            <th>Semana</th><th>Fecha</th><th>Nro</th><th>Unidad / tema</th><th>Contenidos</th><th>Practica</th><th>Estudiantes</th><th>Observaciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {folder.seguimiento.rows.map((row, index) => (
-            <tr key={index}>
-              {['semana', 'fecha', 'numero', 'unidad', 'contenidos', 'practica', 'estudiantes', 'observaciones'].map((field) => (
-                <td key={field}>
-                  {['contenidos', 'practica', 'observaciones'].includes(field) ? (
-                    <textarea className="ped-textarea" value={row[field] || ''} onChange={(event) => updateArrayItem('seguimiento', 'rows', index, field, event.target.value)} />
-                  ) : (
-                    <input className="ped-input" type={field === 'fecha' ? 'date' : 'text'} value={row[field] || ''} onChange={(event) => updateArrayItem('seguimiento', 'rows', index, field, event.target.value)} />
-                  )}
-                </td>
-              ))}
+    <div className="ped-stack">
+      <div className="ped-section-tools">
+        <div>
+          <strong>{folder.seguimiento.rows.length} filas de seguimiento</strong>
+          <span>Agrega las filas que necesites segun el avance real de la materia.</span>
+        </div>
+        <button className="btn btn-primary" type="button" onClick={addSeguimientoRow}>
+          + Agregar fila
+        </button>
+      </div>
+
+      <div className="ped-table-wrap">
+        <table className="ped-table">
+          <thead>
+            <tr>
+              <th>Semana</th><th>Fecha</th><th>Nro</th><th>Unidad / tema</th><th>Contenidos</th><th>Practica</th><th>Estudiantes</th><th>Observaciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {folder.seguimiento.rows.map((row, index) => (
+              <tr key={index}>
+                {['semana', 'fecha', 'numero', 'unidad', 'contenidos', 'practica', 'estudiantes', 'observaciones'].map((field) => (
+                  <td key={field}>
+                    {['contenidos', 'practica', 'observaciones'].includes(field) ? (
+                      <textarea className="ped-textarea" value={row[field] || ''} onChange={(event) => updateArrayItem('seguimiento', 'rows', index, field, event.target.value)} />
+                    ) : (
+                      <input className="ped-input" type={field === 'fecha' ? 'date' : 'text'} value={row[field] || ''} onChange={(event) => updateArrayItem('seguimiento', 'rows', index, field, event.target.value)} />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 
@@ -949,29 +1034,51 @@ export default function CarpetaPedagogica() {
   );
 
   const renderBibliografia = () => (
-    <div className="ped-table-wrap">
-      <table className="ped-table">
-        <thead>
-          <tr><th>Nro</th><th>Titulo</th><th>Autor</th><th>Editorial</th><th>Edicion y ano</th><th>Lugar de compra</th></tr>
-        </thead>
-        <tbody>
-          {folder.bibliografia.rows.map((row, index) => (
-            <tr key={index}>
-              {['numero', 'titulo', 'autor', 'editorial', 'edicion', 'lugar'].map((field) => (
-                <td key={field}>
-                  <input className="ped-input" value={row[field] || ''} onChange={(event) => updateArrayItem('bibliografia', 'rows', index, field, event.target.value)} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="ped-stack">
+      <div className="ped-section-tools">
+        <div>
+          <strong>{folder.bibliografia.rows.length} filas de bibliografia</strong>
+          <span>Agrega las referencias que el docente necesite para completar la carpeta.</span>
+        </div>
+        <button className="btn btn-primary" type="button" onClick={addBibliografiaRow}>
+          + Agregar fila
+        </button>
+      </div>
+
+      <div className="ped-table-wrap">
+        <table className="ped-table">
+          <thead>
+            <tr><th>Nro</th><th>Titulo</th><th>Autor</th><th>Editorial</th><th>Edicion y ano</th><th>Lugar de compra</th></tr>
+          </thead>
+          <tbody>
+            {folder.bibliografia.rows.map((row, index) => (
+              <tr key={index}>
+                {['numero', 'titulo', 'autor', 'editorial', 'edicion', 'lugar'].map((field) => (
+                  <td key={field}>
+                    <input className="ped-input" value={row[field] || ''} onChange={(event) => updateArrayItem('bibliografia', 'rows', index, field, event.target.value)} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 
   const renderDiagnostica = () => (
-    <>
+    <div className="ped-stack">
       {renderInput('Fecha', folder.diagnostica.fecha, (value) => updateSection('diagnostica', 'fecha', value), { type: 'date' })}
+      <div className="ped-section-tools">
+        <div>
+          <strong>{folder.diagnostica.preguntas.length} preguntas diagnosticas</strong>
+          <span>Agrega las preguntas que se aplicaron en la evaluacion diagnostica.</span>
+        </div>
+        <button className="btn btn-primary" type="button" onClick={addDiagnosticaQuestion}>
+          + Agregar pregunta
+        </button>
+      </div>
+
       <div className="ped-table-wrap">
         <table className="ped-table">
           <thead><tr><th>Nro</th><th>Cuestionario aplicado</th></tr></thead>
@@ -991,7 +1098,7 @@ export default function CarpetaPedagogica() {
         <label>Conclusiones</label>
         <textarea className="ped-textarea" value={folder.diagnostica.conclusiones || ''} onChange={(event) => updateSection('diagnostica', 'conclusiones', event.target.value)} />
       </div>
-    </>
+    </div>
   );
 
   const renderEvaluacion = () => (

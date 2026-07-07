@@ -11,6 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let attendanceSchemaEnsured = false;
+let pedagogicalFolderSchemaEnsured = false;
 
 const ensureAttendanceSupportSchema = async () => {
   if (attendanceSchemaEnsured) return;
@@ -34,6 +35,26 @@ const ensureAttendanceSupportSchema = async () => {
   }
 
   attendanceSchemaEnsured = true;
+};
+
+const ensurePedagogicalFolderSchema = async () => {
+  if (pedagogicalFolderSchemaEnsured) return;
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pedagogical_folders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      docente_id INT NOT NULL,
+      materia_id INT NOT NULL,
+      data LONGTEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_pedagogical_folder (docente_id, materia_id),
+      FOREIGN KEY (docente_id) REFERENCES docentes(id) ON DELETE CASCADE,
+      FOREIGN KEY (materia_id) REFERENCES materias(id) ON DELETE CASCADE
+    )
+  `);
+
+  pedagogicalFolderSchemaEnsured = true;
 };
 
 const buildAttendanceDateRange = ({ periodo, fecha, desde, hasta }) => {
@@ -1148,6 +1169,134 @@ export const indicadoresActas = async (req, res) => {
   }
 };
 
+export const listarCarpetasPedagogicas = async (req, res) => {
+  try {
+    await ensurePedagogicalFolderSchema();
+    await ensureGradeReportSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const [rows] = await pool.query(
+      `SELECT m.id as materia_id, m.nombre as materia_nombre, m.codigo as materia_codigo,
+              m.grupo as materia_grupo, m.semestre, m.creditos,
+              d.id as docente_id, u.nombre as docente_nombre, u.apellido as docente_apellido,
+              pf.id as carpeta_id, pf.updated_at as carpeta_updated_at,
+              gr.id as acta_id, gr.updated_at as acta_updated_at,
+              (SELECT COUNT(*) FROM inscripciones i WHERE i.materia_id = m.id) as total_estudiantes,
+              (SELECT COUNT(DISTINCT a.fecha) FROM asistencias a WHERE a.materia_id = m.id) as total_fechas_asistencia
+       FROM materias m
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios u ON d.usuario_id = u.id
+       LEFT JOIN pedagogical_folders pf ON pf.materia_id = m.id AND pf.docente_id = m.docente_id
+       LEFT JOIN grade_reports gr ON gr.materia_id = m.id
+       WHERE m.carrera_id = ?
+       ORDER BY m.nombre, m.grupo`,
+      [carrera.id]
+    );
+
+    res.json(rows.map((row) => ({
+      ...row,
+      estado_carpeta: row.carpeta_id ? 'completa' : 'pendiente',
+      tiene_acta: Boolean(row.acta_id)
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const obtenerCarpetaPedagogicaJefe = async (req, res) => {
+  try {
+    await ensurePedagogicalFolderSchema();
+    await ensureGradeReportSchema();
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { materia_id } = req.params;
+    const [[materia]] = await pool.query(
+      `SELECT m.id, m.nombre, m.codigo, m.grupo, m.semestre, m.creditos,
+              c.nombre as carrera_nombre,
+              d.id as docente_id, u.nombre as docente_nombre, u.apellido as docente_apellido
+       FROM materias m
+       LEFT JOIN carreras c ON m.carrera_id = c.id
+       LEFT JOIN docentes d ON m.docente_id = d.id
+       LEFT JOIN usuarios u ON d.usuario_id = u.id
+       WHERE m.id = ? AND m.carrera_id = ?`,
+      [materia_id, carrera.id]
+    );
+
+    if (!materia) return res.status(404).json({ error: 'Materia no encontrada en su carrera' });
+
+    const [[folder]] = await pool.query(
+      `SELECT id, data, updated_at
+       FROM pedagogical_folders
+       WHERE materia_id = ? AND docente_id = ?`,
+      [materia_id, materia.docente_id]
+    );
+
+    let data = null;
+    if (folder?.data) {
+      try {
+        data = JSON.parse(folder.data);
+      } catch {
+        data = null;
+      }
+    }
+
+    const [estudiantes] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, e.semestre, u.nombre, u.apellido
+       FROM inscripciones i
+       JOIN estudiantes e ON i.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE i.materia_id = ?
+       ORDER BY u.apellido, u.nombre`,
+      [materia_id]
+    );
+
+    const [asistencia] = await pool.query(
+      `SELECT a.fecha, a.estado, a.justificacion, a.estudiante_id,
+              e.codigo_estudiante, u.nombre, u.apellido
+       FROM asistencias a
+       JOIN estudiantes e ON a.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE a.materia_id = ?
+       ORDER BY a.fecha, u.apellido, u.nombre`,
+      [materia_id]
+    );
+
+    const [[acta]] = await pool.query(
+      `SELECT id, periodo, observaciones, archivo_url, updated_at
+       FROM grade_reports
+       WHERE materia_id = ?`,
+      [materia_id]
+    );
+
+    let evaluacion = [];
+    if (acta) {
+      const [rows] = await pool.query(
+        `SELECT grd.*, e.codigo_estudiante, u.nombre, u.apellido
+         FROM grade_report_details grd
+         JOIN estudiantes e ON grd.estudiante_id = e.id
+         JOIN usuarios u ON e.usuario_id = u.id
+         WHERE grd.acta_id = ?
+         ORDER BY u.apellido, u.nombre`,
+        [acta.id]
+      );
+      evaluacion = rows;
+    }
+
+    res.json({
+      materia,
+      carpeta: folder ? { id: folder.id, updated_at: folder.updated_at, data } : null,
+      estudiantes,
+      asistencia,
+      acta: acta || null,
+      evaluacion
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ============ ESTUDIANTES ============
 export const listarEstudiantes = async (req, res) => {
   try {
@@ -1290,6 +1439,61 @@ export const detalleEstudiante = async (req, res) => {
       notas,
       resumenNotas
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarAsistenciasEstudiante = async (req, res) => {
+  try {
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const { id } = req.params;
+    const { estado } = req.query;
+
+    if (estado && !['presente', 'falta', 'permiso', 'tarde'].includes(estado)) {
+      return res.status(400).json({ error: 'Estado de asistencia invalido' });
+    }
+
+    const [[estudiante]] = await pool.query(
+      `SELECT e.id, e.codigo_estudiante, e.carrera_id, u.nombre, u.apellido
+       FROM estudiantes e
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE e.id = ?`,
+      [id]
+    );
+
+    if (!estudiante || estudiante.carrera_id !== carrera.id) {
+      return res.status(404).json({ error: 'Estudiante no encontrado en su carrera' });
+    }
+
+    const params = [id];
+    let estadoFilter = '';
+    if (estado) {
+      estadoFilter = 'AND a.estado = ?';
+      params.push(estado);
+    }
+
+    const [registros] = await pool.query(
+      `SELECT a.*, m.nombre as materia_nombre, m.codigo as materia_codigo, m.grupo as materia_grupo,
+              u.nombre, u.apellido, e.codigo_estudiante
+       FROM asistencias a
+       JOIN materias m ON a.materia_id = m.id
+       JOIN estudiantes e ON a.estudiante_id = e.id
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE a.estudiante_id = ? ${estadoFilter}
+       ORDER BY a.fecha DESC, m.nombre, m.grupo`,
+      params
+    );
+
+    const resumen = registros.reduce((acc, row) => {
+      acc.total += 1;
+      acc[row.estado] = (acc[row.estado] || 0) + 1;
+      return acc;
+    }, { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 });
+
+    res.json({ estudiante, estado: estado || 'todos', resumen, registros });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

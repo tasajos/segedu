@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
+import { exportAttendanceExcel, exportAttendancePdf } from '../../services/attendanceExport';
 
 const TIPO_COLOR = { falta: 'var(--crimson)', sancion: '#7b2d8b', permiso: 'var(--gold)' };
 
@@ -14,6 +15,8 @@ export default function JefeEstudiantes() {
   const [tab, setTab] = useState('asistencias');
   const [materiaNueva, setMateriaNueva] = useState('');
   const [savingMateria, setSavingMateria] = useState(false);
+  const [attendanceModal, setAttendanceModal] = useState(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   const cargar = async () => {
     const [estudiantesResp, indicadoresResp] = await Promise.all([
@@ -75,6 +78,60 @@ export default function JefeEstudiantes() {
     } finally {
       setSavingMateria(false);
     }
+  };
+
+  const abrirAsistenciasIndicador = async (row, estado) => {
+    setAttendanceLoading(true);
+    setAttendanceModal({
+      estudiante: row,
+      estado,
+      resumen: { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 },
+      registros: []
+    });
+
+    try {
+      const { data } = await api.get(`/jefe/estudiantes/${row.id}/asistencias`, {
+        params: estado ? { estado } : {}
+      });
+      setAttendanceModal(data);
+    } catch (err) {
+      setAttendanceModal((prev) => ({
+        ...prev,
+        error: err.response?.data?.error || 'No se pudo cargar el detalle de asistencias'
+      }));
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const attendanceExportMetadata = () => {
+    const estudiante = attendanceModal?.estudiante;
+    const estado = attendanceModal?.estado === 'todos' ? 'asistencias' : attendanceModal?.estado;
+    return {
+      materia: `Estudiante: ${estudiante?.apellido || ''} ${estudiante?.nombre || ''} (${estudiante?.codigo_estudiante || ''})`,
+      docente: 'Jefatura de carrera',
+      rango: `Detalle de ${estado || 'asistencias'}`,
+      emitido: new Date().toLocaleString('es-ES'),
+      resumen: attendanceModal?.resumen || { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 }
+    };
+  };
+
+  const descargarAsistenciasPdf = async () => {
+    if (!attendanceModal?.registros?.length) return;
+    await exportAttendancePdf({
+      fileName: `asistencias-${attendanceModal.estudiante.codigo_estudiante}-${attendanceModal.estado}.pdf`,
+      records: attendanceModal.registros,
+      metadata: attendanceExportMetadata()
+    });
+  };
+
+  const descargarAsistenciasExcel = async () => {
+    if (!attendanceModal?.registros?.length) return;
+    await exportAttendanceExcel({
+      fileName: `asistencias-${attendanceModal.estudiante.codigo_estudiante}-${attendanceModal.estado}.xlsx`,
+      records: attendanceModal.registros,
+      metadata: attendanceExportMetadata()
+    });
   };
 
   const filtrados = estudiantes.filter((e) => {
@@ -143,7 +200,15 @@ export default function JefeEstudiantes() {
                   <div style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{row.nombre} {row.apellido}</div>
                   <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)' }}>{row.codigo_estudiante}</div>
                 </div>
-                <span className="chip chip-crimson">{row.total_faltas}</span>
+                <button
+                  type="button"
+                  className="chip chip-crimson"
+                  style={{ border: '1px solid var(--danger-border)', cursor: 'pointer' }}
+                  onClick={() => abrirAsistenciasIndicador(row, 'falta')}
+                  title="Ver detalle de faltas"
+                >
+                  {row.total_faltas}
+                </button>
               </div>
             ))}
           </div>
@@ -162,7 +227,15 @@ export default function JefeEstudiantes() {
                   <div style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{row.nombre} {row.apellido}</div>
                   <div className="text-mono" style={{ fontSize: '.68rem', color: 'var(--ink-light)' }}>{row.codigo_estudiante}</div>
                 </div>
-                <span className="chip chip-forest">{row.total_presentes}</span>
+                <button
+                  type="button"
+                  className="chip chip-forest"
+                  style={{ border: '1px solid var(--success-border)', cursor: 'pointer' }}
+                  onClick={() => abrirAsistenciasIndicador(row, 'presente')}
+                  title="Ver detalle de asistencias"
+                >
+                  {row.total_presentes}
+                </button>
               </div>
             ))}
           </div>
@@ -599,6 +672,101 @@ export default function JefeEstudiantes() {
               </div>
             )}
           </>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!attendanceModal}
+        onClose={() => setAttendanceModal(null)}
+        title={
+          attendanceModal
+            ? `${attendanceModal.estado === 'presente' ? 'Asistencias' : attendanceModal.estado === 'falta' ? 'Faltas' : 'Detalle de asistencia'} - ${attendanceModal.estudiante?.nombre || ''} ${attendanceModal.estudiante?.apellido || ''}`
+            : 'Detalle de asistencia'
+        }
+        maxWidth="960px"
+      >
+        {attendanceModal && (
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            {attendanceLoading ? (
+              <div className="loading-dots"><span/><span/><span/></div>
+            ) : attendanceModal.error ? (
+              <div style={{ padding: '1rem', background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)' }}>
+                {attendanceModal.error}
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '.6rem' }}>
+                  {[
+                    ['Total', attendanceModal.resumen.total, 'chip-ink'],
+                    ['Presentes', attendanceModal.resumen.presente, 'chip-forest'],
+                    ['Faltas', attendanceModal.resumen.falta, 'chip-crimson'],
+                    ['Permisos', attendanceModal.resumen.permiso, 'chip-gold'],
+                    ['Tardes', attendanceModal.resumen.tarde, 'chip-blue']
+                  ].map(([label, value, chip]) => (
+                    <div key={label} className="card" style={{ padding: '.8rem' }}>
+                      <div className="text-serif" style={{ fontSize: '1.55rem', lineHeight: 1 }}>{value}</div>
+                      <span className={`chip ${chip}`} style={{ marginTop: '.45rem' }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="text-muted" style={{ fontSize: '.88rem' }}>
+                    {attendanceModal.registros.length} registro{attendanceModal.registros.length === 1 ? '' : 's'} encontrados.
+                  </div>
+                  <div style={{ display: 'flex', gap: '.6rem', flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={descargarAsistenciasExcel} disabled={!attendanceModal.registros.length}>
+                      Excel
+                    </button>
+                    <button className="btn btn-primary btn-sm" type="button" onClick={descargarAsistenciasPdf} disabled={!attendanceModal.registros.length}>
+                      PDF
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ maxHeight: '52vh', overflowY: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>Fecha</th>
+                        <th>Materia</th>
+                        <th>Estado</th>
+                        <th>Justificacion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendanceModal.registros.length === 0 && (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--ink-light)' }}>
+                            No hay registros para este indicador.
+                          </td>
+                        </tr>
+                      )}
+                      {attendanceModal.registros.map((row, index) => (
+                        <tr key={row.id || `${row.fecha}-${row.materia_id}-${index}`}>
+                          <td className="num">{String(index + 1).padStart(2, '0')}</td>
+                          <td className="text-mono" style={{ fontSize: '.8rem' }}>{new Date(row.fecha).toLocaleDateString('es-ES')}</td>
+                          <td>
+                            <div>{row.materia_nombre}</div>
+                            <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>
+                              {row.materia_codigo} - Grupo {row.materia_grupo}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`chip ${row.estado === 'presente' ? 'chip-forest' : row.estado === 'falta' ? 'chip-crimson' : row.estado === 'permiso' ? 'chip-gold' : 'chip-blue'}`}>
+                              {row.estado}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '.84rem' }}>{row.justificacion || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </Modal>
     </>

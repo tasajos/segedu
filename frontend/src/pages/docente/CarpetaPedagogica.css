@@ -133,6 +133,35 @@
   border-radius: var(--radius);
 }
 
+.ped-stack {
+  display: grid;
+  gap: .85rem;
+}
+
+.ped-section-tools {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: .9rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--gray-50);
+}
+
+.ped-section-tools strong {
+  display: block;
+  color: var(--blue-900);
+  font-size: .95rem;
+}
+
+.ped-section-tools span {
+  display: block;
+  margin-top: .2rem;
+  color: var(--text-muted);
+  font-size: .82rem;
+}
+
 .ped-schedule {
   display: grid;
   grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.2fr);
@@ -481,6 +510,15 @@
   .ped-preset-grid,
   .ped-attendance-tools {
     grid-template-columns: 1fr;
+  }
+
+  .ped-section-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ped-section-tools .btn {
+    width: 100%;
   }
 
   .ped-schedule-day {

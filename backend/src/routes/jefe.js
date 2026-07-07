@@ -16,10 +16,12 @@ import {
   listarTodosAvances, validarAvance,
   analisisComportamiento, listarReportesAsistenciaDocentes, actualizarAsistenciaDocente,
   dashboard, detalleEstudiante, listarEstudiantes,
+  listarAsistenciasEstudiante,
   indicadoresEstudiantes,
   listarSolicitudesPermiso, crearSolicitudPermiso, eliminarSolicitudPermiso, cambiarEstadoSolicitudPermiso,
   listarNotificaciones, crearNotificacion,
   obtenerActaMateria, guardarActaMateria, indicadoresActas,
+  listarCarpetasPedagogicas, obtenerCarpetaPedagogicaJefe,
   inscribirEstudianteMateria, retirarEstudianteMateria,
   listarDisciplinaEstudiantes, crearDisciplinaEstudiante, eliminarDisciplinaEstudiante,
   listarDisciplinaDocentes, crearDisciplinaDocente, eliminarDisciplinaDocente,
@@ -52,9 +54,12 @@ router.post('/notificaciones', crearNotificacion);
 router.get('/actas/indicadores', indicadoresActas);
 router.get('/actas/:id', obtenerActaMateria);
 router.post('/actas', upload.single('archivo'), guardarActaMateria);
+router.get('/carpetas-pedagogicas', listarCarpetasPedagogicas);
+router.get('/carpetas-pedagogicas/:materia_id', obtenerCarpetaPedagogicaJefe);
 
 router.get('/estudiantes', listarEstudiantes);
 router.get('/estudiantes-indicadores', indicadoresEstudiantes);
+router.get('/estudiantes/:id/asistencias', listarAsistenciasEstudiante);
 router.get('/estudiantes/:id', detalleEstudiante);
 router.post('/inscripciones', inscribirEstudianteMateria);
 router.delete('/inscripciones/:estudiante_id/:materia_id', retirarEstudianteMateria);

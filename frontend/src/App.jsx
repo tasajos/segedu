@@ -36,6 +36,7 @@ import JefeMateriaEstudiantes from './pages/jefe/MateriaEstudiantes';
 import JefeMateriaForm from './pages/jefe/MateriaForm';
 import JefeNotificaciones from './pages/jefe/Notificaciones';
 import JefeActas from './pages/jefe/Actas';
+import JefeCarpetasPedagogicas from './pages/jefe/CarpetasPedagogicas';
 
 // Compartido
 import UnidadesLista from './pages/compartido/UnidadesLista';
@@ -172,6 +173,7 @@ export default function App() {
         <Route path="materias" element={<JefeMaterias />} />
         <Route path="notificaciones" element={<JefeNotificaciones />} />
         <Route path="actas" element={<JefeActas />} />
+        <Route path="carpetas-pedagogicas" element={<JefeCarpetasPedagogicas />} />
         <Route path="cursos-especiales" element={<JefeCursosEspeciales />} />
         <Route path="cursos-especiales/:id" element={<JefeCursoEspecialDetalle />} />
         <Route path="unidades" element={<JefeUnidades />} />
