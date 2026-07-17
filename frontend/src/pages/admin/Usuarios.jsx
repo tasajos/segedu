@@ -37,8 +37,8 @@ const EMPTY_CSV = {
   prefijo: 'CE'
 };
 
-const rolLabel = { estudiante: 'Estudiante', docente: 'Docente', jefe: 'Jefe de carrera', admin: 'Administrador' };
-const rolChip = { estudiante: 'chip-gold', docente: 'chip-forest', jefe: 'chip-ink', admin: 'chip-crimson' };
+const rolLabel = { estudiante: 'Estudiante', docente: 'Docente', jefe: 'Jefe de carrera', auditor: 'Auditor', admin: 'Administrador' };
+const rolChip = { estudiante: 'chip-gold', docente: 'chip-forest', jefe: 'chip-ink', auditor: 'chip-blue', admin: 'chip-crimson' };
 
 export default function AdminUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -317,6 +317,7 @@ export default function AdminUsuarios() {
           <option value="estudiante">Estudiantes</option>
           <option value="docente">Docentes</option>
           <option value="jefe">Jefes de carrera</option>
+          <option value="auditor">Auditores</option>
           <option value="admin">Administradores</option>
         </select>
       </div>
@@ -536,13 +537,14 @@ export default function AdminUsuarios() {
             <label className="form-label">Telefono</label>
             <input className="form-input" value={form.telefono} onChange={(e) => f('telefono', e.target.value)} />
           </div>
-          {!editId && (
+          {(form.rol !== 'admin' || !editId) && (
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="form-label">Rol *</label>
               <select className="form-input" value={form.rol} onChange={(e) => f('rol', e.target.value)}>
                 <option value="estudiante">Estudiante</option>
                 <option value="docente">Docente</option>
                 <option value="jefe">Jefe de carrera</option>
+                <option value="auditor">Auditor (solo lectura, todas las carreras)</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>

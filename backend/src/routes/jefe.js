@@ -30,7 +30,13 @@ import {
 } from '../controllers/jefeController.js';
 
 const router = Router();
-router.use(verifyToken, requireRole('jefe'));
+router.use(verifyToken, requireRole('jefe', 'auditor'));
+router.use((req, res, next) => {
+  if (req.user.rol === 'auditor' && req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(403).json({ error: 'El auditor tiene acceso de solo lectura' });
+  }
+  next();
+});
 
 router.get('/mi-carrera', miCarrera);
 

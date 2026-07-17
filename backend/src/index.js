@@ -11,6 +11,8 @@ import docenteRoutes from './routes/docente.js';
 import jefeRoutes from './routes/jefe.js';
 import adminRoutes from './routes/admin.js';
 import instructorRoutes from './routes/instructor.js';
+import auditorRoutes from './routes/auditor.js';
+import { ensureAuditorSchema } from './utils/auditorAccess.js';
 import { initSchema } from './controllers/cursosEspecialesController.js';
 import { initQASchema } from './controllers/qaController.js';
 
@@ -53,6 +55,7 @@ app.use('/api/docente', docenteRoutes);
 app.use('/api/jefe', jefeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructor', instructorRoutes);
+app.use('/api/auditor', auditorRoutes);
 
 // React Router: cualquier ruta no-API devuelve index.html (sin caché)
 app.get('*', (req, res) => {
@@ -70,4 +73,11 @@ app.listen(PORT, async () => {
   console.log(`🎓 SEGEDU API corriendo en http://localhost:${PORT}`);
   await initSchema();
   await initQASchema();
+  try {
+    await ensureAuditorSchema();
+  } catch (error) {
+    // La migracion v18 debe ejecutarse con el usuario administrador de MySQL.
+    // Un permiso DDL insuficiente no debe derribar toda la aplicacion.
+    console.error('Auditor schema pending:', error.message);
+  }
 });

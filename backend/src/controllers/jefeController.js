@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import { getCareerForManager } from '../utils/auditorAccess.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -92,8 +93,7 @@ const buildAttendanceDateRange = ({ periodo, fecha, desde, hasta }) => {
 
 // Helper: obtener carrera del jefe
 const getCarreraJefe = async (usuarioId) => {
-  const [rows] = await pool.query('SELECT * FROM carreras WHERE jefe_id = ?', [usuarioId]);
-  return rows[0] || null;
+  return getCareerForManager(usuarioId);
 };
 
 const getEstudianteCarrera = async (estudianteId) => {

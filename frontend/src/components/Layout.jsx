@@ -1,5 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import Modal from './Modal';
 import './Layout.css';
 
@@ -48,6 +50,24 @@ const menuByRole = {
     { to: '/jefe/presentaciones', label: 'Presentaciones', num: '15' },
     { to: '/jefe/cursos-especiales', label: 'Cursos especiales', num: '16' }
   ],
+  auditor: [
+    { to: '/jefe', label: 'Dashboard', num: '01' },
+    { to: '/jefe/pgo', label: 'PGO', num: '02' },
+    { to: '/jefe/avances', label: 'Avances', num: '03' },
+    { to: '/jefe/comportamiento', label: 'Comportamientos', num: '04' },
+    { to: '/jefe/asistencias', label: 'Asistencias est.', num: '05' },
+    { to: '/jefe/estudiantes', label: 'Estudiantes', num: '06' },
+    { to: '/jefe/horarios', label: 'Horarios', num: '07' },
+    { to: '/jefe/disciplina', label: 'Disciplina est.', num: '08' },
+    { to: '/jefe/disciplina-docentes', label: 'Disciplina doc.', num: '09' },
+    { to: '/jefe/materias', label: 'Materias', num: '10' },
+    { to: '/jefe/notificaciones', label: 'Notificaciones', num: '11' },
+    { to: '/jefe/actas', label: 'Actas', num: '12' },
+    { to: '/jefe/carpetas-pedagogicas', label: 'Carpetas pedagogicas', num: '13' },
+    { to: '/jefe/unidades', label: 'Unidades instruccion', num: '14' },
+    { to: '/jefe/presentaciones', label: 'Presentaciones', num: '15' },
+    { to: '/jefe/cursos-especiales', label: 'Cursos especiales', num: '16' }
+  ],
   instructor: [
     { to: '/instructor', label: 'Mis cursos', num: '01' },
   ],
@@ -64,13 +84,36 @@ const roleLabel = {
   docente: 'Docente',
   jefe: 'Jefe de carrera',
   admin: 'Administrador',
-  instructor: 'Instructor'
+  instructor: 'Instructor',
+  auditor: 'Auditor'
 };
 
 export default function Layout() {
   const { user, logout, docentePendientes, notificationsLoading, reviewPendingNotifications } = useAuth();
   const location = useLocation();
   const items = menuByRole[user.rol] || [];
+  const [auditorCareers, setAuditorCareers] = useState([]);
+  const [activeCareer, setActiveCareer] = useState('');
+  const [changingCareer, setChangingCareer] = useState(false);
+
+  useEffect(() => {
+    if (user.rol !== 'auditor') return;
+    api.get('/auditor/carreras').then(({ data }) => {
+      setAuditorCareers(data.carreras || []);
+      setActiveCareer(String(data.carrera_activa_id || ''));
+    });
+  }, [user.rol]);
+
+  const changeAuditorCareer = async (careerId) => {
+    setChangingCareer(true);
+    try {
+      await api.post('/auditor/carrera-activa', { carrera_id: careerId });
+      setActiveCareer(String(careerId));
+      window.location.reload();
+    } finally {
+      setChangingCareer(false);
+    }
+  };
 
   const pageName = [...items]
     .sort((a, b) => b.to.length - a.to.length)
@@ -85,7 +128,7 @@ export default function Layout() {
 
   return (
     <>
-    <div className="app-shell">
+    <div className={`app-shell ${user.rol === 'auditor' ? 'auditor-mode' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
           <img src="/ch_tr.png" className="brand-mark" alt="SEGEDU" />
@@ -137,12 +180,21 @@ export default function Layout() {
             <span className="breadcrumb-sep">/</span>
             <span>{pageName}</span>
           </div>
+          {user.rol === 'auditor' && (
+            <div className="auditor-career-picker">
+              <span>Solo lectura</span>
+              <select value={activeCareer} disabled={changingCareer} onChange={(event) => changeAuditorCareer(event.target.value)}>
+                {auditorCareers.map((career) => <option key={career.id} value={career.id}>{career.nombre} ({career.codigo})</option>)}
+              </select>
+            </div>
+          )}
           <div className="topbar-date">
             {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
         </div>
 
         <div className="content fade-up" key={location.pathname}>
+          {user.rol === 'auditor' && <div className="auditor-readonly-banner">Modo auditor: puede consultar toda la información de la carrera seleccionada, pero no realizar modificaciones.</div>}
           <Outlet />
         </div>
       </main>

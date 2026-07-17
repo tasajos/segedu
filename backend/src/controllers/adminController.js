@@ -2,6 +2,7 @@ import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import { parseStudentImportExcel } from '../utils/studentImportExcel.js';
+import { ensureAuditorSchema } from '../utils/auditorAccess.js';
 
 const normalizeText = (value = '') => value
   .normalize('NFD')
@@ -278,12 +279,13 @@ export const toggleBulkActivo = async (req, res) => {
 export const crearUsuario = async (req, res) => {
   const conn = await pool.getConnection();
   try {
+    await ensureAuditorSchema();
     await conn.beginTransaction();
     const { nombre, apellido, email, password, rol, ci, telefono,
             especialidad, titulo,
             carrera_id, semestre, codigo_estudiante, fecha_ingreso } = req.body;
 
-    if (!['estudiante', 'docente', 'jefe', 'admin'].includes(rol)) {
+    if (!['estudiante', 'docente', 'jefe', 'admin', 'auditor'].includes(rol)) {
       return res.status(400).json({ error: 'Rol inválido' });
     }
 
@@ -494,26 +496,41 @@ export const importarEstudiantesExcel = async (req, res) => {
 export const actualizarUsuario = async (req, res) => {
   const conn = await pool.getConnection();
   try {
+    await ensureAuditorSchema();
     await conn.beginTransaction();
     const { id } = req.params;
     const { nombre, apellido, email, ci, telefono,
             especialidad, titulo,
-            carrera_id, semestre, codigo_estudiante } = req.body;
+            carrera_id, semestre, codigo_estudiante, rol } = req.body;
 
     const [[user]] = await conn.query('SELECT rol FROM usuarios WHERE id = ?', [id]);
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-
+    if (!user) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    const nuevoRol = rol || user.rol;
+    if (!['estudiante', 'docente', 'jefe', 'admin', 'auditor'].includes(nuevoRol)) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Rol inválido' });
+    }
+    if (user.rol === 'admin' && nuevoRol !== 'admin') {
+      await conn.rollback();
+      return res.status(403).json({ error: 'No se puede cambiar el rol del administrador' });
+    }
     await conn.query(
-      'UPDATE usuarios SET nombre=?, apellido=?, email=?, ci=?, telefono=? WHERE id=?',
-      [nombre, apellido, email, ci, telefono, id]
+      'UPDATE usuarios SET nombre=?, apellido=?, email=?, ci=?, telefono=?, rol=? WHERE id=?',
+      [nombre, apellido, email, ci, telefono, nuevoRol, id]
     );
+    if (user.rol === 'jefe' && nuevoRol !== 'jefe') {
+      await conn.query('UPDATE carreras SET jefe_id = NULL WHERE jefe_id = ?', [id]);
+    }
 
-    if (user.rol === 'docente') {
+    if (nuevoRol === 'docente' && user.rol === 'docente') {
       await conn.query(
         'UPDATE docentes SET especialidad=?, titulo=? WHERE usuario_id=?',
         [especialidad, titulo, id]
       );
-    } else if (user.rol === 'estudiante') {
+    } else if (nuevoRol === 'estudiante' && user.rol === 'estudiante') {
       await conn.query(
         'UPDATE estudiantes SET carrera_id=?, semestre=?, codigo_estudiante=? WHERE usuario_id=?',
         [carrera_id || null, semestre || 1, codigo_estudiante, id]

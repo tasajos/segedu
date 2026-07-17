@@ -95,6 +95,7 @@ const RootRedirect = () => {
   if (user.rol === 'docente') return <Navigate to="/docente" replace />;
   if (user.rol === 'jefe') return <Navigate to="/jefe" replace />;
   if (user.rol === 'admin') return <Navigate to="/admin" replace />;
+  if (user.rol === 'auditor') return <Navigate to="/jefe" replace />;
   if (user.rol === 'instructor') return <Navigate to="/instructor" replace />;
   return <Navigate to="/login" replace />;
 };
@@ -160,7 +161,7 @@ export default function App() {
       </Route>
 
       {/* Jefe */}
-      <Route path="/jefe" element={<Protected roles={['jefe']}><Layout /></Protected>}>
+      <Route path="/jefe" element={<Protected roles={['jefe', 'auditor']}><Layout /></Protected>}>
         <Route index element={<JefeDashboard />} />
         <Route path="pgo" element={<JefePGO />} />
         <Route path="avances" element={<JefeAvances />} />
@@ -194,6 +195,7 @@ export default function App() {
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
         <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />
       </Route>
+      <Route path="/auditor" element={<Protected roles={['auditor']}><Navigate to="/jefe" replace /></Protected>} />
 
       {/* Instructor */}
       <Route path="/instructor" element={<Protected roles={['instructor']}><Layout /></Protected>}>

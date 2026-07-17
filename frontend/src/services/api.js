@@ -8,6 +8,16 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const savedUser = localStorage.getItem('user');
+  if (savedUser) {
+    try {
+      const user = JSON.parse(savedUser);
+      const method = String(config.method || 'get').toLowerCase();
+      if (user.rol === 'auditor' && String(config.url || '').startsWith('/jefe/') && !['get', 'head'].includes(method)) {
+        return Promise.reject(new Error('El auditor tiene acceso de solo lectura'));
+      }
+    } catch { /* ignore invalid local session data */ }
+  }
   return config;
 });
 

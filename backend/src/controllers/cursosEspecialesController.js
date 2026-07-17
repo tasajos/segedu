@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import { createReadStream, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getCareerForManager } from '../utils/auditorAccess.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -177,7 +178,7 @@ const resolveFilePath = (archivoPath) => {
 };
 
 const getCarreraJefe = async (userId) => {
-  const [[row]] = await pool.query('SELECT id FROM carreras WHERE jefe_id = ?', [userId]);
+  const row = await getCareerForManager(userId);
   return row?.id ?? null;
 };
 const getEstudiante = async (userId) => {
