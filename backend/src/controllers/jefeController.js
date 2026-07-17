@@ -6,6 +6,7 @@ import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -149,10 +150,10 @@ const normalizeGradeDetail = (row) => {
   const modalidad = row.modalidad || 'regular';
 
   if (modalidad === 'regular') {
-    const primer = Number(row.primer_parcial || 0);
-    const segundo = Number(row.segundo_parcial || 0);
-    const final = Number(row.examen_final || 0);
-    const notaFinal = Number((primer + segundo + final).toFixed(2));
+    const primer = row.primer_parcial == null ? null : Number(row.primer_parcial);
+    const segundo = row.segundo_parcial == null ? null : Number(row.segundo_parcial);
+    const final = row.examen_final == null ? null : Number(row.examen_final);
+    const notaFinal = Number(((primer || 0) + (segundo || 0) + (final || 0)).toFixed(2));
     return {
       modalidad,
       primer_parcial: primer,
@@ -164,15 +165,15 @@ const normalizeGradeDetail = (row) => {
     };
   }
 
-  const recuperacion = Number(row.examen_recuperacion || 0);
+  const recuperacion = row.examen_recuperacion == null ? null : Number(row.examen_recuperacion);
   return {
     modalidad,
     primer_parcial: null,
     segundo_parcial: null,
     examen_final: null,
     examen_recuperacion: recuperacion,
-    nota_final: recuperacion,
-    estado: getGradeStatus(modalidad, recuperacion)
+    nota_final: recuperacion || 0,
+    estado: getGradeStatus(modalidad, recuperacion || 0)
   };
 };
 
@@ -862,6 +863,22 @@ export const obtenerActaMateria = async (req, res) => {
   }
 };
 
+export const verificarPasswordActas = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Ingrese su contraseña' });
+
+    const [[usuario]] = await pool.query('SELECT password FROM usuarios WHERE id = ?', [req.user.id]);
+    if (!usuario || !(await bcrypt.compare(password, usuario.password))) {
+      return res.status(401).json({ error: 'Contraseña incorrecta' });
+    }
+
+    res.json({ valid: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const guardarActaMateria = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -874,13 +891,32 @@ export const guardarActaMateria = async (req, res) => {
       return res.status(403).json({ error: 'Sin carrera asignada' });
     }
 
-    const { materia_id, periodo, observaciones } = req.body;
-      const notas = JSON.parse(req.body.notas || '[]');
+    const { materia_id, periodo, observaciones, etapa, password } = req.body;
+    const notas = JSON.parse(req.body.notas || '[]');
     const archivoUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     if (!materia_id || !Array.isArray(notas) || !notas.length) {
       await conn.rollback();
       return res.status(400).json({ error: 'Materia y notas son requeridas' });
+    }
+
+    const etapasPermitidas = ['primer_parcial', 'segundo_parcial', 'examen_final', 'examen_recuperacion'];
+    if (!etapasPermitidas.includes(etapa)) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Seleccione el parcial o examen que desea guardar' });
+    }
+    const maximosEtapa = { primer_parcial: 35, segundo_parcial: 35, examen_final: 30 };
+    const notaInvalida = notas.some((row) => {
+      if (row[etapa] == null || row[etapa] === '') return false;
+      const value = Number(row[etapa]);
+      const maximo = etapa === 'examen_recuperacion'
+        ? (GRADE_MODALITIES[row.modalidad]?.maxTotal || 100)
+        : maximosEtapa[etapa];
+      return !Number.isFinite(value) || value < 0 || value > maximo;
+    });
+    if (notaInvalida) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Existe una nota fuera del rango permitido para esta evaluación' });
     }
 
     const [[materia]] = await conn.query(
@@ -917,27 +953,49 @@ export const guardarActaMateria = async (req, res) => {
       actaId = result.insertId;
     }
 
-    await conn.query('DELETE FROM grade_report_details WHERE acta_id = ?', [actaId]);
+    const [existentes] = await conn.query(
+      'SELECT * FROM grade_report_details WHERE acta_id = ?',
+      [actaId]
+    );
+    const existentesMap = new Map(existentes.map((item) => [Number(item.estudiante_id), item]));
+    const intentaEditar = notas.some((row) => {
+      const anterior = existentesMap.get(Number(row.estudiante_id));
+      if (!anterior || anterior[etapa] == null) return false;
+      const nuevo = row[etapa] == null || row[etapa] === '' ? null : Number(row[etapa]);
+      return nuevo !== Number(anterior[etapa]) || (row.modalidad && row.modalidad !== anterior.modalidad);
+    });
 
-      for (const row of notas) {
-        const normalized = normalizeGradeDetail(row);
-        await conn.query(
-          `INSERT INTO grade_report_details
-           (acta_id, estudiante_id, modalidad, primer_parcial, segundo_parcial, examen_final, examen_recuperacion, nota_final, estado)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            actaId,
-            row.estudiante_id,
-            normalized.modalidad,
-            normalized.primer_parcial,
-            normalized.segundo_parcial,
-            normalized.examen_final,
-            normalized.examen_recuperacion,
-            normalized.nota_final,
-            normalized.estado
-          ]
-        );
+    if (intentaEditar) {
+      const [[usuario]] = await conn.query('SELECT password FROM usuarios WHERE id = ?', [req.user.id]);
+      if (!password || !usuario || !(await bcrypt.compare(password, usuario.password))) {
+        await conn.rollback();
+        return res.status(401).json({ error: 'Debe confirmar su contraseña para modificar notas registradas' });
       }
+    }
+
+    for (const row of notas) {
+      const anterior = existentesMap.get(Number(row.estudiante_id)) || {};
+      const combinado = {
+        modalidad: row.modalidad || anterior.modalidad || 'regular',
+        primer_parcial: anterior.primer_parcial ?? null,
+        segundo_parcial: anterior.segundo_parcial ?? null,
+        examen_final: anterior.examen_final ?? null,
+        examen_recuperacion: anterior.examen_recuperacion ?? null,
+        [etapa]: row[etapa] == null || row[etapa] === '' ? null : Number(row[etapa])
+      };
+      const normalized = normalizeGradeDetail(combinado);
+      await conn.query(
+        `INSERT INTO grade_report_details
+         (acta_id, estudiante_id, modalidad, primer_parcial, segundo_parcial, examen_final, examen_recuperacion, nota_final, estado)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE modalidad = VALUES(modalidad), primer_parcial = VALUES(primer_parcial),
+           segundo_parcial = VALUES(segundo_parcial), examen_final = VALUES(examen_final),
+           examen_recuperacion = VALUES(examen_recuperacion), nota_final = VALUES(nota_final), estado = VALUES(estado)`,
+        [actaId, row.estudiante_id, normalized.modalidad, normalized.primer_parcial,
+          normalized.segundo_parcial, normalized.examen_final, normalized.examen_recuperacion,
+          normalized.nota_final, normalized.estado]
+      );
+    }
 
     await conn.commit();
 
@@ -1372,8 +1430,22 @@ export const detalleEstudiante = async (req, res) => {
        FROM asistencias a
        JOIN materias m ON a.materia_id = m.id
        WHERE a.estudiante_id = ?
-       ORDER BY a.fecha DESC
-       LIMIT 30`,
+       ORDER BY a.fecha DESC`,
+      [id]
+    );
+
+    const [asistenciasPorMateria] = await pool.query(
+      `SELECT m.id as materia_id, m.nombre as materia_nombre, m.codigo as materia_codigo,
+              COUNT(*) as total_registros,
+              SUM(a.estado = 'presente') as presentes,
+              SUM(a.estado = 'falta') as faltas,
+              SUM(a.estado = 'permiso') as permisos,
+              SUM(a.estado = 'tarde') as tardanzas
+       FROM asistencias a
+       JOIN materias m ON a.materia_id = m.id
+       WHERE a.estudiante_id = ?
+       GROUP BY m.id, m.nombre, m.codigo
+       ORDER BY m.nombre`,
       [id]
     );
 
@@ -1433,6 +1505,7 @@ export const detalleEstudiante = async (req, res) => {
       materiasDisponibles,
       asistencias,
       asistenciasDetalle,
+      asistenciasPorMateria,
       cursos,
       comentarios,
       disciplina,

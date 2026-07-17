@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 import PageHeader from '../../components/PageHeader';
+import './Actas.css';
 
 const EMPTY_DETAIL = {
   materia: null,
@@ -14,6 +15,12 @@ const EMPTY_DETAIL = {
 };
 
 const REGULAR = 'regular';
+const ETAPAS = [
+  { key: 'primer_parcial', label: '1er parcial', max: 35 },
+  { key: 'segundo_parcial', label: '2do parcial', max: 35 },
+  { key: 'examen_final', label: 'Examen final', max: 30 },
+  { key: 'examen_recuperacion', label: 'Modalidad especial', max: 100 }
+];
 const PARTIAL_FILTERS = [
   { value: 'primer_parcial', label: '1er parcial', countKey: 'reprobadas_primer_parcial', materiasKey: 'materias_primer_parcial' },
   { value: 'segundo_parcial', label: '2do parcial', countKey: 'reprobadas_segundo_parcial', materiasKey: 'materias_segundo_parcial' },
@@ -51,6 +58,8 @@ const toNumber = (value) => {
   const numeric = Number(value || 0);
   return Number.isFinite(numeric) ? numeric : 0;
 };
+
+const toNullableNumber = (value) => value === '' || value == null ? null : toNumber(value);
 
 const getRegularComponentStatus = (value, minimum) => {
   if (value === '') return null;
@@ -110,6 +119,15 @@ export default function JefeActas() {
   const [saving, setSaving] = useState(false);
   const [detalleReprobados, setDetalleReprobados] = useState(null);
   const [partialFilter, setPartialFilter] = useState('primer_parcial');
+  const [etapaActiva, setEtapaActiva] = useState('primer_parcial');
+  const [etapasDesbloqueadas, setEtapasDesbloqueadas] = useState({});
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [validatingPassword, setValidatingPassword] = useState(false);
+  const [passwordEdicion, setPasswordEdicion] = useState('');
+  const [estudianteModal, setEstudianteModal] = useState(null);
+  const [loadingEstudiante, setLoadingEstudiante] = useState(false);
 
   const cargarMaterias = async () => {
     const { data } = await api.get('/jefe/materias');
@@ -131,6 +149,8 @@ export default function JefeActas() {
         nextNotas[student.id] = createRow(found);
       });
       setNotas(nextNotas);
+      setEtapasDesbloqueadas({});
+      setPasswordEdicion('');
       setArchivo(null);
     } finally {
       setLoading(false);
@@ -196,16 +216,18 @@ export default function JefeActas() {
       body.append('materia_id', materiaId);
       body.append('periodo', periodo);
       body.append('observaciones', observaciones);
+      body.append('etapa', etapaActiva);
+      if (passwordEdicion) body.append('password', passwordEdicion);
       body.append('notas', JSON.stringify(
         detalle.inscritos.map((student) => {
           const row = notas[student.id] || createRow();
           return {
             estudiante_id: student.id,
             modalidad: row.modalidad,
-            primer_parcial: toNumber(row.primer_parcial),
-            segundo_parcial: toNumber(row.segundo_parcial),
-            examen_final: toNumber(row.examen_final),
-            examen_recuperacion: toNumber(row.examen_recuperacion)
+            primer_parcial: toNullableNumber(row.primer_parcial),
+            segundo_parcial: toNullableNumber(row.segundo_parcial),
+            examen_final: toNullableNumber(row.examen_final),
+            examen_recuperacion: toNullableNumber(row.examen_recuperacion)
           };
         })
       ));
@@ -220,6 +242,46 @@ export default function JefeActas() {
       alert(err.response?.data?.error || 'No se pudo guardar el acta');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const etapaTieneDatos = (etapa) => detalle.detalles.some((item) => item[etapa] != null);
+  const etapaBloqueada = etapaTieneDatos(etapaActiva) && !etapasDesbloqueadas[etapaActiva];
+
+  const solicitarDesbloqueo = () => {
+    setPassword('');
+    setPasswordError('');
+    setPasswordModal(true);
+  };
+
+  const confirmarPassword = async (event) => {
+    event.preventDefault();
+    setValidatingPassword(true);
+    setPasswordError('');
+    try {
+      await api.post('/jefe/actas/verificar-password', { password });
+      setPasswordEdicion(password);
+      setEtapasDesbloqueadas((prev) => ({ ...prev, [etapaActiva]: true }));
+      setPasswordModal(false);
+      setPassword('');
+    } catch (err) {
+      setPasswordError(err.response?.data?.error || 'No se pudo validar la contraseña');
+    } finally {
+      setValidatingPassword(false);
+    }
+  };
+
+  const abrirEstudiante = async (student) => {
+    setEstudianteModal({ estudiante: student });
+    setLoadingEstudiante(true);
+    try {
+      const { data } = await api.get(`/jefe/estudiantes/${student.id}`);
+      setEstudianteModal(data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'No se pudo cargar la información del estudiante');
+      setEstudianteModal(null);
+    } finally {
+      setLoadingEstudiante(false);
     }
   };
 
@@ -413,6 +475,35 @@ export default function JefeActas() {
                 </div>
               </div>
 
+              <div className="actas-stage-bar">
+                <div>
+                  <div className="form-label">Evaluación que desea cargar</div>
+                  <div className="actas-stage-tabs">
+                    {ETAPAS.map((etapa) => {
+                      const guardada = etapaTieneDatos(etapa.key);
+                      return (
+                        <button
+                          type="button"
+                          key={etapa.key}
+                          className={`actas-stage-tab ${etapaActiva === etapa.key ? 'active' : ''}`}
+                          onClick={() => setEtapaActiva(etapa.key)}
+                        >
+                          <span>{etapa.label}</span>
+                          {guardada && <small>Guardada · bloqueada</small>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {etapaBloqueada ? (
+                  <button type="button" className="btn btn-secondary" onClick={solicitarDesbloqueo}>
+                    Desbloquear para editar
+                  </button>
+                ) : (
+                  <span className="chip chip-forest">{etapaTieneDatos(etapaActiva) ? 'Edición autorizada' : 'Lista para cargar'}</span>
+                )}
+              </div>
+
               <table className="data-table">
                 <thead>
                   <tr>
@@ -440,10 +531,15 @@ export default function JefeActas() {
                     return (
                       <tr key={student.id}>
                         <td className="num">{String(index + 1).padStart(2, '0')}</td>
-                        <td>{student.apellido} {student.nombre}</td>
+                        <td>
+                          <button type="button" className="actas-student-link" onClick={() => abrirEstudiante(student)}>
+                            {student.apellido} {student.nombre}
+                            <small>Ver expediente completo</small>
+                          </button>
+                        </td>
                         <td className="text-mono" style={{ fontSize: '.8rem' }}>{student.codigo_estudiante}</td>
                         <td>
-                          <select className="form-input" value={row.modalidad} onChange={(e) => changeModalidad(student.id, e.target.value)} style={{ minWidth: '170px' }}>
+                          <select className="form-input" value={row.modalidad} disabled={etapaActiva !== 'examen_recuperacion' || etapaBloqueada} onChange={(e) => changeModalidad(student.id, e.target.value)} style={{ minWidth: '170px' }}>
                             {Object.keys(detalle.modalidades || typeLabel).map((key) => (
                               <option key={key} value={key}>{typeLabel[key] || key}</option>
                             ))}
@@ -451,7 +547,7 @@ export default function JefeActas() {
                         </td>
                         <td>
                           {row.modalidad === REGULAR ? (
-                            <input className="form-input" type="number" min="0" max="35" step="0.01" value={row.primer_parcial} onChange={(e) => updateRow(student.id, 'primer_parcial', e.target.value)} style={{ minWidth: '90px' }} />
+                            <input className="form-input" type="number" min="0" max="35" step="0.01" value={row.primer_parcial} disabled={etapaActiva !== 'primer_parcial' || etapaBloqueada} onChange={(e) => updateRow(student.id, 'primer_parcial', e.target.value)} style={{ minWidth: '90px' }} />
                           ) : '-'}
                         </td>
                         <td>
@@ -463,7 +559,7 @@ export default function JefeActas() {
                         </td>
                         <td>
                           {row.modalidad === REGULAR ? (
-                            <input className="form-input" type="number" min="0" max="35" step="0.01" value={row.segundo_parcial} onChange={(e) => updateRow(student.id, 'segundo_parcial', e.target.value)} style={{ minWidth: '90px' }} />
+                            <input className="form-input" type="number" min="0" max="35" step="0.01" value={row.segundo_parcial} disabled={etapaActiva !== 'segundo_parcial' || etapaBloqueada} onChange={(e) => updateRow(student.id, 'segundo_parcial', e.target.value)} style={{ minWidth: '90px' }} />
                           ) : '-'}
                         </td>
                         <td>
@@ -475,7 +571,7 @@ export default function JefeActas() {
                         </td>
                         <td>
                           {row.modalidad === REGULAR ? (
-                            <input className="form-input" type="number" min="0" max="30" step="0.01" value={row.examen_final} onChange={(e) => updateRow(student.id, 'examen_final', e.target.value)} style={{ minWidth: '90px' }} />
+                            <input className="form-input" type="number" min="0" max="30" step="0.01" value={row.examen_final} disabled={etapaActiva !== 'examen_final' || etapaBloqueada} onChange={(e) => updateRow(student.id, 'examen_final', e.target.value)} style={{ minWidth: '90px' }} />
                           ) : '-'}
                         </td>
                         <td>
@@ -487,7 +583,7 @@ export default function JefeActas() {
                         </td>
                         <td>
                           {row.modalidad !== REGULAR ? (
-                            <input className="form-input" type="number" min="0" max={maxRec} step="0.01" value={row.examen_recuperacion} onChange={(e) => updateRow(student.id, 'examen_recuperacion', e.target.value)} style={{ minWidth: '110px' }} />
+                            <input className="form-input" type="number" min="0" max={maxRec} step="0.01" value={row.examen_recuperacion} disabled={etapaActiva !== 'examen_recuperacion' || etapaBloqueada} onChange={(e) => updateRow(student.id, 'examen_recuperacion', e.target.value)} style={{ minWidth: '110px' }} />
                           ) : '-'}
                         </td>
                         <td className="text-mono">{computed.total}</td>
@@ -506,8 +602,8 @@ export default function JefeActas() {
               </table>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button className="btn btn-primary" onClick={guardar} disabled={saving}>
-                  {saving ? 'Guardando...' : 'Guardar acta'}
+                <button className="btn btn-primary" onClick={guardar} disabled={saving || etapaBloqueada}>
+                  {saving ? 'Guardando...' : `Guardar ${ETAPAS.find((item) => item.key === etapaActiva)?.label}`}
                 </button>
               </div>
             </>
@@ -848,6 +944,86 @@ export default function JefeActas() {
           )}
         </>
       )}
+
+      <Modal open={passwordModal} onClose={() => setPasswordModal(false)} title={`Autorizar edición de ${ETAPAS.find((item) => item.key === etapaActiva)?.label}`} maxWidth="460px">
+        <form onSubmit={confirmarPassword} className="actas-password-form">
+          <p>Esta evaluación ya fue registrada. Confirme su contraseña para habilitar cambios.</p>
+          <div>
+            <label className="form-label">Contraseña</label>
+            <input className="form-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus required />
+          </div>
+          {passwordError && <div className="actas-form-error">{passwordError}</div>}
+          <div className="actas-modal-actions">
+            <button type="button" className="btn" onClick={() => setPasswordModal(false)}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={validatingPassword}>{validatingPassword ? 'Validando...' : 'Confirmar y editar'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(estudianteModal)}
+        onClose={() => setEstudianteModal(null)}
+        title={estudianteModal?.estudiante ? `${estudianteModal.estudiante.apellido} ${estudianteModal.estudiante.nombre}` : 'Expediente del estudiante'}
+        maxWidth="1120px"
+      >
+        {loadingEstudiante ? (
+          <div className="loading-dots"><span /><span /><span /></div>
+        ) : estudianteModal?.estudiante && (
+          <div className="student-record">
+            <div className="student-record-hero">
+              <div className="student-record-avatar">{estudianteModal.estudiante.nombre?.[0]}{estudianteModal.estudiante.apellido?.[0]}</div>
+              <div>
+                <h3>{estudianteModal.estudiante.nombre} {estudianteModal.estudiante.apellido}</h3>
+                <p>{estudianteModal.estudiante.codigo_estudiante} · Semestre {estudianteModal.estudiante.semestre} · {estudianteModal.estudiante.carrera_nombre}</p>
+              </div>
+              <div className="student-record-contact">
+                <span>{estudianteModal.estudiante.email || 'Sin correo'}</span>
+                <span>{estudianteModal.estudiante.telefono || 'Sin teléfono'}</span>
+                <span>CI: {estudianteModal.estudiante.ci || '-'}</span>
+              </div>
+            </div>
+
+            <div className="student-record-stats">
+              <div><strong>{estudianteModal.resumenNotas?.total_materias || 0}</strong><span>Materias con nota</span></div>
+              <div><strong>{estudianteModal.resumenNotas?.aprobadas || 0}</strong><span>Aprobadas</span></div>
+              <div><strong>{estudianteModal.resumenNotas?.reprobadas || 0}</strong><span>Reprobadas</span></div>
+              <div><strong>{(estudianteModal.asistenciasPorMateria || []).reduce((sum, item) => sum + Number(item.faltas || 0), 0)}</strong><span>Faltas totales</span></div>
+            </div>
+
+            <section className="student-record-section">
+              <h4>Notas de todas las materias</h4>
+              <div className="student-record-table-wrap"><table className="data-table"><thead><tr><th>Materia</th><th>Periodo</th><th>1P</th><th>2P</th><th>Final</th><th>Total</th><th>Estado</th></tr></thead><tbody>
+                {(estudianteModal.notas || []).map((nota) => <tr key={`${nota.materia_id}-${nota.periodo}`}><td>{nota.materia_nombre}<small className="record-subline">{nota.materia_codigo} · Grupo {nota.materia_grupo}</small></td><td>{nota.periodo || '-'}</td><td>{nota.primer_parcial ?? '-'}</td><td>{nota.segundo_parcial ?? '-'}</td><td>{nota.examen_final ?? '-'}</td><td className="text-mono">{nota.nota_final ?? '-'}</td><td><span className={`chip ${nota.estado === 'aprobado' ? 'chip-forest' : 'chip-crimson'}`}>{nota.estado}</span></td></tr>)}
+                {!estudianteModal.notas?.length && <tr><td colSpan="7">No hay notas registradas.</td></tr>}
+              </tbody></table></div>
+            </section>
+
+            <section className="student-record-section">
+              <h4>Asistencia y faltas por materia</h4>
+              <div className="student-record-table-wrap"><table className="data-table"><thead><tr><th>Materia</th><th>Presentes</th><th>Faltas</th><th>Permisos</th><th>Tardanzas</th></tr></thead><tbody>
+                {(estudianteModal.asistenciasPorMateria || []).map((item) => <tr key={item.materia_id}><td>{item.materia_nombre}<small className="record-subline">{item.materia_codigo}</small></td><td>{item.presentes}</td><td><span className="chip chip-crimson">{item.faltas}</span></td><td>{item.permisos}</td><td>{item.tardanzas}</td></tr>)}
+                {!estudianteModal.asistenciasPorMateria?.length && <tr><td colSpan="5">No hay asistencias registradas.</td></tr>}
+              </tbody></table></div>
+            </section>
+
+            <section className="student-record-section">
+              <h4>Fechas de faltas</h4>
+              <div className="record-absence-list">
+                {(estudianteModal.asistenciasDetalle || []).filter((item) => item.estado === 'falta').map((item) => <div key={item.id}><strong>{new Date(`${String(item.fecha).slice(0, 10)}T00:00:00`).toLocaleDateString('es-BO')}</strong><span>{item.materia_nombre}</span>{item.justificacion && <small>{item.justificacion}</small>}</div>)}
+                {!(estudianteModal.asistenciasDetalle || []).some((item) => item.estado === 'falta') && <p>No registra faltas.</p>}
+              </div>
+            </section>
+
+            <section className="student-record-section">
+              <h4>Comportamiento y disciplina</h4>
+              <div className="record-behavior-grid">
+                {[...(estudianteModal.comentarios || []).map((item) => ({ ...item, texto: item.comentario || item.descripcion, fecha: item.created_at })), ...(estudianteModal.disciplina || []).map((item) => ({ ...item, texto: item.descripcion || item.observacion }))].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map((item, index) => <article key={`${item.id}-${index}`}><span className={`chip ${item.tipo === 'positivo' ? 'chip-forest' : 'chip-crimson'}`}>{item.tipo || 'registro'}</span><strong>{item.materia_nombre || 'General'}</strong><p>{item.texto || '-'}</p><small>{item.fecha ? new Date(item.fecha).toLocaleDateString('es-BO') : '-'}</small></article>)}
+                {!estudianteModal.comentarios?.length && !estudianteModal.disciplina?.length && <p>No existen registros de comportamiento.</p>}
+              </div>
+            </section>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={Boolean(detalleReprobados)}

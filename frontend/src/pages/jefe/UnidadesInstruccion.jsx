@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import './UnidadesInstruccion.css';
 
 const TIPOS = ['simulador', 'contenido', 'ejercicio'];
 
@@ -83,33 +84,33 @@ export default function UnidadesInstruccion() {
 
       {/* Form */}
       {showForm && (
-        <div style={{ background: 'var(--paper-dark)', border: '1px solid rgba(0,0,0,.1)', borderRadius: '3px', padding: '1.25rem', marginBottom: '1.5rem' }}>
-          <div style={{ fontFamily: 'var(--serif)', fontWeight: 700, marginBottom: '1rem' }}>
+        <div className="unit-form-card">
+          <div className="unit-form-title">
             {editId ? 'Editar unidad' : 'Nueva unidad de instrucción'}
           </div>
-          <form onSubmit={submit} style={{ display: 'grid', gap: '.85rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '.75rem' }}>
-              <div>
+          <form onSubmit={submit} className="unit-form">
+            <div className="unit-form-grid">
+              <div className="unit-field unit-field-name">
                 <label className="label">Nombre *</label>
                 <input className="input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej. Circuitos Lógicos" />
               </div>
-              <div>
+              <div className="unit-field">
                 <label className="label">Tipo</label>
                 <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
                   {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              <div>
+              <div className="unit-field unit-field-order">
                 <label className="label">Orden</label>
                 <input className="input" type="number" min="1" value={form.orden} onChange={e => setForm(f => ({ ...f, orden: Number(e.target.value) }))} style={{ width: 70 }} />
               </div>
             </div>
-            <div>
+            <div className="unit-field unit-field-description">
               <label className="label">Descripción</label>
               <textarea className="input" rows={3} value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve de la unidad..." style={{ resize: 'vertical' }} />
             </div>
             {error && <div style={{ color: 'var(--crimson)', fontSize: '.83rem' }}>{error}</div>}
-            <div style={{ display: 'flex', gap: '.75rem' }}>
+            <div className="unit-form-actions">
               <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Guardando...' : editId ? 'Actualizar' : 'Crear unidad'}</button>
               <button className="btn" type="button" onClick={() => setShowForm(false)}>Cancelar</button>
             </div>

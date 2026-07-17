@@ -1,0 +1,103 @@
+.unit-form-card {
+  position: relative;
+  margin-bottom: 2rem;
+  padding: clamp(1.5rem, 3vw, 2.25rem) !important;
+  overflow: hidden;
+  background: linear-gradient(145deg, #fff 0%, var(--paper-dark) 100%);
+  border: 1px solid rgba(30, 64, 175, 0.13);
+  border-radius: 14px;
+  box-shadow: 0 14px 38px rgba(25, 45, 90, 0.08);
+}
+
+.unit-form-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #2454d6;
+}
+
+.unit-form-title {
+  margin-bottom: 1.6rem !important;
+  padding-bottom: 1.15rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid rgba(31, 52, 90, 0.09);
+}
+
+.unit-form {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.unit-form-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(190px, 1fr) 110px;
+  gap: 1.25rem;
+}
+
+.unit-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.unit-field .label {
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.unit-field .input {
+  width: 100% !important;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0.75rem 0.9rem;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.87rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(31, 52, 90, 0.17);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.unit-field textarea.input {
+  min-height: 108px;
+  line-height: 1.5;
+}
+
+.unit-field .input::placeholder { color: #98a2b4; }
+
+.unit-field .input:focus {
+  background: #fff;
+  border-color: #3864df;
+  box-shadow: 0 0 0 3px rgba(56, 100, 223, 0.11);
+}
+
+.unit-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding-top: 0.15rem;
+}
+
+.unit-form-actions .btn {
+  min-width: 128px;
+  justify-content: center;
+}
+
+@media (max-width: 850px) {
+  .unit-form-grid { grid-template-columns: 1fr 1fr; }
+  .unit-field-name { grid-column: 1 / -1; }
+  .unit-field-order { max-width: 140px; }
+}
+
+@media (max-width: 560px) {
+  .unit-form-card { padding: 1.25rem !important; border-radius: 10px; }
+  .unit-form-grid { grid-template-columns: 1fr; }
+  .unit-field-name { grid-column: auto; }
+  .unit-field-order { max-width: none; }
+  .unit-form-actions { flex-direction: column; }
+  .unit-form-actions .btn { width: 100%; }
+}
