@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 import PageHeader from '../../components/PageHeader';
+import { exportStudentRecordPdf } from '../../services/studentRecordPdf';
 import './Actas.css';
 
 const EMPTY_DETAIL = {
@@ -128,6 +129,7 @@ export default function JefeActas() {
   const [passwordEdicion, setPasswordEdicion] = useState('');
   const [estudianteModal, setEstudianteModal] = useState(null);
   const [loadingEstudiante, setLoadingEstudiante] = useState(false);
+  const [exportingStudent, setExportingStudent] = useState(false);
 
   const cargarMaterias = async () => {
     const { data } = await api.get('/jefe/materias');
@@ -282,6 +284,18 @@ export default function JefeActas() {
       setEstudianteModal(null);
     } finally {
       setLoadingEstudiante(false);
+    }
+  };
+
+  const exportarEstudiante = async () => {
+    if (!estudianteModal?.estudiante) return;
+    setExportingStudent(true);
+    try {
+      await exportStudentRecordPdf(estudianteModal);
+    } catch {
+      alert('No se pudo generar el PDF del estudiante');
+    } finally {
+      setExportingStudent(false);
     }
   };
 
@@ -981,6 +995,9 @@ export default function JefeActas() {
                 <span>{estudianteModal.estudiante.telefono || 'Sin teléfono'}</span>
                 <span>CI: {estudianteModal.estudiante.ci || '-'}</span>
               </div>
+              <button type="button" className="student-record-pdf" onClick={exportarEstudiante} disabled={exportingStudent}>
+                {exportingStudent ? 'Generando PDF...' : 'Exportar expediente PDF'}
+              </button>
             </div>
 
             <div className="student-record-stats">
