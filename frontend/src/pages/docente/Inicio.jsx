@@ -6,7 +6,8 @@ import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 
 export default function DocenteInicio() {
-  const { user } = useAuth();
+  const { user, auditPersona } = useAuth();
+  const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const [materias, setMaterias] = useState([]);
   const [pgo, setPgo] = useState([]);
   const [avance, setAvance] = useState([]);
@@ -27,7 +28,7 @@ export default function DocenteInicio() {
   const totalEstudiantes = materias.reduce((s, m) => s + (+m.total_estudiantes || 0), 0);
   const avanceProm = avance.length ? Math.round(avance.reduce((s, a) => s + (+a.porcentaje_avance), 0) / avance.length) : 0;
   const pgoPendientes = pgo.filter(p => p.estado === 'enviado' || p.estado === 'revision').length;
-  const docenteNombreCompleto = [user.nombre, user.apellido].filter(Boolean).join(' ');
+  const docenteNombreCompleto = [displayUser.nombre, displayUser.apellido].filter(Boolean).join(' ');
 
   return (
     <>
@@ -35,7 +36,7 @@ export default function DocenteInicio() {
         num="01"
         eyebrow="Panel docente"
         title={<>Buen día, <span className="display-italic">Sr. Docente {docenteNombreCompleto}</span>.</>}
-        lead={user.especialidad || 'Panel de seguimiento académico para docentes'}
+        lead={displayUser.especialidad || 'Panel de seguimiento académico para docentes'}
       />
 
       <div className="grid-4 mb-8">

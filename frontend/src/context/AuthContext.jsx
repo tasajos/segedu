@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [docentePendientes, setDocentePendientes] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [auditPersona, setAuditPersona] = useState(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     setUser(null);
     setDocentePendientes([]);
+    setAuditPersona(null);
   };
 
   const reviewPendingNotifications = async () => {
@@ -76,7 +78,9 @@ export const AuthProvider = ({ children }) => {
       docentePendientes,
       notificationsLoading,
       loadPendingNotifications,
-      reviewPendingNotifications
+      reviewPendingNotifications,
+      auditPersona,
+      setAuditPersona
     }}>
       {children}
     </AuthContext.Provider>

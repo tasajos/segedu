@@ -73,7 +73,8 @@ const formatDateEs = (value, withWeekday = false) => {
 };
 
 export default function DocenteAsistencia() {
-  const { user } = useAuth();
+  const { user, auditPersona } = useAuth();
+  const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const today = getTodayLocal();
   const [materias, setMaterias] = useState([]);
   const [materiaId, setMateriaId] = useState('');
@@ -312,7 +313,7 @@ export default function DocenteAsistencia() {
         : 'Reporte diario';
   const exportMetadata = buildAttendanceExportMetadata({
     materia,
-    docente: user ? `${user.nombre} ${user.apellido}` : 'Docente responsable',
+    docente: displayUser ? `${displayUser.nombre} ${displayUser.apellido}` : 'Docente responsable',
     periodoLabel,
     desde: periodoHistorial === 'rango' ? desdeHistorial : reporte?.rango?.desde,
     hasta: periodoHistorial === 'rango' ? hastaHistorial : reporte?.rango?.hasta,
@@ -371,7 +372,7 @@ export default function DocenteAsistencia() {
       };
       const meta = buildAttendanceExportMetadata({
         materia,
-        docente: user ? `${user.nombre} ${user.apellido}` : 'Docente responsable',
+        docente: displayUser ? `${displayUser.nombre} ${displayUser.apellido}` : 'Docente responsable',
         periodoLabel: 'Lista del día',
         desde: fecha,
         hasta: fecha,

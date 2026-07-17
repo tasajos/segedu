@@ -240,7 +240,8 @@ const STEP_GRAD    = {
 const STAGE_ORDER = [2, 1, 3];
 
 export default function EstudianteInicio() {
-  const { user } = useAuth();
+  const { user, auditPersona } = useAuth();
+  const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const [resumen,         setResumen]         = useState([]);
   const [cursos,          setCursos]          = useState([]);
   const [materias,        setMaterias]        = useState([]);
@@ -306,8 +307,8 @@ export default function EstudianteInicio() {
       <PageHeader
         num="01"
         eyebrow="Panel del estudiante"
-        title={<>Buen día, <span className="display-italic">{user.nombre}</span>.</>}
-        lead={`Código ${user.codigo_estudiante || '—'} · ${user.carrera || 'Sin carrera'} · Semestre ${user.semestre || '—'}`}
+        title={<>Buen día, <span className="display-italic">{displayUser.nombre}</span>.</>}
+        lead={`Código ${displayUser.codigo_estudiante || '—'} · ${displayUser.carrera || 'Sin carrera'} · Semestre ${displayUser.semestre || '—'}`}
       />
 
       {/* ── PODIO OLÍMPICO ── */}

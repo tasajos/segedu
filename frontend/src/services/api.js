@@ -13,7 +13,8 @@ api.interceptors.request.use((config) => {
     try {
       const user = JSON.parse(savedUser);
       const method = String(config.method || 'get').toLowerCase();
-      if (user.rol === 'auditor' && String(config.url || '').startsWith('/jefe/') && !['get', 'head'].includes(method)) {
+      const protectedPrefixes = ['/jefe/', '/docente/', '/estudiante/'];
+      if (user.rol === 'auditor' && protectedPrefixes.some((prefix) => String(config.url || '').startsWith(prefix)) && !['get', 'head'].includes(method)) {
         return Promise.reject(new Error('El auditor tiene acceso de solo lectura'));
       }
     } catch { /* ignore invalid local session data */ }

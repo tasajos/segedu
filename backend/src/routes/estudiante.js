@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
+import { auditorReadOnly, impersonateAuditorAs } from '../utils/auditorAccess.js';
 import { upload, uploadEntrega } from '../middleware/upload.js';
 import {
   listarCursosEstudiante, inscribirseEnCurso, cancelarInscripcion,
@@ -24,7 +25,7 @@ import {
 } from '../controllers/tareaController.js';
 
 const router = Router();
-router.use(verifyToken, requireRole('estudiante'));
+router.use(verifyToken, requireRole('estudiante', 'auditor'), auditorReadOnly, impersonateAuditorAs('estudiante'));
 
 router.get('/cursos', listarCursos);
 router.post('/cursos', upload.single('certificado'), crearCurso);

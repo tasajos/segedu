@@ -4,7 +4,8 @@ import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 
 export default function DocenteDatosPersonales() {
-  const { user } = useAuth();
+  const { user, auditPersona } = useAuth();
+  const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const [form, setForm] = useState({ nombre: '', apellido: '', ci: '', telefono: '' });
   const [passwordForm, setPasswordForm] = useState({ actual: '', nueva: '', confirmar: '' });
   const [msg, setMsg] = useState('');
@@ -14,10 +15,14 @@ export default function DocenteDatosPersonales() {
 
   useEffect(() => {
     (async () => {
+      if (user.rol === 'auditor' && auditPersona) {
+        setForm({ nombre: auditPersona.nombre || '', apellido: auditPersona.apellido || '', ci: auditPersona.ci || '', telefono: auditPersona.telefono || '' });
+        return;
+      }
       const { data } = await api.get('/auth/profile');
       setForm({ nombre: data.nombre || '', apellido: data.apellido || '', ci: data.ci || '', telefono: data.telefono || '' });
     })();
-  }, []);
+  }, [user.rol, auditPersona]);
 
   const guardar = async (e) => {
     e.preventDefault();
@@ -65,7 +70,7 @@ export default function DocenteDatosPersonales() {
           </div>
 
           <div className="ficha-body">
-            <FichaRow label="Correo institucional" value={user?.email || '—'} />
+            <FichaRow label="Correo institucional" value={displayUser?.email || '—'} />
             <FichaRow label="Carnet de identidad" value={form.ci || 'sin registrar'} />
             <FichaRow label="Teléfono" value={form.telefono || 'sin registrar'} />
           </div>

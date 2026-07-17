@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -66,7 +66,9 @@ const menuByRole = {
     { to: '/jefe/carpetas-pedagogicas', label: 'Carpetas pedagogicas', num: '13' },
     { to: '/jefe/unidades', label: 'Unidades instruccion', num: '14' },
     { to: '/jefe/presentaciones', label: 'Presentaciones', num: '15' },
-    { to: '/jefe/cursos-especiales', label: 'Cursos especiales', num: '16' }
+    { to: '/jefe/cursos-especiales', label: 'Cursos especiales', num: '16' },
+    { to: '/auditor/docente', label: 'Vista docente', num: '17' },
+    { to: '/auditor/estudiante', label: 'Vista estudiante', num: '18' }
   ],
   instructor: [
     { to: '/instructor', label: 'Mis cursos', num: '01' },
@@ -89,12 +91,30 @@ const roleLabel = {
 };
 
 export default function Layout() {
-  const { user, logout, docentePendientes, notificationsLoading, reviewPendingNotifications } = useAuth();
+  const { user, logout, docentePendientes, notificationsLoading, reviewPendingNotifications, setAuditPersona } = useAuth();
   const location = useLocation();
-  const items = menuByRole[user.rol] || [];
+  const navigate = useNavigate();
+  const auditContext = location.pathname.startsWith('/auditor/docente')
+    ? 'docente'
+    : location.pathname.startsWith('/auditor/estudiante') ? 'estudiante' : null;
+  const auditTeacherMenu = [
+    { to: '/jefe', label: 'Volver a vista auditor', num: '←' },
+    { to: '/auditor/docente', label: 'Cambiar docente', num: '00' },
+    ...menuByRole.docente.map((item) => ({ ...item, to: item.to.replace('/docente', '/auditor/docente').replace('/auditor/docente', item.to === '/docente' ? '/auditor/docente/inicio' : '/auditor/docente') }))
+  ];
+  const auditStudentMenu = [
+    { to: '/jefe', label: 'Volver a vista auditor', num: '←' },
+    { to: '/auditor/estudiante', label: 'Cambiar estudiante', num: '00' },
+    ...menuByRole.estudiante.map((item) => ({ ...item, to: item.to.replace('/estudiante', '/auditor/estudiante').replace('/auditor/estudiante', item.to === '/estudiante' ? '/auditor/estudiante/inicio' : '/auditor/estudiante') }))
+  ];
+  const items = user.rol === 'auditor' && auditContext === 'docente'
+    ? auditTeacherMenu
+    : user.rol === 'auditor' && auditContext === 'estudiante' ? auditStudentMenu : (menuByRole[user.rol] || []);
   const [auditorCareers, setAuditorCareers] = useState([]);
   const [activeCareer, setActiveCareer] = useState('');
   const [changingCareer, setChangingCareer] = useState(false);
+  const [auditorPeople, setAuditorPeople] = useState([]);
+  const [activePerson, setActivePerson] = useState('');
 
   useEffect(() => {
     if (user.rol !== 'auditor') return;
@@ -103,6 +123,17 @@ export default function Layout() {
       setActiveCareer(String(data.carrera_activa_id || ''));
     });
   }, [user.rol]);
+
+  useEffect(() => {
+    if (user.rol !== 'auditor' || !auditContext) return;
+    api.get(`/auditor/${auditContext === 'docente' ? 'docentes' : 'estudiantes'}`).then(({ data }) => {
+      setAuditorPeople(data.personas || []);
+      setActivePerson(String(data.active_id || ''));
+      const selected = (data.personas || []).find((person) => Number(person.id) === Number(data.active_id));
+      setAuditPersona(selected ? { ...selected, carrera: data.carrera?.nombre } : null);
+    });
+    return () => setAuditPersona(null);
+  }, [user.rol, auditContext, setAuditPersona]);
 
   const changeAuditorCareer = async (careerId) => {
     setChangingCareer(true);
@@ -113,6 +144,30 @@ export default function Layout() {
     } finally {
       setChangingCareer(false);
     }
+  };
+
+  const changeAuditedPerson = async (personId) => {
+    await api.post(`/auditor/${auditContext}-activo`, { [`${auditContext}_id`]: personId });
+    setActivePerson(String(personId));
+    window.location.reload();
+  };
+
+  const redirectAuditedLink = (event) => {
+    if (user.rol !== 'auditor' || !auditContext) return;
+    const button = event.target.closest('button');
+    if (button && /guardar|crear|editar|eliminar|registrar|subir|enviar|calificar|inscribir|solicitar|agregar|quitar|remover|validar|aprobar|rechazar|cambiar contrase/i.test(button.textContent || '')) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    const anchor = event.target.closest('a');
+    if (!anchor) return;
+    const target = anchor.getAttribute('href') || '';
+    const prefix = `/${auditContext}`;
+    if (!target.startsWith(prefix)) return;
+    event.preventDefault();
+    const suffix = target.slice(prefix.length) || '/inicio';
+    navigate(`/auditor/${auditContext}${suffix}`);
   };
 
   const pageName = [...items]
@@ -188,12 +243,25 @@ export default function Layout() {
               </select>
             </div>
           )}
+          {user.rol === 'auditor' && auditContext && (
+            <div className="auditor-career-picker auditor-person-picker">
+              <span>{auditContext}</span>
+              <select value={activePerson} onChange={(event) => changeAuditedPerson(event.target.value)}>
+                {auditorPeople.map((person) => <option key={person.id} value={person.id}>{person.apellido} {person.nombre}</option>)}
+              </select>
+            </div>
+          )}
           <div className="topbar-date">
             {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
         </div>
 
-        <div className="content fade-up" key={location.pathname}>
+        <div
+          className="content fade-up"
+          key={location.pathname}
+          onClickCapture={redirectAuditedLink}
+          onSubmitCapture={(event) => { if (user.rol === 'auditor' && auditContext) event.preventDefault(); }}
+        >
           {user.rol === 'auditor' && <div className="auditor-readonly-banner">Modo auditor: puede consultar toda la información de la carrera seleccionada, pero no realizar modificaciones.</div>}
           <Outlet />
         </div>

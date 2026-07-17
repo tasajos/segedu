@@ -4,7 +4,8 @@ import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 
 export default function EstudianteInfoPersonal() {
-  const { user } = useAuth();
+  const { user, auditPersona } = useAuth();
+  const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const [form, setForm] = useState({ nombre: '', apellido: '', ci: '', telefono: '' });
   const [passwordForm, setPasswordForm] = useState({ actual: '', nueva: '', confirmar: '' });
   const [msg, setMsg] = useState('');
@@ -14,10 +15,14 @@ export default function EstudianteInfoPersonal() {
 
   useEffect(() => {
     (async () => {
+      if (user.rol === 'auditor' && auditPersona) {
+        setForm({ nombre: auditPersona.nombre || '', apellido: auditPersona.apellido || '', ci: auditPersona.ci || '', telefono: auditPersona.telefono || '' });
+        return;
+      }
       const { data } = await api.get('/auth/profile');
       setForm({ nombre: data.nombre || '', apellido: data.apellido || '', ci: data.ci || '', telefono: data.telefono || '' });
     })();
-  }, []);
+  }, [user.rol, auditPersona]);
 
   const guardar = async (e) => {
     e.preventDefault();
@@ -60,16 +65,16 @@ export default function EstudianteInfoPersonal() {
         <div className="ficha-card">
           <div className="ficha-head">
             <div>
-              <div className="eyebrow">Ficha № {user.codigo_estudiante || '—'}</div>
+              <div className="eyebrow">Ficha № {displayUser.codigo_estudiante || '—'}</div>
               <h2 style={{ marginTop: '.5rem', fontSize: '1.75rem' }}>{form.nombre} {form.apellido}</h2>
             </div>
             <div className="ficha-avatar">{form.nombre?.[0]}{form.apellido?.[0]}</div>
           </div>
 
           <div className="ficha-body">
-            <FichaRow label="Carrera" value={user.carrera || '—'} />
-            <FichaRow label="Semestre actual" value={user.semestre || '—'} />
-            <FichaRow label="Correo institucional" value={user.email} />
+            <FichaRow label="Carrera" value={displayUser.carrera || '—'} />
+            <FichaRow label="Semestre actual" value={displayUser.semestre || '—'} />
+            <FichaRow label="Correo institucional" value={displayUser.email} />
             <FichaRow label="Carnet de identidad" value={form.ci || 'sin registrar'} />
             <FichaRow label="Teléfono" value={form.telefono || 'sin registrar'} />
           </div>

@@ -78,6 +78,7 @@ import AdminUsuarios from './pages/admin/Usuarios';
 import AdminCarreras from './pages/admin/Carreras';
 import AdminMaterias from './pages/admin/Materias';
 import AdminMateriaForm from './pages/admin/MateriaForm';
+import AuditorPersonaSelector from './pages/auditor/PersonaSelector';
 
 const Protected = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -195,7 +196,57 @@ export default function App() {
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
         <Route path="materias/:id/editar" element={<JefeMateriaForm role="jefe" />} />
       </Route>
-      <Route path="/auditor" element={<Protected roles={['auditor']}><Navigate to="/jefe" replace /></Protected>} />
+      <Route path="/auditor" element={<Protected roles={['auditor']}><Layout /></Protected>}>
+        <Route index element={<Navigate to="/jefe" replace />} />
+        <Route path="docente" element={<AuditorPersonaSelector type="docente" />} />
+        <Route path="docente/inicio" element={<DocenteInicio />} />
+        <Route path="docente/datos-personales" element={<DocenteDatosPersonales />} />
+        <Route path="docente/pgo" element={<DocentePGO />} />
+        <Route path="docente/avance" element={<DocenteAvance />} />
+        <Route path="docente/comentarios" element={<DocenteComentarios />} />
+        <Route path="docente/asistencia" element={<DocenteAsistencia />} />
+        <Route path="docente/disciplina" element={<DocenteDisciplina />} />
+        <Route path="docente/tareas" element={<DocenteTareas />} />
+        <Route path="docente/grupos-trabajo" element={<DocenteGruposTrabajo />} />
+        <Route path="docente/carpeta-pedagogica" element={<DocenteCarpetaPedagogica />} />
+        <Route path="docente/unidades" element={<UnidadesLista />} />
+        <Route path="docente/unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="docente/unidades/calculo-derivadas" element={<CalculoDerivadas />} />
+        <Route path="docente/unidades/armar-pc" element={<ArmarPC />} />
+        <Route path="docente/unidades/canvas-negocio" element={<CanvasNegocio />} />
+        <Route path="docente/unidades/analizador-mercado" element={<AnalizadorMercado />} />
+        <Route path="docente/unidades/validador-lean" element={<ValidadorLean />} />
+        <Route path="docente/unidades/pitch-arena" element={<PitchArena />} />
+        <Route path="docente/unidades/startup-cards" element={<StartupCards />} />
+        <Route path="docente/unidades/mercado-virtual" element={<MercadoVirtual />} />
+        <Route path="docente/unidades/qa-lab" element={<QAPage />} />
+        <Route path="docente/unidades/busqueda-pico" element={<PICOSearch />} />
+        <Route path="docente/unidades/sala-operaciones" element={<Quirofano />} />
+        <Route path="docente/presentaciones" element={<DocentePresentaciones />} />
+        <Route path="estudiante" element={<AuditorPersonaSelector type="estudiante" />} />
+        <Route path="estudiante/inicio" element={<EstudianteInicio />} />
+        <Route path="estudiante/cursos" element={<EstudianteCursos />} />
+        <Route path="estudiante/info" element={<EstudianteInfoPersonal />} />
+        <Route path="estudiante/asistencias" element={<EstudianteAsistencias />} />
+        <Route path="estudiante/tareas" element={<EstudianteTareas />} />
+        <Route path="estudiante/grupos" element={<EstudianteGrupos />} />
+        <Route path="estudiante/cursos-especiales" element={<EstudianteCursosEspeciales />} />
+        <Route path="estudiante/mis-cursos-especiales" element={<EstudianteMisCursosEspeciales />} />
+        <Route path="estudiante/unidades" element={<UnidadesLista />} />
+        <Route path="estudiante/unidades/circuitos-logicos" element={<CircuitosLogicos />} />
+        <Route path="estudiante/unidades/calculo-derivadas" element={<CalculoDerivadas />} />
+        <Route path="estudiante/unidades/armar-pc" element={<ArmarPC />} />
+        <Route path="estudiante/unidades/canvas-negocio" element={<CanvasNegocio />} />
+        <Route path="estudiante/unidades/analizador-mercado" element={<AnalizadorMercado />} />
+        <Route path="estudiante/unidades/validador-lean" element={<ValidadorLean />} />
+        <Route path="estudiante/unidades/pitch-arena" element={<PitchArena />} />
+        <Route path="estudiante/unidades/startup-cards" element={<StartupCards />} />
+        <Route path="estudiante/unidades/mercado-virtual" element={<MercadoVirtual />} />
+        <Route path="estudiante/unidades/qa-lab" element={<QAPage />} />
+        <Route path="estudiante/unidades/busqueda-pico" element={<PICOSearch />} />
+        <Route path="estudiante/unidades/sala-operaciones" element={<Quirofano />} />
+        <Route path="estudiante/presentaciones" element={<PresentacionesVista />} />
+      </Route>
 
       {/* Instructor */}
       <Route path="/instructor" element={<Protected roles={['instructor']}><Layout /></Protected>}>

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
+import { auditorReadOnly, impersonateAuditorAs } from '../utils/auditorAccess.js';
 import { upload, uploadTarea } from '../middleware/upload.js';
 import {
   listarMateriasDocente, listarEstudiantesPorMateria,
@@ -28,7 +29,7 @@ import {
 } from '../controllers/presentacionesController.js';
 
 const router = Router();
-router.use(verifyToken, requireRole('docente'));
+router.use(verifyToken, requireRole('docente', 'auditor'), auditorReadOnly, impersonateAuditorAs('docente'));
 
 router.get('/materias', listarMateriasDocente);
 router.get('/materias/:materia_id/estudiantes', listarEstudiantesPorMateria);
