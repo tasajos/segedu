@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { login, register, getProfile, updateProfile } from '../controllers/authController.js';
-import { listarUnidades } from '../controllers/unidadesController.js';
+import { listarUnidades, listarGuiasHtml, verGuiaHtml } from '../controllers/unidadesController.js';
 import { listarPresentaciones, listarPresentacionesPorMateria, verPresentacion, slidesPresentacion } from '../controllers/presentacionesController.js';
 import { analizarNegocio, validarHipotesis, generarEscenarioPitch, evaluarPitch, construirPitch, generarCartas, construirEmpresa, buscarCandidato, generarProductos, generarEscenarioVentas, interactuarVenta, picoTerminos, picoBuscar, quirofanoGenerarCaso, quirofanoSimularPaso, quirofanoInforme } from '../controllers/geminiController.js';
 import { listarUsuariosEquipo } from '../controllers/adminController.js';
@@ -14,6 +14,8 @@ router.post('/register', register);
 router.get('/profile', verifyToken, getProfile);
 router.put('/profile', verifyToken, updateProfile);
 router.get('/unidades', verifyToken, listarUnidades);
+router.get('/unidades/programacion-ii/guias', verifyToken, listarGuiasHtml);
+router.get('/unidades/programacion-ii/guias/:id/ver', verifyToken, verGuiaHtml);
 router.get('/presentaciones', verifyToken, listarPresentaciones);
 router.get('/mis-presentaciones', verifyToken, listarPresentacionesPorMateria);
 router.get('/presentaciones/:id/ver', verifyToken, verPresentacion);

@@ -1574,18 +1574,19 @@ export const listarAsistenciasEstudiante = async (req, res) => {
 
 export const inscribirEstudianteMateria = async (req, res) => {
   try {
-    const { estudiante_id, materia_id } = req.body;
-    if (!estudiante_id || !materia_id) {
+    const { estudiante_id, estudiante_ids, materia_id } = req.body;
+    const ids = [...new Set(
+      (Array.isArray(estudiante_ids) ? estudiante_ids : [estudiante_id])
+        .map(Number)
+        .filter(Number.isInteger)
+    )];
+
+    if (!ids.length || !materia_id) {
       return res.status(400).json({ error: 'Estudiante y materia son requeridos' });
     }
 
     const carrera = await getCarreraJefe(req.user.id);
     if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
-
-    const estudiante = await getEstudianteCarrera(estudiante_id);
-    if (!estudiante || estudiante.carrera_id !== carrera.id) {
-      return res.status(404).json({ error: 'Estudiante no encontrado en su carrera' });
-    }
 
     const [[materia]] = await pool.query(
       'SELECT id, carrera_id FROM materias WHERE id = ?',
@@ -1595,11 +1596,25 @@ export const inscribirEstudianteMateria = async (req, res) => {
       return res.status(404).json({ error: 'Materia no encontrada en su carrera' });
     }
 
-    const [result] = await pool.query(
-      'INSERT INTO inscripciones (estudiante_id, materia_id) VALUES (?, ?)',
-      [estudiante_id, materia_id]
+    const [estudiantes] = await pool.query(
+      'SELECT id FROM estudiantes WHERE carrera_id = ? AND id IN (?)',
+      [carrera.id, ids]
     );
-    res.status(201).json({ id: result.insertId, message: 'Estudiante inscrito' });
+    if (estudiantes.length !== ids.length) {
+      return res.status(404).json({ error: 'Uno o más estudiantes no pertenecen a su carrera' });
+    }
+
+    const [result] = await pool.query(
+      'INSERT INTO inscripciones (estudiante_id, materia_id) VALUES ?',
+      [ids.map((id) => [id, materia_id])]
+    );
+    res.status(201).json({
+      id: result.insertId,
+      inscritos: result.affectedRows,
+      message: ids.length === 1
+        ? 'Estudiante inscrito'
+        : `${result.affectedRows} estudiantes inscritos`
+    });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'El estudiante ya está inscrito en esta materia' });

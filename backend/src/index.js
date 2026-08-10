@@ -15,6 +15,7 @@ import auditorRoutes from './routes/auditor.js';
 import { ensureAuditorSchema } from './utils/auditorAccess.js';
 import { initSchema } from './controllers/cursosEspecialesController.js';
 import { initQASchema } from './controllers/qaController.js';
+import { ensureUnidadesHtmlSchema } from './controllers/unidadesController.js';
 
 dotenv.config();
 
@@ -71,13 +72,20 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, async () => {
   console.log(`🎓 SEGEDU API corriendo en http://localhost:${PORT}`);
-  await initSchema();
-  await initQASchema();
-  try {
-    await ensureAuditorSchema();
-  } catch (error) {
-    // La migracion v18 debe ejecutarse con el usuario administrador de MySQL.
-    // Un permiso DDL insuficiente no debe derribar toda la aplicacion.
-    console.error('Auditor schema pending:', error.message);
+  const initializers = [
+    ['Cursos especiales', initSchema],
+    ['QA', initQASchema],
+    ['Unidades HTML (ejecutar migración v19 si está pendiente)', ensureUnidadesHtmlSchema],
+    ['Auditor (ejecutar migración v18 si está pendiente)', ensureAuditorSchema]
+  ];
+
+  // En producción el usuario MySQL puede no tener permisos DDL. Una migración
+  // pendiente debe quedar en el log, pero nunca derribar toda la aplicación.
+  for (const [name, initializer] of initializers) {
+    try {
+      await initializer();
+    } catch (error) {
+      console.error(`[Inicialización pendiente] ${name}:`, error.message);
+    }
   }
 });

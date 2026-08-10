@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 import { auditorReadOnly, impersonateAuditorAs } from '../utils/auditorAccess.js';
-import { upload, uploadTarea } from '../middleware/upload.js';
+import { upload, uploadTarea, uploadHtml } from '../middleware/upload.js';
+import { subirGuiaHtml, reemplazarGuiaHtml, eliminarGuiaHtml } from '../controllers/unidadesController.js';
 import {
   listarMateriasDocente, listarEstudiantesPorMateria,
   obtenerCarpetaPedagogica, guardarCarpetaPedagogica,
@@ -62,6 +63,11 @@ router.get('/mi-disciplina', misDisciplina);
 
 router.put('/info-personal', actualizarInfoPersonalDocente);
 router.put('/cambiar-contrasena', cambiarContrasenaDocente);
+
+// Guías HTML de Programación II
+router.post('/unidades/programacion-ii/guias', uploadHtml.single('archivo'), subirGuiaHtml);
+router.put('/unidades/programacion-ii/guias/:id', uploadHtml.single('archivo'), reemplazarGuiaHtml);
+router.delete('/unidades/programacion-ii/guias/:id', eliminarGuiaHtml);
 
 // Tareas
 router.get('/tareas', listarTareasDocente);

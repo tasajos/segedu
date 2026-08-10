@@ -6,13 +6,15 @@ import api from '../../services/api';
 const TIPO_ICON = {
   simulador: '⚡',
   contenido: '📄',
-  ejercicio: '✏️'
+  ejercicio: '✏️',
+  html: '⌨'
 };
 
 const TIPO_LABEL = {
   simulador: 'Simulador interactivo',
   contenido: 'Contenido teórico',
-  ejercicio: 'Ejercicio práctico'
+  ejercicio: 'Ejercicio práctico',
+  html: 'Guías HTML interactivas'
 };
 
 const UNIT_ROUTES = {
@@ -28,6 +30,7 @@ const UNIT_ROUTES = {
   'QA Lab':                                 'qa-lab',
   'Buscador PICO':                          'busqueda-pico',
   'Sala de Operaciones':                    'sala-operaciones',
+  'Programación II':                        'programacion-ii',
 };
 
 export default function UnidadesLista() {

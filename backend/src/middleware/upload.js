@@ -35,6 +35,17 @@ export const uploadMaterial = multer({
   limits: { fileSize: 50 * 1024 * 1024 }
 });
 
+// Guías autocontenidas para unidades de instrucción
+export const uploadHtml = multer({
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (['.html', '.htm'].includes(ext)) cb(null, true);
+    else cb(new Error('Solo se permiten archivos HTML (.html o .htm)'), false);
+  }
+});
+
 // Para entregas de estudiantes: Word (doc / docx) o PDF
 export const uploadEntrega = multer({
   storage,

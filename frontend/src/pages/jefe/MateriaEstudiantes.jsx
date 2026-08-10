@@ -2,18 +2,20 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
+import './MateriaEstudiantes.css';
 
 export default function JefeMateriaEstudiantes() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [detalle, setDetalle] = useState(null);
-  const [estudianteId, setEstudianteId] = useState('');
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mensaje, setMensaje] = useState(null);
 
   const cargar = async () => {
     const { data } = await api.get(`/jefe/materias/${id}/estudiantes`);
     setDetalle(data);
-    setEstudianteId(data.disponibles[0] ? String(data.disponibles[0].id) : '');
   };
 
   useEffect(() => {
@@ -21,13 +23,20 @@ export default function JefeMateriaEstudiantes() {
   }, [id]);
 
   const agregar = async () => {
-    if (!estudianteId) return;
+    if (!seleccionados.length) return;
     try {
       setLoading(true);
-      await api.post('/jefe/inscripciones', { estudiante_id: estudianteId, materia_id: id });
+      setMensaje(null);
+      const { data } = await api.post('/jefe/inscripciones', {
+        estudiante_ids: seleccionados,
+        materia_id: id
+      });
+      setSeleccionados([]);
+      setBusqueda('');
       await cargar();
+      setMensaje({ tipo: 'ok', texto: data.message });
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al agregar estudiante');
+      setMensaje({ tipo: 'error', texto: err.response?.data?.error || 'Error al agregar estudiantes' });
     } finally {
       setLoading(false);
     }
@@ -48,6 +57,27 @@ export default function JefeMateriaEstudiantes() {
   if (!detalle) return null;
 
   const { materia, inscritos, disponibles } = detalle;
+  const textoBusqueda = busqueda.trim().toLocaleLowerCase('es');
+  const disponiblesFiltrados = disponibles.filter((e) => (
+    `${e.nombre} ${e.apellido} ${e.codigo_estudiante} ${e.email} ${e.semestre}`
+      .toLocaleLowerCase('es')
+      .includes(textoBusqueda)
+  ));
+  const idsVisibles = disponiblesFiltrados.map((e) => e.id);
+  const todosVisiblesSeleccionados = idsVisibles.length > 0
+    && idsVisibles.every((studentId) => seleccionados.includes(studentId));
+
+  const alternarEstudiante = (studentId) => {
+    setSeleccionados((actuales) => actuales.includes(studentId)
+      ? actuales.filter((item) => item !== studentId)
+      : [...actuales, studentId]);
+  };
+
+  const alternarVisibles = () => {
+    setSeleccionados((actuales) => todosVisiblesSeleccionados
+      ? actuales.filter((studentId) => !idsVisibles.includes(studentId))
+      : [...new Set([...actuales, ...idsVisibles])]);
+  };
 
   return (
     <>
@@ -58,32 +88,84 @@ export default function JefeMateriaEstudiantes() {
         lead={`${materia.nombre} (${materia.codigo}) - Grupo ${materia.grupo}`}
       />
 
-      <div className="card" style={{ padding: '1rem', display: 'grid', gap: '.75rem', marginBottom: '1.5rem' }}>
-        <div className="text-mono" style={{ fontSize: '.72rem', letterSpacing: '.08em', color: 'var(--ink-light)', textTransform: 'uppercase' }}>
-          Agregar estudiante
+      <section className="enrollment-panel">
+        <div className="enrollment-panel__head">
+          <div>
+            <span className="enrollment-panel__eyebrow">Nueva inscripción</span>
+            <h2>Añadir estudiantes</h2>
+            <p>Busca y marca uno o varios estudiantes para inscribirlos de una sola vez.</p>
+          </div>
+          <div className="enrollment-panel__counter" aria-live="polite">
+            <strong>{seleccionados.length}</strong>
+            <span>seleccionados</span>
+          </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '.75rem' }}>
-          <select
-            className="form-input"
-            value={estudianteId}
-            onChange={(e) => setEstudianteId(e.target.value)}
-            disabled={loading || disponibles.length === 0}
+
+        <div className="enrollment-toolbar">
+          <label className="enrollment-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre, código o correo..."
+              disabled={loading || disponibles.length === 0}
+            />
+          </label>
+          <button
+            type="button"
+            className="enrollment-select-all"
+            onClick={alternarVisibles}
+            disabled={loading || idsVisibles.length === 0}
           >
-            {disponibles.length === 0 && <option value="">No hay estudiantes disponibles</option>}
-            {disponibles.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.apellido} {e.nombre} - {e.codigo_estudiante} - Sem. {e.semestre}
-              </option>
-            ))}
-          </select>
-          <button className="btn btn-primary" onClick={agregar} disabled={loading || !estudianteId}>
-            {loading ? 'Guardando...' : 'Agregar'}
+            {todosVisiblesSeleccionados ? 'Quitar selección visible' : 'Seleccionar visibles'}
           </button>
-          <button className="btn btn-secondary" onClick={() => navigate('/jefe/materias')}>
+        </div>
+
+        <div className="enrollment-list">
+          {disponiblesFiltrados.length === 0 ? (
+            <div className="enrollment-empty">
+              {disponibles.length === 0
+                ? 'Todos los estudiantes de la carrera ya están inscritos.'
+                : 'No encontramos estudiantes con esa búsqueda.'}
+            </div>
+          ) : disponiblesFiltrados.map((e) => {
+            const checked = seleccionados.includes(e.id);
+            const iniciales = `${e.nombre?.[0] || ''}${e.apellido?.[0] || ''}`.toUpperCase();
+            return (
+              <label key={e.id} className={`enrollment-student${checked ? ' is-selected' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => alternarEstudiante(e.id)}
+                  disabled={loading}
+                />
+                <span className="enrollment-check" aria-hidden="true">✓</span>
+                <span className="enrollment-avatar">{iniciales}</span>
+                <span className="enrollment-student__info">
+                  <strong>{e.apellido} {e.nombre}</strong>
+                  <small>{e.codigo_estudiante} · {e.email}</small>
+                </span>
+                <span className="enrollment-semester">Semestre {e.semestre}</span>
+              </label>
+            );
+          })}
+        </div>
+
+        {mensaje && (
+          <div className={`enrollment-message ${mensaje.tipo}`} role="status">{mensaje.texto}</div>
+        )}
+
+        <div className="enrollment-actions">
+          <button className="btn btn-secondary" onClick={() => navigate('/jefe/materias')} disabled={loading}>
             Volver
           </button>
+          <button className="btn btn-primary" onClick={agregar} disabled={loading || !seleccionados.length}>
+            {loading
+              ? 'Inscribiendo...'
+              : `Inscribir ${seleccionados.length || ''} estudiante${seleccionados.length === 1 ? '' : 's'}`}
+          </button>
         </div>
-      </div>
+      </section>
 
       <div className="section-head" style={{ marginBottom: '1rem' }}>
         <h2>Inscritos</h2>

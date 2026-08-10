@@ -53,6 +53,7 @@ import QAPage from './pages/compartido/QAPage';
 import PICOSearch from './pages/compartido/PICOSearch';
 import Quirofano from './pages/compartido/Quirofano';
 import PresentacionesVista from './pages/compartido/PresentacionesVista';
+import ProgramacionII from './pages/compartido/ProgramacionII';
 
 // Jefe — unidades y cursos especiales
 import JefeUnidades from './pages/jefe/UnidadesInstruccion';
@@ -130,6 +131,7 @@ export default function App() {
         <Route path="unidades/qa-lab" element={<QAPage />} />
         <Route path="unidades/busqueda-pico" element={<PICOSearch />} />
         <Route path="unidades/sala-operaciones" element={<Quirofano />} />
+        <Route path="unidades/programacion-ii" element={<ProgramacionII />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
       </Route>
 
@@ -158,6 +160,7 @@ export default function App() {
         <Route path="unidades/qa-lab" element={<QAPage />} />
         <Route path="unidades/busqueda-pico" element={<PICOSearch />} />
         <Route path="unidades/sala-operaciones" element={<Quirofano />} />
+        <Route path="unidades/programacion-ii" element={<ProgramacionII />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />
       </Route>
 
@@ -191,6 +194,7 @@ export default function App() {
         <Route path="unidades/qa-lab" element={<QAPage />} />
         <Route path="unidades/busqueda-pico" element={<PICOSearch />} />
         <Route path="unidades/sala-operaciones" element={<Quirofano />} />
+        <Route path="unidades/programacion-ii" element={<ProgramacionII />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
         <Route path="materias/:id/estudiantes" element={<JefeMateriaEstudiantes />} />
         <Route path="materias/nueva" element={<JefeMateriaForm role="jefe" />} />
@@ -222,6 +226,7 @@ export default function App() {
         <Route path="docente/unidades/qa-lab" element={<QAPage />} />
         <Route path="docente/unidades/busqueda-pico" element={<PICOSearch />} />
         <Route path="docente/unidades/sala-operaciones" element={<Quirofano />} />
+        <Route path="docente/unidades/programacion-ii" element={<ProgramacionII />} />
         <Route path="docente/presentaciones" element={<DocentePresentaciones />} />
         <Route path="estudiante" element={<AuditorPersonaSelector type="estudiante" />} />
         <Route path="estudiante/inicio" element={<EstudianteInicio />} />
@@ -245,6 +250,7 @@ export default function App() {
         <Route path="estudiante/unidades/qa-lab" element={<QAPage />} />
         <Route path="estudiante/unidades/busqueda-pico" element={<PICOSearch />} />
         <Route path="estudiante/unidades/sala-operaciones" element={<Quirofano />} />
+        <Route path="estudiante/unidades/programacion-ii" element={<ProgramacionII />} />
         <Route path="estudiante/presentaciones" element={<PresentacionesVista />} />
       </Route>
 
