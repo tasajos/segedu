@@ -15,7 +15,7 @@ import {
   listarTodosPGO, revisarPGO, eliminarPGO,
   listarTodosAvances, validarAvance,
   analisisComportamiento, listarReportesAsistenciaDocentes, actualizarAsistenciaDocente,
-  dashboard, detalleEstudiante, listarEstudiantes,
+  dashboard, detalleEstudiante, listarEstudiantes, promoverEstudiantes,
   listarAsistenciasEstudiante,
   indicadoresEstudiantes,
   listarSolicitudesPermiso, crearSolicitudPermiso, eliminarSolicitudPermiso, cambiarEstadoSolicitudPermiso,
@@ -66,6 +66,7 @@ router.get('/carpetas-pedagogicas/:materia_id', obtenerCarpetaPedagogicaJefe);
 
 router.get('/estudiantes', listarEstudiantes);
 router.get('/estudiantes-indicadores', indicadoresEstudiantes);
+router.put('/estudiantes/promocion', promoverEstudiantes);
 router.get('/estudiantes/:id/asistencias', listarAsistenciasEstudiante);
 router.get('/estudiantes/:id', detalleEstudiante);
 router.post('/inscripciones', inscribirEstudianteMateria);

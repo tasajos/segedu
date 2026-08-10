@@ -63,9 +63,9 @@ export default function JefeMateriaEstudiantes() {
       .toLocaleLowerCase('es')
       .includes(textoBusqueda)
   ));
-  const idsVisibles = disponiblesFiltrados.map((e) => e.id);
-  const todosVisiblesSeleccionados = idsVisibles.length > 0
-    && idsVisibles.every((studentId) => seleccionados.includes(studentId));
+  const idsDisponibles = disponibles.map((e) => e.id);
+  const todosSeleccionados = idsDisponibles.length > 0
+    && idsDisponibles.every((studentId) => seleccionados.includes(studentId));
 
   const alternarEstudiante = (studentId) => {
     setSeleccionados((actuales) => actuales.includes(studentId)
@@ -73,10 +73,8 @@ export default function JefeMateriaEstudiantes() {
       : [...actuales, studentId]);
   };
 
-  const alternarVisibles = () => {
-    setSeleccionados((actuales) => todosVisiblesSeleccionados
-      ? actuales.filter((studentId) => !idsVisibles.includes(studentId))
-      : [...new Set([...actuales, ...idsVisibles])]);
+  const alternarTodos = () => {
+    setSeleccionados(todosSeleccionados ? [] : idsDisponibles);
   };
 
   return (
@@ -114,10 +112,11 @@ export default function JefeMateriaEstudiantes() {
           <button
             type="button"
             className="enrollment-select-all"
-            onClick={alternarVisibles}
-            disabled={loading || idsVisibles.length === 0}
+            onClick={alternarTodos}
+            disabled={loading || idsDisponibles.length === 0}
+            aria-pressed={todosSeleccionados}
           >
-            {todosVisiblesSeleccionados ? 'Quitar selección visible' : 'Seleccionar visibles'}
+            {todosSeleccionados ? 'Quitar todos' : 'Todos'}
           </button>
         </div>
 

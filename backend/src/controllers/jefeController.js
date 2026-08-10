@@ -1360,7 +1360,7 @@ export const listarEstudiantes = async (req, res) => {
   try {
     const carrera = await getCarreraJefe(req.user.id);
     const { semestre } = req.query;
-    let query = `SELECT e.id, e.codigo_estudiante, e.semestre, u.nombre, u.apellido, u.email, u.ci, u.telefono,
+    let query = `SELECT e.id, e.codigo_estudiante, e.semestre, u.nombre, u.apellido, u.email, u.ci, u.telefono, u.activo,
                         c.nombre as carrera_nombre
                  FROM estudiantes e
                  JOIN usuarios u ON e.usuario_id = u.id
@@ -1372,6 +1372,49 @@ export const listarEstudiantes = async (req, res) => {
     query += ' ORDER BY e.semestre, u.apellido';
     const [rows] = await pool.query(query, params);
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const promoverEstudiantes = async (req, res) => {
+  try {
+    const ids = [...new Set(
+      (Array.isArray(req.body.estudiante_ids) ? req.body.estudiante_ids : [])
+        .map(Number)
+        .filter(Number.isInteger)
+    )];
+    if (!ids.length) {
+      return res.status(400).json({ error: 'Seleccione al menos un estudiante' });
+    }
+
+    const carrera = await getCarreraJefe(req.user.id);
+    if (!carrera) return res.status(403).json({ error: 'Sin carrera asignada' });
+
+    const [habilitados] = await pool.query(
+      `SELECT e.id
+       FROM estudiantes e
+       JOIN usuarios u ON u.id = e.usuario_id
+       WHERE e.carrera_id = ? AND e.id IN (?) AND u.activo = 1`,
+      [carrera.id, ids]
+    );
+    if (habilitados.length !== ids.length) {
+      return res.status(400).json({ error: 'Uno o más estudiantes están deshabilitados o no pertenecen a su carrera' });
+    }
+
+    const [result] = await pool.query(
+      `UPDATE estudiantes e
+       JOIN usuarios u ON u.id = e.usuario_id
+       SET e.semestre = e.semestre + 1
+       WHERE e.carrera_id = ? AND e.id IN (?) AND u.activo = 1`,
+      [carrera.id, ids]
+    );
+    res.json({
+      promovidos: result.affectedRows,
+      message: result.affectedRows === 1
+        ? 'Estudiante promovido al siguiente semestre'
+        : `${result.affectedRows} estudiantes promovidos al siguiente semestre`
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1597,11 +1640,14 @@ export const inscribirEstudianteMateria = async (req, res) => {
     }
 
     const [estudiantes] = await pool.query(
-      'SELECT id FROM estudiantes WHERE carrera_id = ? AND id IN (?)',
+      `SELECT e.id
+       FROM estudiantes e
+       JOIN usuarios u ON e.usuario_id = u.id
+       WHERE e.carrera_id = ? AND e.id IN (?) AND u.activo = 1`,
       [carrera.id, ids]
     );
     if (estudiantes.length !== ids.length) {
-      return res.status(404).json({ error: 'Uno o más estudiantes no pertenecen a su carrera' });
+      return res.status(400).json({ error: 'Uno o más estudiantes están deshabilitados o no pertenecen a su carrera' });
     }
 
     const [result] = await pool.query(
@@ -1916,6 +1962,7 @@ export const detalleMateriaEstudiantes = async (req, res) => {
        FROM estudiantes e
        JOIN usuarios u ON e.usuario_id = u.id
        WHERE e.carrera_id = ?
+         AND u.activo = 1
          AND NOT EXISTS (
            SELECT 1 FROM inscripciones i
            WHERE i.estudiante_id = e.id AND i.materia_id = ?

@@ -17,6 +17,10 @@ export default function JefeEstudiantes() {
   const [savingMateria, setSavingMateria] = useState(false);
   const [attendanceModal, setAttendanceModal] = useState(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [modoPromocion, setModoPromocion] = useState(false);
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [promoviendo, setPromoviendo] = useState(false);
+  const [mensajePromocion, setMensajePromocion] = useState('');
 
   const cargar = async () => {
     const [estudiantesResp, indicadoresResp] = await Promise.all([
@@ -143,6 +147,46 @@ export default function JefeEstudiantes() {
     );
   });
 
+  const estaHabilitado = (estudiante) => estudiante.activo == null || Number(estudiante.activo) === 1;
+  const seleccionables = filtrados.filter(estaHabilitado);
+  const idsSeleccionables = seleccionables.map((e) => e.id);
+  const todosSeleccionados = idsSeleccionables.length > 0
+    && idsSeleccionables.every((id) => seleccionados.includes(id));
+
+  const alternarSeleccion = (id) => {
+    setSeleccionados((actuales) => actuales.includes(id)
+      ? actuales.filter((item) => item !== id)
+      : [...actuales, id]);
+  };
+
+  const alternarTodos = () => {
+    setSeleccionados((actuales) => todosSeleccionados
+      ? actuales.filter((id) => !idsSeleccionables.includes(id))
+      : [...new Set([...actuales, ...idsSeleccionables])]);
+  };
+
+  const cambiarModoPromocion = () => {
+    setModoPromocion((actual) => !actual);
+    setSeleccionados([]);
+    setMensajePromocion('');
+  };
+
+  const promover = async () => {
+    if (!seleccionados.length) return;
+    try {
+      setPromoviendo(true);
+      setMensajePromocion('');
+      const { data } = await api.put('/jefe/estudiantes/promocion', { estudiante_ids: seleccionados });
+      setSeleccionados([]);
+      await cargar();
+      setMensajePromocion(data.message);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al promover estudiantes');
+    } finally {
+      setPromoviendo(false);
+    }
+  };
+
   const semestres = [...new Set(estudiantes.map((e) => e.semestre))].sort((a, b) => a - b);
   const materiasNoInscritas = (detalle?.materiasDisponibles || []).filter((m) => !Number(m.inscrito));
   const materiaSeleccionada = materiaNueva || (materiasNoInscritas[0] ? String(materiasNoInscritas[0].id) : '');
@@ -242,7 +286,7 @@ export default function JefeEstudiantes() {
         </div>
       </div>
 
-      <div className="flex gap-4 mb-6" style={{ alignItems: 'center' }}>
+      <div className="flex gap-4 mb-6" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Buscar por nombre o codigo..."
@@ -272,11 +316,33 @@ export default function JefeEstudiantes() {
           <option value="">Todos los semestres</option>
           {semestres.map((s) => <option key={s} value={s}>Semestre {s}</option>)}
         </select>
+        <button type="button" className="btn btn-secondary" onClick={cambiarModoPromocion} disabled={promoviendo}>
+          {modoPromocion ? 'Cancelar promoción' : 'Promoción'}
+        </button>
       </div>
+
+      {modoPromocion && (
+        <div className="card mb-6" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <strong>Promover al siguiente semestre</strong>
+            <div style={{ color: 'var(--ink-light)', fontSize: '.85rem', marginTop: '.2rem' }}>
+              Cada estudiante seleccionado avanzará un semestre: SEM 1 a SEM 2, SEM 2 a SEM 3 y así consecutivamente.
+            </div>
+            {mensajePromocion && <div style={{ color: 'var(--forest)', marginTop: '.4rem' }}>{mensajePromocion}</div>}
+          </div>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={alternarTodos} disabled={!idsSeleccionables.length || promoviendo}>
+            {todosSeleccionados ? 'Quitar todos' : 'Todos'}
+          </button>
+          <button type="button" className="btn btn-primary" onClick={promover} disabled={!seleccionados.length || promoviendo}>
+            {promoviendo ? 'Promoviendo...' : `Promover (${seleccionados.length})`}
+          </button>
+        </div>
+      )}
 
       <table className="data-table">
         <thead>
           <tr>
+            {modoPromocion && <th style={{ width: '44px' }}>Sel.</th>}
             <th>No</th>
             <th>Codigo</th>
             <th>Nombre</th>
@@ -289,13 +355,25 @@ export default function JefeEstudiantes() {
         <tbody>
           {filtrados.length === 0 && (
             <tr>
-              <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', fontStyle: 'italic' }}>
+              <td colSpan={modoPromocion ? 8 : 7} style={{ textAlign: 'center', padding: '2rem', fontStyle: 'italic' }}>
                 Sin resultados
               </td>
             </tr>
           )}
           {filtrados.map((e, i) => (
             <tr key={e.id}>
+              {modoPromocion && (
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={seleccionados.includes(e.id)}
+                    onChange={() => alternarSeleccion(e.id)}
+                    disabled={!estaHabilitado(e) || promoviendo}
+                    aria-label={`Seleccionar a ${e.nombre} ${e.apellido}`}
+                    title={estaHabilitado(e) ? 'Seleccionar para promoción' : 'Estudiante deshabilitado'}
+                  />
+                </td>
+              )}
               <td className="num">{String(i + 1).padStart(3, '0')}</td>
               <td className="text-mono" style={{ fontSize: '.8rem' }}>{e.codigo_estudiante}</td>
               <td>
