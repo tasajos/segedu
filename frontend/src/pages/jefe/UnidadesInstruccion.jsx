@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import './UnidadesInstruccion.css';
 
-const TIPOS = ['simulador', 'contenido', 'ejercicio'];
+const TIPOS = [
+  { value: 'simulador', icon: '⚡', label: 'Simulador', desc: 'Módulo interactivo hecho a medida.' },
+  { value: 'contenido', icon: '📄', label: 'Contenido', desc: 'Material teórico de lectura.' },
+  { value: 'ejercicio', icon: '✏️', label: 'Ejercicio', desc: 'Práctica guiada para estudiantes.' },
+  { value: 'html', icon: '</>', label: 'Guías HTML', desc: 'Los docentes suben sus propias guías en HTML.' },
+];
 
 function emptyForm() {
   return { nombre: '', descripcion: '', tipo: 'simulador', orden: 1 };
@@ -69,7 +74,8 @@ export default function UnidadesInstruccion() {
   const TIPO_BADGE = {
     simulador: { bg: '#1a2a4a', color: '#7aa4d8' },
     contenido:  { bg: '#2a1a2a', color: '#c07ad8' },
-    ejercicio:  { bg: '#1a2a1a', color: '#7ad87a' }
+    ejercicio:  { bg: '#1a2a1a', color: '#7ad87a' },
+    html:       { bg: '#2a2210', color: '#e8b84b' }
   };
 
   return (
@@ -94,17 +100,35 @@ export default function UnidadesInstruccion() {
                 <label className="label">Nombre *</label>
                 <input className="input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej. Circuitos Lógicos" />
               </div>
-              <div className="unit-field">
-                <label className="label">Tipo</label>
-                <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
-                  {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
               <div className="unit-field unit-field-order">
                 <label className="label">Orden</label>
-                <input className="input" type="number" min="1" value={form.orden} onChange={e => setForm(f => ({ ...f, orden: Number(e.target.value) }))} style={{ width: 70 }} />
+                <input className="input" type="number" min="1" value={form.orden} onChange={e => setForm(f => ({ ...f, orden: Number(e.target.value) }))} />
               </div>
             </div>
+
+            <div className="unit-field">
+              <label className="label">Tipo de unidad</label>
+              <div className="unit-type-grid">
+                {TIPOS.map(t => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    className={`unit-type-card${form.tipo === t.value ? ' is-selected' : ''}`}
+                    onClick={() => setForm(f => ({ ...f, tipo: t.value }))}
+                  >
+                    <span className="unit-type-card__icon">{t.icon}</span>
+                    <span className="unit-type-card__label">{t.label}</span>
+                    <span className="unit-type-card__desc">{t.desc}</span>
+                  </button>
+                ))}
+              </div>
+              {form.tipo === 'html' && (
+                <p className="unit-type-hint">
+                  Al crear la unidad, cada docente podrá entrar a ella y publicar sus propios archivos HTML autocontenidos como guías de estudio.
+                </p>
+              )}
+            </div>
+
             <div className="unit-field unit-field-description">
               <label className="label">Descripción</label>
               <textarea className="input" rows={3} value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve de la unidad..." style={{ resize: 'vertical' }} />

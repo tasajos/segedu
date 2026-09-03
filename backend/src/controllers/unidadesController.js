@@ -135,19 +135,25 @@ export async function eliminarUnidad(req, res) {
 }
 
 export async function listarGuiasHtml(req, res) {
+  const { unidadId } = req.params;
   try {
+    const [[unidad]] = await pool.query(
+      `SELECT id FROM unidades_instruccion WHERE id = ? AND tipo = 'html' AND activo = 1 LIMIT 1`,
+      [unidadId]
+    );
+    if (!unidad) return res.status(404).json({ error: 'Unidad no encontrada' });
+
     const [rows] = await pool.query(
       `SELECT a.id, a.titulo, a.descripcion, a.nombre_original, a.tamano,
               a.orden, a.created_at, a.updated_at,
               CONCAT(u.nombre, ' ', u.apellido) AS docente_nombre,
               CASE WHEN ? = 'docente' AND d.usuario_id = ? THEN 1 ELSE 0 END AS puede_editar
        FROM unidad_html_archivos a
-       JOIN unidades_instruccion ui ON ui.id = a.unidad_id
        JOIN docentes d ON d.id = a.docente_id
        JOIN usuarios u ON u.id = d.usuario_id
-       WHERE ui.nombre = ? AND ui.activo = 1 AND a.activo = 1
+       WHERE a.unidad_id = ? AND a.activo = 1
        ORDER BY a.orden, a.created_at`,
-      [req.user.rol, req.user.id, PROGRAMACION_II]
+      [req.user.rol, req.user.id, unidad.id]
     );
     res.json(rows);
   } catch (err) {
@@ -161,8 +167,8 @@ export async function subirGuiaHtml(req, res) {
     const metadata = inspectHtml(req.file.path);
     const [[docente]] = await pool.query('SELECT id FROM docentes WHERE usuario_id = ?', [req.user.id]);
     const [[unidad]] = await pool.query(
-      'SELECT id FROM unidades_instruccion WHERE nombre = ? AND activo = 1 LIMIT 1',
-      [PROGRAMACION_II]
+      `SELECT id FROM unidades_instruccion WHERE id = ? AND tipo = 'html' AND activo = 1 LIMIT 1`,
+      [req.params.unidadId]
     );
     if (!docente || !unidad) throw new Error('No se encontró la unidad o el perfil docente');
 
@@ -237,8 +243,8 @@ export async function verGuiaHtml(req, res) {
       `SELECT a.ruta_archivo, a.nombre_original
        FROM unidad_html_archivos a
        JOIN unidades_instruccion ui ON ui.id = a.unidad_id
-       WHERE a.id = ? AND a.activo = 1 AND ui.activo = 1 AND ui.nombre = ?`,
-      [req.params.id, PROGRAMACION_II]
+       WHERE a.id = ? AND a.unidad_id = ? AND a.activo = 1 AND ui.activo = 1`,
+      [req.params.id, req.params.unidadId]
     );
     const filePath = guia && safeUploadedPath(guia.ruta_archivo);
     if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Archivo HTML no encontrado' });

@@ -31,7 +31,7 @@
 
 .unit-form-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 2fr) minmax(190px, 1fr) 110px;
+  grid-template-columns: minmax(260px, 1fr) 120px;
   gap: 1.25rem;
 }
 
@@ -74,6 +74,73 @@
   background: #fff;
   border-color: #3864df;
   box-shadow: 0 0 0 3px rgba(56, 100, 223, 0.11);
+}
+
+.unit-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.unit-type-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(31, 52, 90, 0.15);
+  border-radius: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s, transform 0.1s;
+}
+
+.unit-type-card:hover {
+  border-color: #7f9fe0;
+  background: #fff;
+}
+
+.unit-type-card.is-selected {
+  background: #fff;
+  border-color: #3864df;
+  box-shadow: 0 0 0 3px rgba(56, 100, 223, 0.11);
+}
+
+.unit-type-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+  font-family: var(--mono, monospace);
+  background: rgba(56, 100, 223, 0.09);
+  border-radius: 8px;
+}
+
+.unit-type-card__label {
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.unit-type-card__desc {
+  color: var(--ink-light);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.unit-type-hint {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.8rem;
+  color: #8a6a1f;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  background: #fff8e8;
+  border: 1px solid #f0dfa8;
+  border-radius: 8px;
 }
 
 .unit-form-actions {

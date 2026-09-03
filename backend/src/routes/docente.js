@@ -64,10 +64,10 @@ router.get('/mi-disciplina', misDisciplina);
 router.put('/info-personal', actualizarInfoPersonalDocente);
 router.put('/cambiar-contrasena', cambiarContrasenaDocente);
 
-// Guías HTML de Programación II
-router.post('/unidades/programacion-ii/guias', uploadHtml.single('archivo'), subirGuiaHtml);
-router.put('/unidades/programacion-ii/guias/:id', uploadHtml.single('archivo'), reemplazarGuiaHtml);
-router.delete('/unidades/programacion-ii/guias/:id', eliminarGuiaHtml);
+// Guías HTML de unidades de instrucción tipo "html"
+router.post('/unidades/:unidadId/guias', uploadHtml.single('archivo'), subirGuiaHtml);
+router.put('/unidades/guias/:id', uploadHtml.single('archivo'), reemplazarGuiaHtml);
+router.delete('/unidades/guias/:id', eliminarGuiaHtml);
 
 // Tareas
 router.get('/tareas', listarTareasDocente);

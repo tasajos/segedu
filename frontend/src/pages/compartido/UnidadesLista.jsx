@@ -30,7 +30,6 @@ const UNIT_ROUTES = {
   'QA Lab':                                 'qa-lab',
   'Buscador PICO':                          'busqueda-pico',
   'Sala de Operaciones':                    'sala-operaciones',
-  'Programación II':                        'programacion-ii',
 };
 
 export default function UnidadesLista() {
@@ -47,6 +46,10 @@ export default function UnidadesLista() {
   }, []);
 
   function openUnidad(u) {
+    if (u.tipo === 'html') {
+      navigate(`/${user.rol}/unidades/html/${u.id}`);
+      return;
+    }
     const slug = UNIT_ROUTES[u.nombre];
     if (slug) {
       navigate(`/${user.rol}/unidades/${slug}`);
