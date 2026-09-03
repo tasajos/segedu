@@ -1,6 +1,7 @@
 import pool from '../config/db.js';
 import fs from 'fs';
 import path from 'path';
+import { injectChakuyAlertModal } from '../utils/htmlGuideModal.js';
 
 const PROGRAMACION_II = 'Programación II';
 const uploadsDir = path.resolve('uploads');
@@ -248,10 +249,11 @@ export async function verGuiaHtml(req, res) {
     );
     const filePath = guia && safeUploadedPath(guia.ruta_archivo);
     if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Archivo HTML no encontrado' });
+    const html = injectChakuyAlertModal(fs.readFileSync(filePath, 'utf8'));
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', `inline; filename="${path.basename(guia.nombre_original).replace(/"/g, '')}"`);
     res.setHeader('Cache-Control', 'private, no-store');
-    res.sendFile(filePath);
+    res.send(html);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
