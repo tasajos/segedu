@@ -1021,7 +1021,7 @@ export const indicadoresActas = async (req, res) => {
     const failedCondition = `(grd.id IS NOT NULL AND NOT ${passedCondition})`;
 
     const [porMateria] = await pool.query(
-      `SELECT m.id, m.nombre, m.codigo, m.grupo,
+      `SELECT m.id, m.nombre, m.codigo, m.grupo, m.semestre,
               du.nombre as docente_nombre, du.apellido as docente_apellido,
               COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) as aprobados_primer_parcial,
               COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial < 18 THEN 1 END) as reprobados_primer_parcial,
@@ -1037,8 +1037,8 @@ export const indicadoresActas = async (req, res) => {
        LEFT JOIN docentes d ON m.docente_id = d.id
        LEFT JOIN usuarios du ON d.usuario_id = du.id
        WHERE m.carrera_id = ?
-       GROUP BY m.id, m.nombre, m.codigo, m.grupo, du.nombre, du.apellido
-       ORDER BY m.nombre, m.grupo`,
+       GROUP BY m.id, m.nombre, m.codigo, m.grupo, m.semestre, du.nombre, du.apellido
+       ORDER BY m.semestre, m.grupo, m.nombre`,
       [carrera.id]
     );
 
@@ -1105,8 +1105,9 @@ export const indicadoresActas = async (req, res) => {
       })
     }));
 
-    const [reprobadosMasDos] = await pool.query(
-      `SELECT e.id, e.codigo_estudiante, u.nombre, u.apellido,
+    const [reprobadosMasDosRows] = await pool.query(
+      `SELECT m.grupo, m.semestre,
+              e.id, e.codigo_estudiante, u.nombre, u.apellido,
               COUNT(DISTINCT CASE
                 WHEN grd.modalidad = 'regular'
                  AND (
@@ -1133,7 +1134,7 @@ export const indicadoresActas = async (req, res) => {
               END) as reprobadas_primer_parcial,
               GROUP_CONCAT(DISTINCT CASE
                 WHEN grd.modalidad = 'regular' AND grd.primer_parcial IS NOT NULL AND grd.primer_parcial < 18
-                  THEN CONCAT(m.nombre, ' (', m.codigo, ' - G', m.grupo, ')')
+                  THEN CONCAT(m.nombre, ' (', m.codigo, ')')
                 ELSE NULL
               END ORDER BY m.nombre SEPARATOR ' | ') as materias_primer_parcial,
               COUNT(DISTINCT CASE
@@ -1142,7 +1143,7 @@ export const indicadoresActas = async (req, res) => {
               END) as reprobadas_segundo_parcial,
               GROUP_CONCAT(DISTINCT CASE
                 WHEN grd.modalidad = 'regular' AND grd.segundo_parcial IS NOT NULL AND grd.segundo_parcial < 18
-                  THEN CONCAT(m.nombre, ' (', m.codigo, ' - G', m.grupo, ')')
+                  THEN CONCAT(m.nombre, ' (', m.codigo, ')')
                 ELSE NULL
               END ORDER BY m.nombre SEPARATOR ' | ') as materias_segundo_parcial,
               COUNT(DISTINCT CASE
@@ -1151,31 +1152,47 @@ export const indicadoresActas = async (req, res) => {
               END) as reprobadas_final,
               GROUP_CONCAT(DISTINCT CASE
                 WHEN grd.modalidad = 'regular' AND grd.examen_final IS NOT NULL AND grd.examen_final < 15
-                  THEN CONCAT(m.nombre, ' (', m.codigo, ' - G', m.grupo, ')')
+                  THEN CONCAT(m.nombre, ' (', m.codigo, ')')
                 ELSE NULL
               END ORDER BY m.nombre SEPARATOR ' | ') as materias_final
        FROM estudiantes e
        JOIN usuarios u ON e.usuario_id = u.id
-       LEFT JOIN grade_report_details grd ON grd.estudiante_id = e.id
-       LEFT JOIN grade_reports gr ON grd.acta_id = gr.id
-       LEFT JOIN materias m ON gr.materia_id = m.id
+       JOIN grade_report_details grd ON grd.estudiante_id = e.id
+       JOIN grade_reports gr ON grd.acta_id = gr.id
+       JOIN materias m ON gr.materia_id = m.id
        WHERE e.carrera_id = ?
-       GROUP BY e.id, e.codigo_estudiante, u.nombre, u.apellido
-       ORDER BY reprobadas_primer_parcial DESC, reprobadas_segundo_parcial DESC, reprobadas_final DESC, u.apellido, u.nombre`,
+       GROUP BY m.grupo, m.semestre, e.id, e.codigo_estudiante, u.nombre, u.apellido
+       ORDER BY m.grupo, m.semestre, reprobadas_primer_parcial DESC, reprobadas_segundo_parcial DESC, reprobadas_final DESC, u.apellido, u.nombre`,
       [carrera.id]
     );
+
+    const reprobadosMasDosMap = new Map();
+    reprobadosMasDosRows.forEach((row) => {
+      const groupKey = `${row.grupo || 'Sin grupo'}__${row.semestre || 'Sin semestre'}`;
+      if (!reprobadosMasDosMap.has(groupKey)) {
+        reprobadosMasDosMap.set(groupKey, { grupo: row.grupo, semestre: row.semestre, estudiantes: [] });
+      }
+      reprobadosMasDosMap.get(groupKey).estudiantes.push(row);
+    });
+
+    const reprobadosMasDos = Array.from(reprobadosMasDosMap.values())
+      .sort((a, b) => {
+        const grupoCompare = String(a.grupo || '').localeCompare(String(b.grupo || ''));
+        if (grupoCompare !== 0) return grupoCompare;
+        return Number(a.semestre || 0) - Number(b.semestre || 0);
+      });
 
     const [altoDesempenoRows] = await pool.query(
       `SELECT ranked.*
        FROM (
-         SELECT e.id as estudiante_id, e.codigo_estudiante, e.semestre,
+         SELECT e.id as estudiante_id, e.codigo_estudiante,
                 u.nombre, u.apellido,
-                m.grupo,
+                m.grupo, m.semestre,
                 ROUND(AVG(grd.nota_final), 2) as promedio_general,
                 COUNT(DISTINCT gr.materia_id) as materias_evaluadas,
                 COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) as materias_aprobadas_parcial,
                 ROW_NUMBER() OVER (
-                  PARTITION BY m.grupo
+                  PARTITION BY m.grupo, m.semestre
                   ORDER BY AVG(grd.nota_final) DESC, COUNT(CASE WHEN grd.modalidad = 'regular' AND grd.primer_parcial >= 18 THEN 1 END) DESC, u.apellido, u.nombre
                 ) as posicion_grupo
          FROM grade_report_details grd
@@ -1185,28 +1202,28 @@ export const indicadoresActas = async (req, res) => {
          JOIN usuarios u ON e.usuario_id = u.id
          WHERE e.carrera_id = ?
            AND grd.nota_final IS NOT NULL
-         GROUP BY e.id, e.codigo_estudiante, e.semestre, u.nombre, u.apellido, m.grupo
+         GROUP BY e.id, e.codigo_estudiante, u.nombre, u.apellido, m.grupo, m.semestre
        ) ranked
        WHERE ranked.posicion_grupo <= 10
-       ORDER BY ranked.grupo, ranked.posicion_grupo`,
+       ORDER BY ranked.grupo, ranked.semestre, ranked.posicion_grupo`,
       [carrera.id]
     );
 
     const altoDesempenoMap = new Map();
     altoDesempenoRows.forEach((row) => {
-      const groupKey = row.grupo || 'Sin grupo';
+      const groupKey = `${row.grupo || 'Sin grupo'}__${row.semestre || 'Sin semestre'}`;
       if (!altoDesempenoMap.has(groupKey)) {
-        altoDesempenoMap.set(groupKey, []);
+        altoDesempenoMap.set(groupKey, { grupo: row.grupo, semestre: row.semestre, estudiantes: [] });
       }
-      altoDesempenoMap.get(groupKey).push(row);
+      altoDesempenoMap.get(groupKey).estudiantes.push(row);
     });
 
-    const altoDesempeno = Array.from(altoDesempenoMap.entries())
-      .sort(([groupA], [groupB]) => String(groupA).localeCompare(String(groupB)))
-      .map(([grupo, estudiantes]) => ({
-        grupo,
-        estudiantes
-      }));
+    const altoDesempeno = Array.from(altoDesempenoMap.values())
+      .sort((a, b) => {
+        const grupoCompare = String(a.grupo || '').localeCompare(String(b.grupo || ''));
+        if (grupoCompare !== 0) return grupoCompare;
+        return Number(a.semestre || 0) - Number(b.semestre || 0);
+      });
 
     const resumen = porMateria.reduce((acc, row) => {
       acc.aprobados += Number(row.aprobados || 0);

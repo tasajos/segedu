@@ -344,15 +344,37 @@ export default function JefeActas() {
 
   const partialConfig = PARTIAL_FILTERS.find((item) => item.value === partialFilter) || PARTIAL_FILTERS[0];
 
-  const indicadoresReprobados = useMemo(() => {
-    const rows = indicadores.reprobadosMasDos || [];
-    const sinNota = rows.filter((item) => Number(item.materias_con_avance || 0) === 0);
-    const conRiesgo = rows
-      .filter((item) => Number(item.materias_con_avance || 0) > 0)
-      .filter((item) => Number(item[partialConfig.countKey] || 0) > 2)
-      .sort((a, b) => Number(b[partialConfig.countKey] || 0) - Number(a[partialConfig.countKey] || 0));
+  const porMateriaAgrupada = useMemo(() => {
+    const map = new Map();
+    (indicadores.porMateria || []).forEach((item) => {
+      const semestre = item.semestre || 'Sin semestre';
+      const grupo = item.grupo || 'Sin grupo';
+      const key = `${semestre}__${grupo}`;
+      if (!map.has(key)) {
+        map.set(key, { semestre, grupo, materias: [] });
+      }
+      map.get(key).materias.push(item);
+    });
 
-    return { conRiesgo, sinNota };
+    return Array.from(map.values()).sort((a, b) => {
+      const semestreCompare = String(a.semestre).localeCompare(String(b.semestre), undefined, { numeric: true });
+      if (semestreCompare !== 0) return semestreCompare;
+      return String(a.grupo).localeCompare(String(b.grupo), undefined, { numeric: true });
+    });
+  }, [indicadores.porMateria]);
+
+  const indicadoresReprobados = useMemo(() => {
+    const grupos = indicadores.reprobadosMasDos || [];
+    return grupos.map((grupo) => {
+      const rows = grupo.estudiantes || [];
+      const sinNota = rows.filter((item) => Number(item.materias_con_avance || 0) === 0);
+      const conRiesgo = rows
+        .filter((item) => Number(item.materias_con_avance || 0) > 0)
+        .filter((item) => Number(item[partialConfig.countKey] || 0) > 2)
+        .sort((a, b) => Number(b[partialConfig.countKey] || 0) - Number(a[partialConfig.countKey] || 0));
+
+      return { grupo: grupo.grupo, semestre: grupo.semestre, conRiesgo, sinNota };
+    });
   }, [indicadores.reprobadosMasDos, partialConfig]);
 
   const renderMateriasList = (value) => {
@@ -642,46 +664,52 @@ export default function JefeActas() {
             <h2>Aprobados por parcial y materia</h2>
             <span className="count">{indicadores.porMateria.length} materias</span>
           </div>
-          <table className="data-table" style={{ marginBottom: '1.5rem' }}>
-            <thead>
-              <tr>
-                <th>Materia</th>
-                <th>Codigo</th>
-                <th>Grupo</th>
-                <th>Docente</th>
-                <th>Aprob. 1P</th>
-                <th>Reprob. 1P</th>
-                <th>Aprob. 2P</th>
-                <th>Reprob. 2P</th>
-                <th>Aprob. Final</th>
-                <th>Reprob. Final</th>
-                <th>Aprobados</th>
-                <th>Reprobados</th>
-              </tr>
-            </thead>
-            <tbody>
-              {indicadores.porMateria.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.nombre}</td>
-                  <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo}</td>
-                  <td><span className="chip chip-ink">G{item.grupo}</span></td>
-                  <td style={{ fontSize: '.88rem' }}>{item.docente_nombre ? `${item.docente_nombre} ${item.docente_apellido}` : 'Sin docente'}</td>
-                  <td><span className="chip chip-forest">{item.aprobados_primer_parcial}</span></td>
-                  <td>{renderReprobadoChip(item, item.reprobados_primer_parcial, 'primer_parcial')}</td>
-                  <td><span className="chip chip-forest">{item.aprobados_segundo_parcial}</span></td>
-                  <td>{renderReprobadoChip(item, item.reprobados_segundo_parcial, 'segundo_parcial')}</td>
-                  <td><span className="chip chip-forest">{item.aprobados_final}</span></td>
-                  <td>{renderReprobadoChip(item, item.reprobados_final, 'final')}</td>
-                  <td><span className="chip chip-forest">{item.aprobados}</span></td>
-                  <td>{renderReprobadoChip(item, item.reprobados, 'total')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {porMateriaAgrupada.map((grupo) => (
+            <div key={`${grupo.semestre}-${grupo.grupo}`} className="card" style={{ padding: '1rem', marginBottom: '1.25rem' }}>
+              <div className="section-head" style={{ marginBottom: '.75rem' }}>
+                <h3 style={{ margin: 0 }}>Semestre {grupo.semestre} · Grupo {grupo.grupo}</h3>
+                <span className="count">{grupo.materias.length} materias</span>
+              </div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Materia</th>
+                    <th>Codigo</th>
+                    <th>Docente</th>
+                    <th>Aprob. 1P</th>
+                    <th>Reprob. 1P</th>
+                    <th>Aprob. 2P</th>
+                    <th>Reprob. 2P</th>
+                    <th>Aprob. Final</th>
+                    <th>Reprob. Final</th>
+                    <th>Aprobados</th>
+                    <th>Reprobados</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grupo.materias.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.nombre}</td>
+                      <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo}</td>
+                      <td style={{ fontSize: '.88rem' }}>{item.docente_nombre ? `${item.docente_nombre} ${item.docente_apellido}` : 'Sin docente'}</td>
+                      <td><span className="chip chip-forest">{item.aprobados_primer_parcial}</span></td>
+                      <td>{renderReprobadoChip(item, item.reprobados_primer_parcial, 'primer_parcial')}</td>
+                      <td><span className="chip chip-forest">{item.aprobados_segundo_parcial}</span></td>
+                      <td>{renderReprobadoChip(item, item.reprobados_segundo_parcial, 'segundo_parcial')}</td>
+                      <td><span className="chip chip-forest">{item.aprobados_final}</span></td>
+                      <td>{renderReprobadoChip(item, item.reprobados_final, 'final')}</td>
+                      <td><span className="chip chip-forest">{item.aprobados}</span></td>
+                      <td>{renderReprobadoChip(item, item.reprobados, 'total')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
 
           <div className="section-head" style={{ marginBottom: '1rem' }}>
             <h2>Estudiantes reprobados en mas de 2 materias por parcial</h2>
-            <span className="count">{indicadoresReprobados.conRiesgo.length} estudiantes</span>
+            <span className="count">{indicadoresReprobados.reduce((acc, g) => acc + g.conRiesgo.length, 0)} estudiantes</span>
           </div>
           <div className="card" style={{ padding: '1rem', marginBottom: '1rem', background: 'linear-gradient(135deg, rgba(151, 31, 46, 0.06), rgba(18, 50, 89, 0.04))' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -690,7 +718,7 @@ export default function JefeActas() {
                   FILTRO DE RIESGO ACADEMICO
                 </div>
                 <div style={{ fontSize: '.95rem', color: 'var(--ink)' }}>
-                  Se muestran solo estudiantes con mas de 2 materias reprobadas en el parcial seleccionado y con avance real mayor a cero.
+                  Se muestran solo estudiantes con mas de 2 materias reprobadas en el parcial seleccionado y con avance real mayor a cero, agrupados por grupo y semestre.
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
@@ -710,7 +738,9 @@ export default function JefeActas() {
 
           <div className="grid-3 mb-6">
             {PARTIAL_FILTERS.map((filter) => {
-              const total = (indicadores.reprobadosMasDos || []).filter((item) => Number(item[filter.countKey] || 0) > 2).length;
+              const total = (indicadores.reprobadosMasDos || [])
+                .flatMap((g) => g.estudiantes || [])
+                .filter((item) => Number(item[filter.countKey] || 0) > 2).length;
               return (
                 <div key={filter.value} className="card" style={{ padding: '1rem', borderTop: partialFilter === filter.value ? '4px solid var(--crimson)' : '4px solid rgba(18, 50, 89, 0.18)' }}>
                   <div className="text-serif" style={{ fontSize: '1.7rem' }}>{total}</div>
@@ -720,69 +750,85 @@ export default function JefeActas() {
             })}
           </div>
 
-          {indicadoresReprobados.conRiesgo.length === 0 ? (
+          {indicadoresReprobados.every((grupo) => grupo.conRiesgo.length === 0) ? (
             <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem', textAlign: 'center', color: 'var(--ink-light)', fontStyle: 'italic' }}>
               No hay estudiantes con mas de 2 materias reprobadas en {partialConfig.label.toLowerCase()}.
             </div>
           ) : (
-            <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Estudiante</th>
-                    <th>Codigo</th>
-                    <th>Reprobadas</th>
-                    <th>Materias agrupadas</th>
-                    <th>Notas cargadas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {indicadoresReprobados.conRiesgo.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.apellido} {item.nombre}</td>
-                      <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo_estudiante}</td>
-                      <td><span className="chip chip-crimson">{item[partialConfig.countKey]}</span></td>
-                      <td>{renderMateriasList(item[partialConfig.materiasKey])}</td>
-                      <td><span className="chip chip-ink">{item.materias_con_avance}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
+              {indicadoresReprobados.filter((grupo) => grupo.conRiesgo.length > 0).map((grupo) => (
+                <div key={`riesgo-${grupo.grupo}-${grupo.semestre}`} className="card" style={{ padding: '1rem' }}>
+                  <div className="section-head" style={{ marginBottom: '.75rem' }}>
+                    <h3 style={{ margin: 0 }}>Grupo {grupo.grupo} · Semestre {grupo.semestre || '-'}</h3>
+                    <span className="count">{grupo.conRiesgo.length} estudiantes</span>
+                  </div>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Estudiante</th>
+                        <th>Codigo</th>
+                        <th>Reprobadas</th>
+                        <th>Materias agrupadas</th>
+                        <th>Notas cargadas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupo.conRiesgo.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.apellido} {item.nombre}</td>
+                          <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo_estudiante}</td>
+                          <td><span className="chip chip-crimson">{item[partialConfig.countKey]}</span></td>
+                          <td>{renderMateriasList(item[partialConfig.materiasKey])}</td>
+                          <td><span className="chip chip-ink">{item.materias_con_avance}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           )}
 
           <div className="section-head" style={{ marginBottom: '1rem' }}>
             <h2>Estudiantes sin nota</h2>
-            <span className="count">{indicadoresReprobados.sinNota.length} estudiantes</span>
+            <span className="count">{indicadoresReprobados.reduce((acc, g) => acc + g.sinNota.length, 0)} estudiantes</span>
           </div>
-          {indicadoresReprobados.sinNota.length === 0 ? (
+          {indicadoresReprobados.every((grupo) => grupo.sinNota.length === 0) ? (
             <div className="card" style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--ink-light)', fontStyle: 'italic' }}>
               Todos los estudiantes ya tienen al menos una materia con nota cargada.
             </div>
           ) : (
-            <div className="card" style={{ padding: '1rem', background: 'linear-gradient(135deg, rgba(18, 50, 89, 0.05), rgba(201, 122, 0, 0.05))' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Estudiante</th>
-                    <th>Codigo</th>
-                    <th>Materias registradas</th>
-                    <th>Avance real</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {indicadoresReprobados.sinNota.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.apellido} {item.nombre}</td>
-                      <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo_estudiante}</td>
-                      <td><span className="chip chip-ink">{item.materias_con_nota || 0}</span></td>
-                      <td><span className="chip chip-ink">{item.materias_con_avance || 0}</span></td>
-                      <td><span className="chip" style={{ background: 'rgba(201, 122, 0, 0.12)', color: '#8a5300' }}>Solo ceros o sin carga</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {indicadoresReprobados.filter((grupo) => grupo.sinNota.length > 0).map((grupo) => (
+                <div key={`sinnota-${grupo.grupo}-${grupo.semestre}`} className="card" style={{ padding: '1rem', background: 'linear-gradient(135deg, rgba(18, 50, 89, 0.05), rgba(201, 122, 0, 0.05))' }}>
+                  <div className="section-head" style={{ marginBottom: '.75rem' }}>
+                    <h3 style={{ margin: 0 }}>Grupo {grupo.grupo} · Semestre {grupo.semestre || '-'}</h3>
+                    <span className="count">{grupo.sinNota.length} estudiantes</span>
+                  </div>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Estudiante</th>
+                        <th>Codigo</th>
+                        <th>Materias registradas</th>
+                        <th>Avance real</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupo.sinNota.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.apellido} {item.nombre}</td>
+                          <td className="text-mono" style={{ fontSize: '.8rem' }}>{item.codigo_estudiante}</td>
+                          <td><span className="chip chip-ink">{item.materias_con_nota || 0}</span></td>
+                          <td><span className="chip chip-ink">{item.materias_con_avance || 0}</span></td>
+                          <td><span className="chip" style={{ background: 'rgba(201, 122, 0, 0.12)', color: '#8a5300' }}>Solo ceros o sin carga</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           )}
         </>
@@ -845,7 +891,7 @@ export default function JefeActas() {
           <div className="grid-3 mb-6">
             <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--gold)' }}>
               <div className="text-serif" style={{ fontSize: '2rem' }}>{indicadores.altoDesempeno?.length || 0}</div>
-              <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>Grupos con ranking</div>
+              <div className="text-mono" style={{ fontSize: '.7rem', color: 'var(--ink-light)' }}>Grupos/semestres con ranking</div>
             </div>
             <div className="card" style={{ padding: '1rem', borderTop: '4px solid var(--forest)' }}>
               <div className="text-serif" style={{ fontSize: '2rem' }}>
@@ -872,7 +918,7 @@ export default function JefeActas() {
             <div style={{ display: 'grid', gap: '1.25rem' }}>
               {indicadores.altoDesempeno.map((grupo) => (
                 <div
-                  key={grupo.grupo}
+                  key={`${grupo.grupo}-${grupo.semestre}`}
                   className="card"
                   style={{
                     padding: '1.15rem',
@@ -883,14 +929,14 @@ export default function JefeActas() {
                   }}
                 >
                   <div className="section-head" style={{ marginBottom: '1rem' }}>
-                    <h2>Grupo {grupo.grupo}</h2>
+                    <h2>Grupo {grupo.grupo} · Semestre {grupo.semestre || '-'}</h2>
                     <span className="count">{grupo.estudiantes.length} estudiantes</span>
                   </div>
 
                   <div style={{ display: 'grid', gap: '.8rem' }}>
                     {grupo.estudiantes.map((item, index) => (
                       <div
-                        key={`${grupo.grupo}-${item.estudiante_id}`}
+                        key={`${grupo.grupo}-${grupo.semestre}-${item.estudiante_id}`}
                         style={{
                           display: 'grid',
                           gridTemplateColumns: '72px minmax(0, 1.3fr) repeat(3, minmax(110px, .7fr))',
