@@ -1,6 +1,11 @@
-import { useMemo, useState } from 'react';
-import Modal from './Modal';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { formatBytes } from '../services/driveUpload';
+
+// Con menos de ~300 px de alto, el reproductor de Drive recorta el video y deja
+// sus controles fuera del marco: se dibuja a este ancho mínimo y luego se escala.
+const MIN_PLAYER_WIDTH = 560;
+const HEADER_AND_NOTE_HEIGHT = '7rem';
 
 const grupoPorMateria = (videos) => {
   const grupos = new Map();
@@ -10,6 +15,79 @@ const grupoPorMateria = (videos) => {
   });
   return [...grupos.values()];
 };
+
+function DrivePlayer({ video }) {
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const layoutWidth = Math.max(width, MIN_PLAYER_WIDTH);
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', background: '#000', overflow: 'hidden' }}>
+      {width > 0 && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: layoutWidth, height: layoutWidth * 9 / 16, transform: `scale(${width / layoutWidth})`, transformOrigin: '0 0' }}>
+          {/* Tapa el botón del reproductor de Drive que abre el archivo fuera de SEGEDU */}
+          <div aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, width: 72, height: 72, zIndex: 1 }} />
+          <iframe
+            src={`https://drive.google.com/file/d/${encodeURIComponent(video.drive_file_id)}/preview`}
+            title={video.titulo}
+            allow="autoplay; fullscreen; encrypted-media"
+            allowFullScreen
+            style={{ display: 'block', width: '100%', height: '100%', border: 0 }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VideoPlayerDialog({ video, onClose }) {
+  useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={video.titulo}
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b1220', overflowY: 'auto' }}
+    >
+      <div style={{ width: `min(100%, 1000px, calc((100dvh - ${HEADER_AND_NOTE_HEIGHT}) * 16 / 9))`, color: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', padding: '.25rem .25rem .25rem .75rem' }}>
+          <h3 style={{ flex: 1, minWidth: 0, fontSize: '1rem', fontWeight: 700, color: '#fff', overflowWrap: 'anywhere' }}>{video.titulo}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar video"
+            style={{ width: 44, height: 44, flexShrink: 0, border: 0, background: 'transparent', color: '#fff', fontSize: '1.6rem', lineHeight: 1, cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+        <DrivePlayer video={video} />
+        <p style={{ fontSize: '.72rem', color: 'rgba(255,255,255,.65)', padding: '.5rem .75rem' }}>
+          Si el video se acaba de subir, Google Drive puede tardar unos minutos en procesarlo.
+        </p>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 function VideoCard({ video, onPlay, onDelete }) {
   const fecha = new Date(video.created_at).toLocaleDateString('es-BO');
@@ -71,26 +149,7 @@ export default function VideoTutorialesGrid({ videos, onDelete }) {
         </section>
       ))}
 
-      <Modal open={Boolean(activo)} onClose={() => setActivo(null)} title={activo?.titulo} maxWidth="1000px">
-        {activo && (
-          <>
-            <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', maxHeight: 'calc(100vh - 12rem)', background: '#000', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-              {/* Tapa el botón del reproductor de Drive que abre el archivo fuera de SEGEDU */}
-              <div aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, width: 72, height: 72, zIndex: 1 }} />
-              <iframe
-                src={`https://drive.google.com/file/d/${encodeURIComponent(activo.drive_file_id)}/preview`}
-                title={activo.titulo}
-                allow="autoplay; fullscreen; encrypted-media"
-                allowFullScreen
-                style={{ display: 'block', width: '100%', height: '100%', border: 0 }}
-              />
-            </div>
-            <p className="text-muted" style={{ fontSize: '.75rem', marginTop: '.6rem' }}>
-              Si el video se acaba de subir, Google Drive puede tardar unos minutos en procesarlo.
-            </p>
-          </>
-        )}
-      </Modal>
+      {activo && <VideoPlayerDialog video={activo} onClose={() => setActivo(null)} />}
     </>
   );
 }
