@@ -27,19 +27,36 @@ const getSharedDriveId = () => {
   return driveId;
 };
 
+// Reconstruye el PEM sin importar cómo lo guardó el panel de hosting:
+// con comillas, con "\n" literal, con saltos reales o con espacios.
+const normalizePrivateKey = (rawKey) => {
+  const body = rawKey
+    .replace(/\\n/g, '')
+    .replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '')
+    .replace(/[\s"']/g, '');
+  return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g)?.join('\n')}\n-----END PRIVATE KEY-----\n`;
+};
+
 const getAccessToken = async () => {
   if (accessToken && Date.now() < accessTokenExpiresAt) return accessToken;
+
+  if (typeof fetch !== 'function') throw new DriveError('El servidor necesita Node.js 18 o superior', 503);
 
   const { GOOGLE_SERVICE_ACCOUNT_EMAIL: email, GOOGLE_PRIVATE_KEY: rawKey } = process.env;
   if (!email || !rawKey) throw new DriveError('Google Drive no está configurado en el servidor', 503);
 
-  // Los paneles de hosting suelen guardar los saltos de línea como "\n" literal.
-  const assertion = jwt.sign({ scope: SCOPE }, rawKey.replace(/\\n/g, '\n'), {
-    algorithm: 'RS256',
-    issuer: email,
-    audience: TOKEN_URL,
-    expiresIn: 3600
-  });
+  let assertion;
+  try {
+    assertion = jwt.sign({ scope: SCOPE }, normalizePrivateKey(rawKey), {
+      algorithm: 'RS256',
+      issuer: email,
+      audience: TOKEN_URL,
+      expiresIn: 3600
+    });
+  } catch (err) {
+    console.error('[Google Drive] Clave privada inválida:', err.message);
+    throw new DriveError('La clave privada de la cuenta de servicio no es válida', 503);
+  }
 
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
