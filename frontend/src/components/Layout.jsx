@@ -16,7 +16,8 @@ const menuByRole = {
     { to: '/estudiante/tareas', label: 'Mis tareas', num: '07' },
     { to: '/estudiante/grupos', label: 'Grupos de trabajo', num: '08' },
     { to: '/estudiante/unidades', label: 'Unidades instrucción', num: '09' },
-    { to: '/estudiante/presentaciones', label: 'Presentaciones', num: '10' }
+    { to: '/estudiante/presentaciones', label: 'Presentaciones', num: '10' },
+    { to: '/estudiante/videotutoriales', label: 'Videotutoriales', num: '11' }
   ],
   docente: [
     { to: '/docente', label: 'Inicio', num: '01' },
@@ -30,7 +31,8 @@ const menuByRole = {
     { to: '/docente/grupos-trabajo', label: 'Grupos de trabajo', num: '09' },
     { to: '/docente/carpeta-pedagogica', label: 'Carpeta pedagogica', num: '10' },
     { to: '/docente/unidades', label: 'Unidades instrucción', num: '10' },
-    { to: '/docente/presentaciones', label: 'Presentaciones', num: '11' }
+    { to: '/docente/presentaciones', label: 'Presentaciones', num: '11' },
+    { to: '/docente/videotutoriales', label: 'Videotutoriales', num: '12' }
   ],
   jefe: [
     { to: '/jefe', label: 'Dashboard', num: '01' },

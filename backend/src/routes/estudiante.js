@@ -23,6 +23,7 @@ import {
   listarGruposEstudiante, listarCompaneros, crearGrupo, salirGrupo, eliminarGrupo,
   listarMisGruposDocente
 } from '../controllers/tareaController.js';
+import { listarVideotutorialesEstudiante } from '../controllers/videotutorialesController.js';
 
 const router = Router();
 router.use(verifyToken, requireRole('estudiante', 'auditor'), auditorReadOnly, impersonateAuditorAs('estudiante'));
@@ -59,6 +60,9 @@ router.get('/grupos/:tareaId/companeros', listarCompaneros);
 router.post('/grupos', crearGrupo);
 router.delete('/grupos/:grupoId/salir', salirGrupo);
 router.delete('/grupos/:grupoId', eliminarGrupo);
+
+// Videotutoriales de las materias inscritas
+router.get('/videotutoriales', listarVideotutorialesEstudiante);
 
 // Grupos de trabajo creados por docente
 router.get('/grupos-docente', listarMisGruposDocente);

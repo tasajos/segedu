@@ -28,6 +28,9 @@ import {
   listarMisPresentaciones, crearPresentacion, eliminarPresentacion, moverPresentacion,
   listarCarpetas, crearCarpeta, actualizarCarpeta, eliminarCarpeta
 } from '../controllers/presentacionesController.js';
+import {
+  listarVideotutorialesDocente, iniciarSubidaVideotutorial, registrarVideotutorial, eliminarVideotutorial
+} from '../controllers/videotutorialesController.js';
 
 const router = Router();
 router.use(verifyToken, requireRole('docente', 'auditor'), auditorReadOnly, impersonateAuditorAs('docente'));
@@ -91,6 +94,12 @@ router.get('/carpetas', listarCarpetas);
 router.post('/carpetas', crearCarpeta);
 router.put('/carpetas/:id', actualizarCarpeta);
 router.delete('/carpetas/:id', eliminarCarpeta);
+
+// Videotutoriales (el archivo va directo del navegador a Google Drive)
+router.get('/videotutoriales', listarVideotutorialesDocente);
+router.post('/videotutoriales/iniciar-subida', iniciarSubidaVideotutorial);
+router.post('/videotutoriales', registrarVideotutorial);
+router.delete('/videotutoriales/:id', eliminarVideotutorial);
 
 // Grupos de trabajo
 router.get('/grupos-trabajo', listarGruposTrabajo);

@@ -68,6 +68,8 @@ import EstudianteMisCursosEspeciales from './pages/estudiante/MisCursosEspeciale
 import DocentePresentaciones from './pages/docente/Presentaciones';
 import DocenteDatosPersonales from './pages/docente/DatosPersonales';
 import DocenteGruposTrabajo from './pages/docente/GruposDocente';
+import DocenteVideotutoriales from './pages/docente/Videotutoriales';
+import EstudianteVideotutoriales from './pages/estudiante/Videotutoriales';
 
 // Instructor
 import InstructorInicio from './pages/instructor/Inicio';
@@ -133,6 +135,7 @@ export default function App() {
         <Route path="unidades/sala-operaciones" element={<Quirofano />} />
         <Route path="unidades/html/:id" element={<UnidadHtml />} />
         <Route path="presentaciones" element={<PresentacionesVista />} />
+        <Route path="videotutoriales" element={<EstudianteVideotutoriales />} />
       </Route>
 
       {/* Docente */}
@@ -162,6 +165,7 @@ export default function App() {
         <Route path="unidades/sala-operaciones" element={<Quirofano />} />
         <Route path="unidades/html/:id" element={<UnidadHtml />} />
         <Route path="presentaciones" element={<DocentePresentaciones />} />
+        <Route path="videotutoriales" element={<DocenteVideotutoriales />} />
       </Route>
 
       {/* Jefe */}
@@ -228,6 +232,7 @@ export default function App() {
         <Route path="docente/unidades/sala-operaciones" element={<Quirofano />} />
         <Route path="docente/unidades/html/:id" element={<UnidadHtml />} />
         <Route path="docente/presentaciones" element={<DocentePresentaciones />} />
+        <Route path="docente/videotutoriales" element={<DocenteVideotutoriales />} />
         <Route path="estudiante" element={<AuditorPersonaSelector type="estudiante" />} />
         <Route path="estudiante/inicio" element={<EstudianteInicio />} />
         <Route path="estudiante/cursos" element={<EstudianteCursos />} />
@@ -252,6 +257,7 @@ export default function App() {
         <Route path="estudiante/unidades/sala-operaciones" element={<Quirofano />} />
         <Route path="estudiante/unidades/html/:id" element={<UnidadHtml />} />
         <Route path="estudiante/presentaciones" element={<PresentacionesVista />} />
+        <Route path="estudiante/videotutoriales" element={<EstudianteVideotutoriales />} />
       </Route>
 
       {/* Instructor */}
