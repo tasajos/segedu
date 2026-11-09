@@ -74,7 +74,9 @@ export default function VideoTutorialesGrid({ videos, onDelete }) {
       <Modal open={Boolean(activo)} onClose={() => setActivo(null)} title={activo?.titulo} maxWidth="1000px">
         {activo && (
           <>
-            <div style={{ width: '100%', aspectRatio: '16 / 9', maxHeight: 'calc(100vh - 12rem)', background: '#000', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', maxHeight: 'calc(100vh - 12rem)', background: '#000', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+              {/* Tapa el botón del reproductor de Drive que abre el archivo fuera de SEGEDU */}
+              <div aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, width: 72, height: 72, zIndex: 1 }} />
               <iframe
                 src={`https://drive.google.com/file/d/${encodeURIComponent(activo.drive_file_id)}/preview`}
                 title={activo.titulo}

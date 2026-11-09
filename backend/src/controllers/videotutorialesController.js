@@ -1,7 +1,8 @@
 import path from 'path';
 import pool from '../config/db.js';
 import {
-  DriveError, assertLinkSharingAllowed, createUploadSession, getFile, getFolderId, makeViewableByLink, trashFile
+  DriveError, assertSharedDriveReady, createUploadSession, disableDownloadForViewers, getFile, getFolderId,
+  makeViewableByLink, trashFile
 } from '../utils/googleDrive.js';
 
 const MAX_BYTES = 3 * 1024 * 1024 * 1024;
@@ -74,7 +75,7 @@ export const iniciarSubidaVideotutorial = async (req, res) => {
 
     // Comprobar ahora lo que haría fallar el registro tras horas de subida.
     await pool.query('SELECT 1 FROM videotutoriales LIMIT 1');
-    await assertLinkSharingAllowed();
+    await assertSharedDriveReady();
 
     const uploadUrl = await createUploadSession({
       name: fileName,
@@ -117,6 +118,8 @@ export const registrarVideotutorial = async (req, res) => {
 
     let result;
     try {
+      // En este orden, el archivo nunca queda público con la descarga habilitada.
+      await disableDownloadForViewers(fileId);
       await makeViewableByLink(fileId);
       [result] = await pool.query(
         `INSERT INTO videotutoriales

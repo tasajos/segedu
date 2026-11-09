@@ -110,12 +110,19 @@ export const getFolderId = () => {
   return folderIdPromise;
 };
 
-// El reproductor embebido necesita compartir por enlace con personas sin cuenta del dominio.
-export const assertLinkSharingAllowed = async () => {
-  const res = await driveFetch(`${API_URL}/drives/${encodeURIComponent(getSharedDriveId())}?fields=restrictions`);
-  const { restrictions } = await res.json();
+// Comprueba lo que haría fallar la publicación al terminar una subida de horas.
+export const assertSharedDriveReady = async () => {
+  const res = await driveFetch(
+    `${API_URL}/drives/${encodeURIComponent(getSharedDriveId())}?fields=restrictions,capabilities(canManageMembers)`
+  );
+  const { restrictions, capabilities } = await res.json();
+  // El reproductor embebido necesita compartir por enlace con personas sin cuenta del dominio.
   if (restrictions?.domainUsersOnly) {
     throw new DriveError('La unidad compartida no permite compartir fuera de la organización', 503);
+  }
+  // Google solo deja bloquear descargas a un Administrador de la unidad.
+  if (!capabilities?.canManageMembers) {
+    throw new DriveError('La cuenta de servicio debe tener el rol de Administrador en la unidad compartida', 503);
   }
 };
 
@@ -144,6 +151,13 @@ export const getFile = async (fileId) => {
   );
   return res.json();
 };
+
+// Quita a los lectores las opciones de descargar, copiar e imprimir el archivo.
+export const disableDownloadForViewers = (fileId) => sendJson(
+  'PATCH',
+  `${API_URL}/files/${encodeURIComponent(fileId)}?supportsAllDrives=true&fields=id`,
+  { copyRequiresWriterPermission: true }
+);
 
 export const makeViewableByLink = (fileId) => sendJson(
   'POST',
