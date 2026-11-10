@@ -1,6 +1,6 @@
 import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
-import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
+import { ensureStudentPermissionSchema, notifyPermissionRequest } from '../utils/studentPermissions.js';
 
 // ============ CURSOS DE CAPACITACIÓN ============
 export const listarCursos = async (req, res) => {
@@ -160,6 +160,14 @@ export const solicitarPermiso = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [estudianteId, materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle || null, detalle || null, documentoUrl, req.user.id]
     );
+    notifyPermissionRequest({
+      id: result.insertId,
+      estudianteId,
+      materiaId: materia_id,
+      datos: req.body,
+      archivo: req.file,
+      registradoPorId: req.user.id
+    });
     res.status(201).json({ id: result.insertId, message: 'Solicitud enviada al jefe de carrera' });
   } catch (err) {
     res.status(500).json({ error: err.message });

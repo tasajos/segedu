@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 import { ensureGradeReportSchema, PASSING_GRADE, GRADE_MODALITIES } from '../utils/gradeReports.js';
 import { generarTareasDesdePgo } from '../utils/pgoTasks.js';
 import { ensureNotificationSchema } from '../utils/notifications.js';
-import { ensureStudentPermissionSchema } from '../utils/studentPermissions.js';
+import { ensureStudentPermissionSchema, notifyPermissionRequest } from '../utils/studentPermissions.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -683,6 +683,14 @@ export const crearSolicitudPermiso = async (req, res) => {
       [estudiante_id, materia_id, tipo, fecha_desde, fecha_hasta, horas_detalle || null, detalle || null, documentoUrl, req.user.id]
     );
 
+    notifyPermissionRequest({
+      id: result.insertId,
+      estudianteId: estudiante_id,
+      materiaId: materia_id,
+      datos: req.body,
+      archivo: req.file,
+      registradoPorId: req.user.id
+    });
     res.status(201).json({ id: result.insertId, message: 'Solicitud registrada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
