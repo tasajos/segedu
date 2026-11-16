@@ -1,0 +1,56 @@
+.enrollment-panel {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.35rem;
+  overflow: hidden;
+  background: linear-gradient(145deg, #fff 0%, #f7faff 100%);
+  border: 1px solid rgba(36, 84, 214, .14);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(18, 50, 89, .08);
+}
+
+.enrollment-panel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.enrollment-panel__eyebrow { color: var(--blue-600); font: 700 .68rem var(--font-mono); letter-spacing: .11em; text-transform: uppercase; }
+.enrollment-panel__head h2 { margin: .22rem 0 .25rem; font: 700 1.35rem var(--serif); color: var(--text); }
+.enrollment-panel__head p { margin: 0; color: var(--text-muted); font-size: .84rem; }
+.enrollment-panel__counter { display: grid; min-width: 92px; padding: .65rem .8rem; text-align: center; background: var(--blue-50); border: 1px solid var(--blue-100); border-radius: 12px; }
+.enrollment-panel__counter strong { color: var(--blue-700); font: 700 1.4rem var(--serif); line-height: 1; }
+.enrollment-panel__counter span { margin-top: .18rem; color: var(--blue-700); font-size: .62rem; font-weight: 700; text-transform: uppercase; }
+
+.enrollment-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; }
+.enrollment-search { display: flex; align-items: center; gap: .6rem; padding: 0 .85rem; background: #fff; border: 1px solid var(--border-strong); border-radius: 10px; transition: border-color .15s, box-shadow .15s; }
+.enrollment-search:focus-within { border-color: var(--blue-500); box-shadow: 0 0 0 3px var(--blue-50); }
+.enrollment-search > span { color: var(--blue-600); font-size: 1.35rem; line-height: 1; }
+.enrollment-search input { width: 100%; padding: .75rem 0; color: var(--text); font: .86rem var(--font); background: transparent; border: 0; outline: 0; }
+.enrollment-select-all { padding: .7rem 1rem; color: var(--blue-700); font: 700 .76rem var(--font); background: var(--blue-50); border: 1px solid var(--blue-100); border-radius: 10px; cursor: pointer; }
+.enrollment-select-all:hover:not(:disabled) { background: var(--blue-100); }
+.enrollment-select-all:disabled { opacity: .5; cursor: not-allowed; }
+
+.enrollment-list { display: grid; gap: .55rem; max-height: 360px; padding: .2rem; overflow: auto; }
+.enrollment-student { position: relative; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: .8rem; padding: .8rem .9rem; background: #fff; border: 1px solid var(--border); border-radius: 11px; cursor: pointer; transition: border-color .15s, background .15s, transform .15s, box-shadow .15s; }
+.enrollment-student:hover { border-color: var(--blue-100); transform: translateY(-1px); box-shadow: 0 7px 18px rgba(18, 50, 89, .07); }
+.enrollment-student.is-selected { background: var(--blue-50); border-color: var(--blue-400); }
+.enrollment-student input { position: absolute; opacity: 0; pointer-events: none; }
+.enrollment-check { display: grid; width: 22px; height: 22px; place-items: center; color: transparent; font-size: .72rem; font-weight: 900; background: #fff; border: 2px solid var(--border-strong); border-radius: 6px; }
+.enrollment-student.is-selected .enrollment-check { color: #fff; background: var(--blue-600); border-color: var(--blue-600); }
+.enrollment-avatar { display: grid; width: 38px; height: 38px; place-items: center; color: var(--blue-700); font: 700 .75rem var(--serif); background: var(--blue-50); border-radius: 50%; }
+.enrollment-student__info { display: grid; min-width: 0; gap: .18rem; }
+.enrollment-student__info strong { overflow: hidden; color: var(--text); font-size: .88rem; text-overflow: ellipsis; white-space: nowrap; }
+.enrollment-student__info small { overflow: hidden; color: var(--text-muted); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+.enrollment-semester { padding: .28rem .55rem; color: var(--text-soft); font: 600 .65rem var(--font-mono); background: var(--paper-dark); border-radius: 99px; white-space: nowrap; }
+.enrollment-empty { padding: 2.3rem 1rem; color: var(--text-muted); font-size: .85rem; text-align: center; background: rgba(255,255,255,.55); border: 1px dashed var(--border-strong); border-radius: 11px; }
+.enrollment-message { padding: .65rem .8rem; font-size: .78rem; border-radius: 8px; }
+.enrollment-message.ok { color: var(--success); background: var(--success-bg); border: 1px solid var(--success-border); }
+.enrollment-message.error { color: var(--danger); background: var(--danger-bg); border: 1px solid var(--danger-border); }
+.enrollment-actions { display: flex; justify-content: flex-end; gap: .7rem; padding-top: .2rem; }
+
+@media (max-width: 700px) {
+  .enrollment-panel { padding: 1rem; border-radius: 12px; }
+  .enrollment-panel__head { align-items: center; }
+  .enrollment-panel__head p { display: none; }
+  .enrollment-toolbar { grid-template-columns: 1fr; }
+  .enrollment-student { grid-template-columns: auto auto minmax(0, 1fr); }
+  .enrollment-semester { grid-column: 3; justify-self: start; }
+  .enrollment-actions { display: grid; grid-template-columns: 1fr 1fr; }
+}

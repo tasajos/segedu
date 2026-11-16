@@ -1,0 +1,893 @@
+import { useEffect, useState } from 'react';
+import api from '../../services/api';
+import PageHeader from '../../components/PageHeader';
+import Modal from '../../components/Modal';
+
+const EMPTY_USER = {
+  nombre: '',
+  apellido: '',
+  email: '',
+  password: 'password123',
+  rol: 'estudiante',
+  ci: '',
+  telefono: '',
+  especialidad: '',
+  titulo: '',
+  carrera_id: '',
+  semestre: '1',
+  codigo_estudiante: '',
+  fecha_ingreso: ''
+};
+
+const EMPTY_IMPORT = {
+  archivo: null,
+  password_inicial: 'password123',
+  email_domain: 'est.uni.edu',
+  carrera_id: '',
+  materia_ids: [],
+  semestre: '',
+  fecha_ingreso: ''
+};
+
+const EMPTY_CSV = {
+  archivo: null,
+  carrera_id: '',
+  semestre: '1',
+  fecha_ingreso: '',
+  prefijo: 'CE'
+};
+
+const rolLabel = { estudiante: 'Estudiante', docente: 'Docente', jefe: 'Jefe de carrera', auditor: 'Auditor', admin: 'Administrador' };
+const rolChip = { estudiante: 'chip-gold', docente: 'chip-forest', jefe: 'chip-ink', auditor: 'chip-blue', admin: 'chip-crimson' };
+
+export default function AdminUsuarios() {
+  const [usuarios, setUsuarios] = useState([]);
+  const [carreras, setCarreras] = useState([]);
+  const [materias, setMaterias] = useState([]);
+  const [filtroRol, setFiltroRol] = useState('');
+  const [filtroEmail, setFiltroEmail] = useState('');
+  const [filtroCi, setFiltroCi] = useState('');
+  const [filtroCodigo, setFiltroCodigo] = useState('');
+  const [filtroActivo, setFiltroActivo] = useState('');
+  const [search, setSearch] = useState('');
+  const [modal, setModal] = useState(false);
+  const [modalImport, setModalImport] = useState(false);
+  const [modalProceso, setModalProceso] = useState(false);
+  const [modalReset, setModalReset] = useState(null);
+  const [form, setForm] = useState(EMPTY_USER);
+  const [importForm, setImportForm] = useState(EMPTY_IMPORT);
+  const [importResult, setImportResult] = useState(null);
+  const [editId, setEditId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [newPass, setNewPass] = useState('password123');
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [seleccionados, setSeleccionados] = useState(new Set());
+  const [modalCsv, setModalCsv] = useState(false);
+  const [csvForm, setCsvForm] = useState(EMPTY_CSV);
+  const [csvResult, setCsvResult] = useState(null);
+  const [csvLoading, setCsvLoading] = useState(false);
+
+  const cargar = async () => {
+    const params = {};
+    if (filtroRol) params.rol = filtroRol;
+    if (filtroEmail) params.email = filtroEmail;
+    if (filtroCi) params.ci = filtroCi;
+    if (filtroCodigo) params.codigo = filtroCodigo;
+    if (filtroActivo !== '') params.activo = filtroActivo;
+    const [u, c, m] = await Promise.all([
+      api.get('/admin/usuarios', { params }),
+      api.get('/admin/carreras'),
+      api.get('/admin/materias')
+    ]);
+    setUsuarios(u.data);
+    setCarreras(c.data);
+    setMaterias(m.data);
+    setSeleccionados(new Set());
+  };
+
+  useEffect(() => {
+    cargar();
+  }, [filtroRol, filtroEmail, filtroCi, filtroCodigo, filtroActivo]);
+
+  const abrirNuevo = () => {
+    setForm(EMPTY_USER);
+    setEditId(null);
+    setModal(true);
+  };
+
+  const abrirImportar = () => {
+    setImportForm(EMPTY_IMPORT);
+    setImportResult(null);
+    setModalImport(true);
+  };
+
+  const abrirEditar = (u) => {
+    setForm({
+      nombre: u.nombre,
+      apellido: u.apellido,
+      email: u.email,
+      password: '',
+      rol: u.rol,
+      ci: u.ci || '',
+      telefono: u.telefono || '',
+      especialidad: u.perfil?.especialidad || '',
+      titulo: u.perfil?.titulo || '',
+      carrera_id: u.perfil?.carrera_id || '',
+      semestre: u.perfil?.semestre || '1',
+      codigo_estudiante: u.perfil?.codigo || '',
+      fecha_ingreso: ''
+    });
+    setEditId(u.id);
+    setModal(true);
+  };
+
+  const guardar = async () => {
+    if (!form.nombre || !form.apellido || !form.email) return;
+    setSaving(true);
+    try {
+      if (editId) {
+        await api.put(`/admin/usuarios/${editId}`, form);
+      } else {
+        await api.post('/admin/usuarios', form);
+      }
+      setModal(false);
+      cargar();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const importarExcel = async () => {
+    if (!importForm.archivo) return;
+
+    const body = new FormData();
+    body.append('archivo', importForm.archivo);
+    if (importForm.password_inicial) body.append('password_inicial', importForm.password_inicial);
+    if (importForm.email_domain) body.append('email_domain', importForm.email_domain);
+    if (importForm.carrera_id) body.append('carrera_id', importForm.carrera_id);
+    if (importForm.materia_ids.length > 0) body.append('materia_ids', JSON.stringify(importForm.materia_ids));
+    if (importForm.semestre) body.append('semestre', importForm.semestre);
+    if (importForm.fecha_ingreso) body.append('fecha_ingreso', importForm.fecha_ingreso);
+
+    setImporting(true);
+    setModalProceso(true);
+    try {
+      const { data } = await api.post('/admin/usuarios/importar-excel', body, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImportResult(data);
+      await cargar();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al importar el Excel');
+    } finally {
+      setImporting(false);
+      setModalProceso(false);
+    }
+  };
+
+  const eliminar = async (id) => {
+    await api.delete(`/admin/usuarios/${id}`);
+    setConfirmDel(null);
+    cargar();
+  };
+
+  const resetPass = async () => {
+    await api.put(`/admin/usuarios/${modalReset.id}/reset-password`, { password: newPass });
+    setModalReset(null);
+    setNewPass('password123');
+  };
+
+  const toggleActivo = async (u) => {
+    await api.put(`/admin/usuarios/${u.id}/toggle-activo`);
+    cargar();
+  };
+
+  const bulkActivo = async (activo, ids) => {
+    if (!ids || ids.length === 0) return;
+    setBulkLoading(true);
+    try {
+      await api.put('/admin/usuarios/bulk-activo', { ids, activo });
+      cargar();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al actualizar');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const toggleSeleccion = (id) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSeleccionarTodos = () => {
+    const seleccionableIds = filtrados.filter((u) => u.rol !== 'admin').map((u) => u.id);
+    const todosSeleccionados = seleccionableIds.every((id) => seleccionados.has(id));
+    setSeleccionados(todosSeleccionados ? new Set() : new Set(seleccionableIds));
+  };
+
+  const abrirCsv = () => {
+    setCsvForm({ ...EMPTY_CSV, fecha_ingreso: new Date().toISOString().split('T')[0] });
+    setCsvResult(null);
+    setModalCsv(true);
+  };
+
+  const importarCsv = async () => {
+    if (!csvForm.archivo) return;
+    const body = new FormData();
+    body.append('archivo', csvForm.archivo);
+    if (csvForm.carrera_id) body.append('carrera_id', csvForm.carrera_id);
+    body.append('semestre', csvForm.semestre || '1');
+    if (csvForm.fecha_ingreso) body.append('fecha_ingreso', csvForm.fecha_ingreso);
+    body.append('prefijo', csvForm.prefijo || 'CE');
+    setCsvLoading(true);
+    try {
+      const { data } = await api.post('/admin/usuarios/importar-csv', body, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setCsvResult(data);
+      cargar();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al importar el CSV');
+    } finally {
+      setCsvLoading(false);
+    }
+  };
+
+  const limpiarFiltros = () => {
+    setFiltroRol('');
+    setFiltroEmail('');
+    setFiltroCi('');
+    setFiltroCodigo('');
+    setFiltroActivo('');
+    setSearch('');
+  };
+
+  const filtrados = usuarios.filter((u) => {
+    const t = search.toLowerCase();
+    return !t || u.nombre.toLowerCase().includes(t) || u.apellido.toLowerCase().includes(t) || u.email.toLowerCase().includes(t);
+  });
+
+  const f = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const fi = (k, v) => setImportForm((p) => ({ ...p, [k]: v }));
+  const materiasFiltradas = importForm.carrera_id
+    ? materias.filter((m) => String(m.carrera_id) === String(importForm.carrera_id))
+    : materias;
+  const toggleMateriaImport = (materiaId) => {
+    setImportForm((p) => ({
+      ...p,
+      materia_ids: p.materia_ids.includes(materiaId)
+        ? p.materia_ids.filter((id) => id !== materiaId)
+        : [...p.materia_ids, materiaId]
+    }));
+  };
+
+  return (
+    <>
+      <PageHeader
+        num="03"
+        eyebrow="Gestion de usuarios"
+        title={<>Estudiantes, docentes <span className="display-italic">y jefes</span></>}
+        lead="Cree y administre todos los usuarios del sistema academico."
+      />
+
+      {/* Filtros */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '.75rem', marginBottom: '.75rem' }}>
+        <input
+          type="text"
+          placeholder="Buscar por nombre..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ padding: '.7rem 1rem', border: '1px solid var(--line-strong)', borderRadius: '10px', background: 'var(--paper-light)', fontFamily: 'var(--sans)', fontSize: '.875rem' }}
+        />
+        <input
+          type="text"
+          placeholder="Filtrar por correo..."
+          value={filtroEmail}
+          onChange={(e) => setFiltroEmail(e.target.value)}
+          style={{ padding: '.7rem 1rem', border: '1px solid var(--line-strong)', borderRadius: '10px', background: 'var(--paper-light)', fontFamily: 'var(--sans)', fontSize: '.875rem' }}
+        />
+        <input
+          type="text"
+          placeholder="Filtrar por CI..."
+          value={filtroCi}
+          onChange={(e) => setFiltroCi(e.target.value)}
+          style={{ padding: '.7rem 1rem', border: '1px solid var(--line-strong)', borderRadius: '10px', background: 'var(--paper-light)', fontFamily: 'var(--mono)', fontSize: '.875rem' }}
+        />
+        <input
+          type="text"
+          placeholder="Filtrar por codigo..."
+          value={filtroCodigo}
+          onChange={(e) => setFiltroCodigo(e.target.value)}
+          style={{ padding: '.7rem 1rem', border: '1px solid var(--line-strong)', borderRadius: '10px', background: 'var(--paper-light)', fontFamily: 'var(--mono)', fontSize: '.875rem' }}
+        />
+        <select
+          value={filtroRol}
+          onChange={(e) => setFiltroRol(e.target.value)}
+          style={{ padding: '.7rem 1rem', border: '1px solid var(--line-strong)', borderRadius: '10px', background: 'var(--paper-light)', fontFamily: 'var(--mono)', fontSize: '.85rem' }}
+        >
+          <option value="">Todos los roles</option>
+          <option value="estudiante">Estudiantes</option>
+          <option value="docente">Docentes</option>
+          <option value="jefe">Jefes de carrera</option>
+          <option value="auditor">Auditores</option>
+          <option value="admin">Administradores</option>
+        </select>
+      </div>
+
+      {/* Segunda fila: estado + acciones bulk + botones */}
+      <div className="flex gap-4 mb-6" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+        <select
+          value={filtroActivo}
+          onChange={(e) => setFiltroActivo(e.target.value)}
+          style={{ padding: '.7rem 1rem', border: '1px solid var(--line-strong)', borderRadius: '10px', background: 'var(--paper-light)', fontFamily: 'var(--mono)', fontSize: '.85rem' }}
+        >
+          <option value="">Todos los estados</option>
+          <option value="1">Habilitados</option>
+          <option value="0">Deshabilitados</option>
+        </select>
+
+        {(filtroRol || filtroEmail || filtroCi || filtroCodigo || filtroActivo || search) && (
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={limpiarFiltros}
+            style={{ fontSize: '.8rem' }}
+          >
+            Limpiar filtros
+          </button>
+        )}
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {seleccionados.size > 0 ? (
+            <>
+              <span style={{ fontSize: '.8rem', color: 'var(--ink-light)', fontFamily: 'var(--mono)' }}>
+                {seleccionados.size} seleccionado{seleccionados.size !== 1 ? 's' : ''}
+              </span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkActivo(0, [...seleccionados])}
+                disabled={bulkLoading}
+                style={{ fontSize: '.8rem' }}
+              >
+                Deshabilitar seleccionados
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkActivo(1, [...seleccionados])}
+                disabled={bulkLoading}
+                style={{ fontSize: '.8rem' }}
+              >
+                Habilitar seleccionados
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSeleccionados(new Set())}
+                style={{ fontSize: '.8rem' }}
+              >
+                Limpiar seleccion
+              </button>
+            </>
+          ) : filtrados.length > 0 && (
+            <>
+              <span style={{ fontSize: '.8rem', color: 'var(--ink-light)', fontFamily: 'var(--mono)' }}>
+                {filtrados.length} usuario{filtrados.length !== 1 ? 's' : ''}
+              </span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkActivo(0, filtrados.filter((u) => u.rol !== 'admin').map((u) => u.id))}
+                disabled={bulkLoading}
+                style={{ fontSize: '.8rem' }}
+              >
+                Deshabilitar todos
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => bulkActivo(1, filtrados.filter((u) => u.rol !== 'admin').map((u) => u.id))}
+                disabled={bulkLoading}
+                style={{ fontSize: '.8rem' }}
+              >
+                Habilitar todos
+              </button>
+            </>
+          )}
+          <button className="btn btn-secondary" onClick={abrirCsv}>Importar CSV</button>
+          <button className="btn btn-secondary" onClick={abrirImportar}>Importar Excel</button>
+          <button className="btn btn-primary" onClick={abrirNuevo}>+ Nuevo usuario</button>
+        </div>
+      </div>
+
+      {(() => {
+        const seleccionableIds = filtrados.filter((u) => u.rol !== 'admin').map((u) => u.id);
+        const todosSeleccionados = seleccionableIds.length > 0 && seleccionableIds.every((id) => seleccionados.has(id));
+        const algunoSeleccionado = seleccionableIds.some((id) => seleccionados.has(id));
+        return (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: '36px' }}>
+                  <input
+                    type="checkbox"
+                    checked={todosSeleccionados}
+                    ref={(el) => { if (el) el.indeterminate = !todosSeleccionados && algunoSeleccionado; }}
+                    onChange={toggleSeleccionarTodos}
+                    title="Seleccionar todos"
+                    style={{ cursor: 'pointer' }}
+                  />
+                </th>
+                <th>No</th>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>CI</th>
+                <th>Codigo</th>
+                <th>Estado</th>
+                <th style={{ textAlign: 'right' }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.length === 0 && (
+                <tr><td colSpan="9" style={{ textAlign: 'center', padding: '2rem', fontStyle: 'italic' }}>Sin resultados</td></tr>
+              )}
+              {filtrados.map((u, i) => {
+                const isSelected = seleccionados.has(u.id);
+                return (
+                  <tr
+                    key={u.id}
+                    style={{
+                      opacity: u.activo ? 1 : 0.55,
+                      background: isSelected ? 'var(--paper-dark, #f5f3ee)' : undefined
+                    }}
+                  >
+                    <td>
+                      {u.rol !== 'admin' && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSeleccion(u.id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      )}
+                    </td>
+                    <td className="num">{String(i + 1).padStart(3, '0')}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                        <div
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: u.activo ? 'var(--ink)' : 'var(--line-strong)',
+                            color: u.activo ? 'var(--gold)' : 'var(--ink-light)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontFamily: 'var(--serif)',
+                            fontSize: '.8rem'
+                          }}
+                        >
+                          {u.nombre[0]}{u.apellido[0]}
+                        </div>
+                        <span style={{ fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{u.nombre} {u.apellido}</span>
+                      </div>
+                    </td>
+                    <td style={{ fontSize: '.85rem', color: 'var(--ink-light)' }}>{u.email}</td>
+                    <td><span className={`chip ${rolChip[u.rol] || 'chip-ink'}`}>{rolLabel[u.rol] || u.rol}</span></td>
+                    <td className="text-mono" style={{ fontSize: '.8rem' }}>{u.ci || '-'}</td>
+                    <td className="text-mono" style={{ fontSize: '.8rem' }}>{u.perfil?.codigo || '-'}</td>
+                    <td>
+                      <span className={`chip ${u.activo ? 'chip-forest' : 'chip-crimson'}`} style={{ fontSize: '.75rem' }}>
+                        {u.activo ? 'Habilitado' : 'Deshabilitado'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'flex-end' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => abrirEditar(u)}>Editar</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => { setModalReset(u); setNewPass('password123'); }}>Contrasena</button>
+                        {u.rol !== 'admin' && (
+                          <button
+                            className={`btn btn-sm ${u.activo ? 'btn-secondary' : 'btn-primary'}`}
+                            onClick={() => toggleActivo(u)}
+                            title={u.activo ? 'Deshabilitar usuario' : 'Habilitar usuario'}
+                          >
+                            {u.activo ? 'Deshabilitar' : 'Habilitar'}
+                          </button>
+                        )}
+                        <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(u)}>Eliminar</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        );
+      })()}
+
+      <Modal open={modal} onClose={() => setModal(false)} title={editId ? 'Editar usuario' : 'Nuevo usuario'} maxWidth="620px">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div>
+            <label className="form-label">Nombre *</label>
+            <input className="form-input" value={form.nombre} onChange={(e) => f('nombre', e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">Apellido *</label>
+            <input className="form-input" value={form.apellido} onChange={(e) => f('apellido', e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">Correo *</label>
+            <input className="form-input" type="email" value={form.email} onChange={(e) => f('email', e.target.value)} />
+          </div>
+          {!editId && (
+            <div>
+              <label className="form-label">Contrasena inicial</label>
+              <input className="form-input" value={form.password} onChange={(e) => f('password', e.target.value)} />
+            </div>
+          )}
+          <div>
+            <label className="form-label">CI</label>
+            <input className="form-input" value={form.ci} onChange={(e) => f('ci', e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">Telefono</label>
+            <input className="form-input" value={form.telefono} onChange={(e) => f('telefono', e.target.value)} />
+          </div>
+          {(form.rol !== 'admin' || !editId) && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Rol *</label>
+              <select className="form-input" value={form.rol} onChange={(e) => f('rol', e.target.value)}>
+                <option value="estudiante">Estudiante</option>
+                <option value="docente">Docente</option>
+                <option value="jefe">Jefe de carrera</option>
+                <option value="auditor">Auditor (solo lectura, todas las carreras)</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+          )}
+
+          {form.rol === 'docente' && (
+            <>
+              <div>
+                <label className="form-label">Especialidad</label>
+                <input className="form-input" value={form.especialidad} onChange={(e) => f('especialidad', e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">Titulo</label>
+                <input className="form-input" value={form.titulo} onChange={(e) => f('titulo', e.target.value)} />
+              </div>
+            </>
+          )}
+
+          {form.rol === 'estudiante' && (
+            <>
+              <div>
+                <label className="form-label">Carrera</label>
+                <select className="form-input" value={form.carrera_id} onChange={(e) => f('carrera_id', e.target.value)}>
+                  <option value="">- Sin carrera -</option>
+                  {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Semestre</label>
+                <input className="form-input" type="number" min="1" max="10" value={form.semestre} onChange={(e) => f('semestre', e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">Codigo estudiante</label>
+                <input className="form-input" value={form.codigo_estudiante} onChange={(e) => f('codigo_estudiante', e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">Fecha de ingreso</label>
+                <input className="form-input" type="date" value={form.fecha_ingreso} onChange={(e) => f('fecha_ingreso', e.target.value)} />
+              </div>
+            </>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <button className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button>
+          <button className="btn btn-primary" onClick={guardar} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={modalImport} onClose={() => setModalImport(false)} title="Importar estudiantes desde Excel" maxWidth="920px">
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <div style={{ fontSize: '.9rem', color: 'var(--ink-light)' }}>
+            Suba una lista de estudiantes en Excel. El sistema leerá el encabezado de la materia y registrará a cada estudiante con su inscripción correspondiente.
+          </div>
+
+          <div>
+            <label className="form-label">Archivo Excel *</label>
+            <input
+              className="form-input"
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => fi('archivo', e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label className="form-label">Contrasena inicial</label>
+              <input className="form-input" value={importForm.password_inicial} onChange={(e) => fi('password_inicial', e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">Dominio de correo</label>
+              <input className="form-input" value={importForm.email_domain} onChange={(e) => fi('email_domain', e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">Fecha de ingreso</label>
+              <input className="form-input" type="date" value={importForm.fecha_ingreso} onChange={(e) => fi('fecha_ingreso', e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">Semestre</label>
+              <input className="form-input" type="number" min="1" max="12" value={importForm.semestre} onChange={(e) => fi('semestre', e.target.value)} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr', gap: '1rem', alignItems: 'start' }}>
+            <div>
+              <label className="form-label">Carrera manual</label>
+              <select
+                className="form-input"
+                value={importForm.carrera_id}
+                onChange={(e) => setImportForm((p) => ({ ...p, carrera_id: e.target.value, materia_ids: [] }))}
+              >
+                <option value="">Detectar desde el Excel</option>
+                {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Materias manuales</label>
+              <div style={{ border: '1px solid var(--border-strong)', borderRadius: '8px', background: 'var(--surface)', padding: '.5rem', minHeight: '290px', maxHeight: '290px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
+                {materiasFiltradas.length === 0 && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '.88rem', padding: '.5rem' }}>
+                    No hay materias disponibles para esta carrera.
+                  </div>
+                )}
+                {materiasFiltradas.map((m) => {
+                  const checked = importForm.materia_ids.includes(String(m.id));
+                  return (
+                    <label
+                      key={m.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '.7rem',
+                        padding: '.7rem .75rem',
+                        border: `1px solid ${checked ? 'var(--blue-500)' : 'var(--border)'}`,
+                        borderRadius: '8px',
+                        background: checked ? 'var(--blue-50)' : 'var(--white)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleMateriaImport(String(m.id))}
+                        style={{ marginTop: '.15rem' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '.92rem', color: 'var(--text)' }}>
+                          {m.nombre}
+                        </div>
+                        <div className="text-mono" style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '.18rem' }}>
+                          {m.codigo} - Grupo {m.grupo}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: '.8rem', color: 'var(--ink-light)', marginTop: '.35rem' }}>
+                Puede marcar varias materias. Si no selecciona ninguna, se intentará detectar la materia desde el Excel.
+              </div>
+            </div>
+          </div>
+
+          {importResult && (
+            <div className="card" style={{ padding: '1rem', display: 'grid', gap: '.5rem' }}>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: '1.05rem', fontWeight: 600 }}>
+                Importacion completada
+              </div>
+              <div style={{ fontSize: '.9rem', color: 'var(--ink-light)' }}>
+                Materias: {(importResult.materias || []).map((m) => `${m.nombre} (${m.codigo}) - Grupo ${m.grupo}`).join(', ')}
+              </div>
+              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                <span className="chip chip-forest">{importResult.createdUsers} creados</span>
+                <span className="chip chip-gold">{importResult.reusedStudents} existentes</span>
+                <span className="chip chip-ink">{importResult.enrolled} inscritos</span>
+                <span className="chip chip-crimson">{importResult.alreadyEnrolled} ya inscritos</span>
+              </div>
+              {importResult.nuevosUsuarios?.length > 0 && (
+                <div style={{ marginTop: '.5rem', display: 'grid', gap: '.5rem' }}>
+                  <div className="text-mono" style={{ fontSize: '.72rem', letterSpacing: '.08em', color: 'var(--ink-light)', textTransform: 'uppercase' }}>
+                    Usuarios nuevos
+                  </div>
+                  <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'grid', gap: '.5rem' }}>
+                    {importResult.nuevosUsuarios.map((u) => (
+                      <div key={u.codigo_estudiante} style={{ padding: '.75rem', background: 'var(--paper-dark)', borderRadius: '10px' }}>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: '.95rem', fontWeight: 600 }}>
+                          {u.nombre} {u.apellido}
+                        </div>
+                        <div className="text-mono" style={{ fontSize: '.75rem', color: 'var(--ink-light)', marginTop: '.2rem' }}>
+                          {u.codigo_estudiante} - {u.email}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <button className="btn btn-secondary" onClick={() => setModalImport(false)}>Cancelar</button>
+          <button className="btn btn-primary" onClick={importarExcel} disabled={importing || !importForm.archivo}>
+            {importing ? 'Importando...' : 'Importar estudiantes'}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={modalProceso} onClose={() => {}} title="Importacion en proceso" maxWidth="520px">
+        <div style={{ display: 'grid', gap: '1rem', textAlign: 'center', padding: '.5rem 0' }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: '1.2rem', fontWeight: 600 }}>
+            Registrando estudiantes...
+          </div>
+          <div style={{ fontSize: '.95rem', color: 'var(--ink-light)' }}>
+            Estamos procesando el archivo Excel, creando usuarios y asignando sus materias.
+          </div>
+          <div style={{ width: '100%', height: '8px', background: 'var(--line)', borderRadius: '999px', overflow: 'hidden' }}>
+            <div
+              style={{
+                width: '40%',
+                height: '100%',
+                background: 'linear-gradient(90deg, var(--ink), var(--gold))',
+                borderRadius: '999px',
+                animation: 'import-progress 1.2s ease-in-out infinite'
+              }}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!modalReset} onClose={() => setModalReset(null)} title="Restablecer contraseña">
+        <p style={{ marginBottom: '1rem', fontSize: '.9rem' }}>
+          Restableciendo contraseña de <strong>{modalReset?.nombre} {modalReset?.apellido}</strong>
+        </p>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label className="form-label">Nueva contraseña</label>
+          <input className="form-input" value={newPass} onChange={(e) => setNewPass(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={() => setModalReset(null)}>Cancelar</button>
+          <button className="btn btn-primary" onClick={resetPass}>Restablecer</button>
+        </div>
+      </Modal>
+
+      <Modal open={modalCsv} onClose={() => setModalCsv(false)} title="Importar usuarios desde CSV" maxWidth="680px">
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <div style={{ fontSize: '.9rem', color: 'var(--ink-light)' }}>
+            Suba un CSV con columnas: <span className="text-mono" style={{ fontSize: '.82rem' }}>correo;Nombre;Apellidos;Telefono;password;codigo</span>. Separador: punto y coma. La columna <span className="text-mono" style={{ fontSize: '.82rem' }}>codigo</span> es opcional — si está vacía se genera automáticamente con el prefijo configurado.
+          </div>
+
+          <div>
+            <label className="form-label">Archivo CSV *</label>
+            <input
+              className="form-input"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setCsvForm((p) => ({ ...p, archivo: e.target.files?.[0] || null }))}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label className="form-label">Carrera</label>
+              <select
+                className="form-input"
+                value={csvForm.carrera_id}
+                onChange={(e) => setCsvForm((p) => ({ ...p, carrera_id: e.target.value }))}
+              >
+                <option value="">Sin carrera</option>
+                {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Semestre</label>
+              <input
+                className="form-input"
+                type="number"
+                min="1"
+                max="12"
+                value={csvForm.semestre}
+                onChange={(e) => setCsvForm((p) => ({ ...p, semestre: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="form-label">Fecha de ingreso</label>
+              <input
+                className="form-input"
+                type="date"
+                value={csvForm.fecha_ingreso}
+                onChange={(e) => setCsvForm((p) => ({ ...p, fecha_ingreso: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="form-label">Prefijo de codigo</label>
+              <input
+                className="form-input"
+                value={csvForm.prefijo}
+                placeholder="CE"
+                onChange={(e) => setCsvForm((p) => ({ ...p, prefijo: e.target.value.toUpperCase() }))}
+              />
+            </div>
+          </div>
+
+          {csvResult && (
+            <div className="card" style={{ padding: '1rem', display: 'grid', gap: '.75rem' }}>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: '1.05rem', fontWeight: 600 }}>
+                Importacion completada
+              </div>
+              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                <span className="chip chip-forest">{csvResult.created} creados</span>
+                <span className="chip chip-gold">{csvResult.skipped} omitidos (duplicados)</span>
+                {csvResult.errores?.length > 0 && (
+                  <span className="chip chip-crimson">{csvResult.errores.length} errores</span>
+                )}
+              </div>
+              {csvResult.nuevosUsuarios?.length > 0 && (
+                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'grid', gap: '.4rem' }}>
+                  {csvResult.nuevosUsuarios.map((u) => (
+                    <div key={u.email} style={{ padding: '.6rem .75rem', background: 'var(--paper-dark)', borderRadius: '10px' }}>
+                      <div style={{ fontFamily: 'var(--serif)', fontSize: '.9rem', fontWeight: 600 }}>
+                        {u.nombre} {u.apellido}
+                      </div>
+                      <div className="text-mono" style={{ fontSize: '.75rem', color: 'var(--ink-light)', marginTop: '.15rem' }}>
+                        {u.codigo_estudiante} — {u.email}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {csvResult.errores?.length > 0 && (
+                <div style={{ maxHeight: '100px', overflowY: 'auto', display: 'grid', gap: '.3rem' }}>
+                  {csvResult.errores.map((e, i) => (
+                    <div key={i} className="text-mono" style={{ fontSize: '.78rem', color: 'var(--crimson, #c00)', padding: '.4rem .75rem', background: 'var(--paper-dark)' }}>
+                      {e.email}: {e.error}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <button className="btn btn-secondary" onClick={() => setModalCsv(false)}>Cerrar</button>
+          {!csvResult && (
+            <button className="btn btn-primary" onClick={importarCsv} disabled={csvLoading || !csvForm.archivo}>
+              {csvLoading ? 'Importando...' : 'Importar usuarios'}
+            </button>
+          )}
+        </div>
+      </Modal>
+
+      <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="Confirmar eliminacion">
+        <p style={{ marginBottom: '1.5rem' }}>
+          Eliminar al usuario <strong>{confirmDel?.nombre} {confirmDel?.apellido}</strong>? Se eliminaran todos sus datos asociados.
+        </p>
+        <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={() => setConfirmDel(null)}>Cancelar</button>
+          <button className="btn btn-danger" onClick={() => eliminar(confirmDel.id)}>Eliminar</button>
+        </div>
+      </Modal>
+    </>
+  );
+}

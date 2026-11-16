@@ -1,0 +1,45 @@
+import { Router } from 'express';
+import { verifyToken, requireRole } from '../middleware/auth.js';
+import { upload } from '../middleware/upload.js';
+import {
+  dashboard,
+  listarCarreras, crearCarrera, actualizarCarrera, eliminarCarrera,
+  listarUsuarios, crearUsuario, importarEstudiantesExcel, importarCsvUsuarios, actualizarUsuario, eliminarUsuario,
+  listarJefes, resetPassword, toggleUsuarioActivo, toggleBulkActivo,
+  listarMaterias, obtenerMateria, crearMateria, actualizarMateria, eliminarMateria,
+  listarDocentesAdmin
+} from '../controllers/adminController.js';
+
+import { actualizarInstitucion } from '../controllers/institucionController.js';
+
+const router = Router();
+router.use(verifyToken, requireRole('admin'));
+
+router.get('/dashboard', dashboard);
+router.put('/institucion', upload.single('logo'), actualizarInstitucion);
+
+router.get('/carreras', listarCarreras);
+router.post('/carreras', crearCarrera);
+router.put('/carreras/:id', actualizarCarrera);
+router.delete('/carreras/:id', eliminarCarrera);
+
+router.get('/usuarios', listarUsuarios);
+router.post('/usuarios', crearUsuario);
+router.post('/usuarios/importar-excel', upload.single('archivo'), importarEstudiantesExcel);
+router.post('/usuarios/importar-csv', upload.single('archivo'), importarCsvUsuarios);
+router.put('/usuarios/bulk-activo', toggleBulkActivo);
+router.put('/usuarios/:id', actualizarUsuario);
+router.delete('/usuarios/:id', eliminarUsuario);
+router.put('/usuarios/:id/reset-password', resetPassword);
+router.put('/usuarios/:id/toggle-activo', toggleUsuarioActivo);
+
+router.get('/jefes', listarJefes);
+
+router.get('/materias', listarMaterias);
+router.get('/materias/:id', obtenerMateria);
+router.post('/materias', crearMateria);
+router.put('/materias/:id', actualizarMateria);
+router.delete('/materias/:id', eliminarMateria);
+router.get('/docentes', listarDocentesAdmin);
+
+export default router;

@@ -1,0 +1,19 @@
+/* Tarjeta de indicador: el color lateral dice de qué tipo de dato se trata */
+.stat-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem 1.15rem 1.5rem;
+  overflow: hidden;
+}
+.stat-card::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--brand); }
+.stat-gold::after    { background: var(--accent); }
+.stat-crimson::after { background: var(--danger); }
+.stat-forest::after  { background: var(--success); }
+.stat-ink::after     { background: var(--brand); }
+.stat-top, .stat-num, .stat-dot { display: none; }
+.stat-value { font-size: 2.1rem; font-weight: 900; line-height: 1.1; color: var(--text); font-variant-numeric: tabular-nums; }
+.stat-big .stat-value { font-size: 2.6rem; }
+.stat-label { font-weight: 800; color: var(--text-soft); margin-top: .15rem; }
+.stat-hint { font-size: .84rem; color: var(--text-muted); }

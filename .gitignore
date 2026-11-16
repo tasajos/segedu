@@ -10,3 +10,6 @@ uploads/*
 *.log
 .vscode/
 .idea/
+
+# SEGEDU Instituciones
+segedu-instituciones/backend/public/
