@@ -173,8 +173,21 @@
 }
 
 .hero-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.55);
+}
+
+.hero-copy-logo {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 7px;
+  padding: 2px;
 }
 
 /* ===================== FORMULARIO DE ACCESO ===================== */
@@ -227,6 +240,11 @@
   gap: 1.15rem;
 }
 
+/* El gap del formulario ya separa los campos */
+.login-form .form-field {
+  margin-bottom: 0;
+}
+
 .form-field-header {
   display: flex;
   align-items: center;
@@ -238,41 +256,71 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .input-icon {
   position: absolute;
   left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
   width: 18px;
   height: 18px;
   color: var(--text-light);
   pointer-events: none;
   transition: color 0.15s ease;
+  z-index: 1;
 }
 
-.input-with-icon input {
-  padding-left: 2.6rem;
-  padding-right: 2.6rem;
+/* Mayor especificidad que `.form-field input` de global.css,
+   que de lo contrario pisa el padding y el texto tapa el icono */
+.login-form .input-with-icon input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.9rem 0 2.6rem;
   height: 44px;
   font-size: 0.92rem;
   border-radius: 10px;
   border: 1.5px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  transition: all 0.18s ease;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Deja espacio al botón de ver contraseña */
+.login-form .input-with-icon:has(.input-action-btn) input {
+  padding-right: 2.8rem;
+}
+
+/* Autocompletado de Chrome: evita el fondo azul y conserva el texto */
+.login-form .input-with-icon input:-webkit-autofill,
+.login-form .input-with-icon input:-webkit-autofill:hover,
+.login-form .input-with-icon input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  box-shadow: 0 0 0 1000px var(--surface) inset;
+  caret-color: var(--text);
 }
 
 .input-with-icon:focus-within .input-icon {
   color: var(--blue-600);
 }
 
-.input-with-icon input:focus {
+.login-form .input-with-icon input:focus {
   border-color: var(--blue-600);
   box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--brand) 18%, transparent);
 }
 
+.login-form .input-with-icon input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3.5px color-mix(in srgb, var(--brand) 18%, transparent);
+  box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3.5px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
 .input-action-btn {
   position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
   right: 0.6rem;
   background: none;
   border: none;
@@ -360,5 +408,30 @@
   }
   .login-card {
     padding: 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-hero {
+    padding: 1.5rem 1rem;
+  }
+  .hero-brand {
+    gap: 0.9rem;
+  }
+  .login-form-wrap {
+    padding: 1.25rem 1rem 2rem;
+  }
+  .login-card {
+    padding: 1.6rem 1.15rem;
+    gap: 1.25rem;
+    border-radius: var(--radius-lg, 14px);
+  }
+  .login-h1 {
+    font-size: 1.55rem;
+  }
+  /* 16px evita el zoom automático de iOS al enfocar el campo */
+  .login-form .input-with-icon input {
+    font-size: 16px;
+    height: 46px;
   }
 }

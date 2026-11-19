@@ -75,7 +75,7 @@ const table = (doc, head, body, options = {}) => autoTable(doc, {
 
 export const exportStudentRecordPdf = async (record) => {
   if (!record?.estudiante) return;
-  const [logo, favicon] = await Promise.all([loadImage(window.__SEGEDU_LOGO__ || '/logo-institucion.png'), loadImage('/logo-institucion.png')]);
+  const [logo, favicon] = await Promise.all([loadImage(window.__SEGEDU_LOGO__ || '/chakuy.png'), loadImage('/chakuy.png')]);
   const student = record.estudiante;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 

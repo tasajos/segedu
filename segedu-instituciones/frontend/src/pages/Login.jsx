@@ -108,7 +108,10 @@ export default function Login() {
             </svg>
             <span>Conexión institucional segura y cifrada</span>
           </div>
-          <div className="hero-copy">SEGEDU Instituciones · por Chakuy Software</div>
+          <div className="hero-copy">
+            <img src="/chakuy.png" alt="" className="hero-copy-logo" />
+            <span>SEGEDU Instituciones · por Chakuy Software</span>
+          </div>
         </div>
       </aside>
 

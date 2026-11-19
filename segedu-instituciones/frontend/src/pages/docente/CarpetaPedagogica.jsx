@@ -290,7 +290,7 @@ const partialStats = (rows, type) => {
 };
 
 const loadLogo = async () => {
-  const response = await fetch(window.__SEGEDU_LOGO__ || '/logo-institucion.png');
+  const response = await fetch(window.__SEGEDU_LOGO__ || '/chakuy.png');
   if (!response.ok) return null;
   const blob = await response.blob();
   return new Promise((resolve) => {

@@ -44,7 +44,7 @@ const downloadBlob = (blob, fileName) => {
 };
 
 const loadLogoDataUrl = async () => {
-  const response = await fetch(window.__SEGEDU_LOGO__ || '/logo-institucion.png');
+  const response = await fetch(window.__SEGEDU_LOGO__ || '/chakuy.png');
   if (!response.ok) throw new Error('No se pudo cargar el logo de la institución');
   const blob = await response.blob();
 

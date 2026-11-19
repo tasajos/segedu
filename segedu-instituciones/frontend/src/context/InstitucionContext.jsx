@@ -62,10 +62,6 @@ export function LogoInstitucion({ size = 40 }) {
   if (institucion.logo_url) {
     return <img src={institucion.logo_url} alt={institucion.nombre} className="inst-logo" style={{ width: size, height: size, borderRadius: radius }} />;
   }
-  const iniciales = (institucion.sigla || institucion.nombre || 'S').slice(0, 3).toUpperCase();
-  return (
-    <span className="inst-logo inst-logo-letras" style={{ width: size, height: size, fontSize: size * 0.36, borderRadius: radius }} aria-label={institucion.nombre}>
-      {iniciales}
-    </span>
-  );
+  // Sin logo propio: se muestra el de Chakuy.
+  return <img src="/chakuy.png" alt={institucion.nombre} className="inst-logo inst-logo-chakuy" style={{ width: size, height: size, borderRadius: radius }} />;
 }
