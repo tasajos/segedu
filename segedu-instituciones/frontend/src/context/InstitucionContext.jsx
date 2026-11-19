@@ -58,12 +58,13 @@ export const useInstitucion = () => useContext(InstitucionContext);
 // Logo de la institución, o sus iniciales si todavía no subió uno.
 export function LogoInstitucion({ size = 40 }) {
   const { institucion } = useInstitucion();
+  const radius = Math.max(8, Math.round(size * 0.25));
   if (institucion.logo_url) {
-    return <img src={institucion.logo_url} alt={institucion.nombre} className="inst-logo" style={{ width: size, height: size }} />;
+    return <img src={institucion.logo_url} alt={institucion.nombre} className="inst-logo" style={{ width: size, height: size, borderRadius: radius }} />;
   }
   const iniciales = (institucion.sigla || institucion.nombre || 'S').slice(0, 3).toUpperCase();
   return (
-    <span className="inst-logo inst-logo-letras" style={{ width: size, height: size, fontSize: size * 0.34 }} aria-label={institucion.nombre}>
+    <span className="inst-logo inst-logo-letras" style={{ width: size, height: size, fontSize: size * 0.36, borderRadius: radius }} aria-label={institucion.nombre}>
       {iniciales}
     </span>
   );

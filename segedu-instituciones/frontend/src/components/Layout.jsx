@@ -6,36 +6,35 @@ import Modal from './Modal';
 import { useInstitucion, LogoInstitucion } from '../context/InstitucionContext';
 import './Layout.css';
 
-// Íconos de línea simples (24x24). Un solo trazo para mantener el menú liviano.
+// Íconos SVG consistentes y modernos (24x24)
 const ICONOS = {
   inicio: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   asistencia: 'M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 14l2 2 4-4',
   personas: 'M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 19v-1a4 4 0 0 0-3-3.8M16 3.2a3.5 3.5 0 0 1 0 6.6',
-  alerta: 'M12 4l9 15H3zM12 10v4M12 17v.5',
-  notas: 'M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M8 13h8M8 17h5',
-  plan: 'M9 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-3M9 3h6v4H9zM8 12h8M8 16h8',
-  avance: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
-  carpeta: 'M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z',
-  pantalla: 'M3 5h18v11H3zM8 20h8M12 16v4',
-  libro: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21a2 2 0 0 1 2-2h13',
-  reloj: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
-  escudo: 'M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z',
-  campana: 'M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 21h4',
-  tarea: 'M5 4h14v16H5zM9 9h6M9 13h6M9 17h3',
-  grupo: 'M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 20a7 7 0 0 1 14 0',
-  mensaje: 'M4 5h16v11H9l-5 4z',
-  cuenta: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
-  edificio: 'M4 21V5l8-2v18M12 9h8v12M7 9h2M7 13h2M7 17h2M15 13h2M15 17h2M2 21h20',
-  diploma: 'M4 5h16v10H4zM9 15v6l3-2 3 2v-6'
+  alerta: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  notas: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+  plan: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4',
+  avance: 'M18 20V10M12 20V4M6 20v-6',
+  carpeta: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
+  pantalla: 'M2 3h20v14H2zM8 21h8M12 17v4',
+  libro: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z',
+  reloj: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 6v6l4 2',
+  escudo: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  campana: 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0',
+  tarea: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+  grupo: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  mensaje: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+  cuenta: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  edificio: 'M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1',
+  diploma: 'M12 15l-2 5l4-2l4 2l-2-5M2 9a10 10 0 1 0 20 0a10 10 0 1 0 -20 0'
 };
 
 export const Icono = ({ nombre }) => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d={ICONOS[nombre] || ICONOS.inicio} />
   </svg>
 );
 
-// El menú se arma con los términos de la institución (t): "Materias", "Módulos", etc.
 const construirMenu = (t) => ({
   estudiante: [
     { items: [{ to: '/estudiante', label: 'Inicio', icon: 'inicio' }] },
@@ -219,8 +218,11 @@ export default function Layout() {
         <div className="brand">
           <LogoInstitucion size={42} />
           <div className="brand-text">
-            <div className="brand-title">{institucion.sigla || 'SEGEDU'}</div>
-            <div className="brand-sub">{institucion.nombre}</div>
+            <div className="brand-title-wrap">
+              <span className="brand-title">{institucion.sigla || 'SEGEDU'}</span>
+              <span className="brand-badge">PRO</span>
+            </div>
+            <div className="brand-sub" title={institucion.nombre}>{institucion.nombre}</div>
           </div>
         </div>
 
@@ -245,26 +247,45 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <div className="user-card">
-            <div className="user-avatar">{user.nombre?.[0]}{user.apellido?.[0]}</div>
+            <div className="user-avatar-wrap">
+              <div className="user-avatar">{user.nombre?.[0] || 'U'}{user.apellido?.[0] || ''}</div>
+              <span className="user-online-dot" title="En línea" />
+            </div>
             <div className="user-meta">
-              <div className="user-name">{user.nombre} {user.apellido}</div>
-              <div className="user-role">{roleLabel[user.rol]}</div>
+              <div className="user-name" title={`${user.nombre} ${user.apellido}`}>{user.nombre} {user.apellido}</div>
+              <div className="user-role-badge">{roleLabel[user.rol]}</div>
             </div>
           </div>
-          <button className="logout-btn" onClick={logout}>Cerrar sesión</button>
+          <button className="logout-btn" onClick={logout} title="Cerrar sesión actual">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span>Cerrar sesión</span>
+          </button>
         </div>
       </aside>
       {menuAbierto && <button className="sidebar-velo" aria-label="Cerrar menú" onClick={() => setMenuAbierto(false)} />}
 
       <main className="main">
-        <div className="topbar">
+        <header className="topbar">
           <button className="menu-toggle" aria-label="Abrir menú" onClick={() => setMenuAbierto(true)}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           </button>
+          
           <div className="breadcrumb">
             <span className="breadcrumb-rol">{roleLabel[user.rol]}</span>
-            {pageName && <><span className="breadcrumb-sep">/</span><span>{pageName}</span></>}
+            {pageName && (
+              <>
+                <span className="breadcrumb-sep" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+                <span className="breadcrumb-current">{pageName}</span>
+              </>
+            )}
           </div>
+
           {user.rol === 'auditor' && (
             <div className="auditor-career-picker">
               <span>Solo lectura</span>
@@ -281,10 +302,23 @@ export default function Layout() {
               </select>
             </div>
           )}
-          <div className="topbar-date">
-            {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+
+          <div className="topbar-right">
+            <div className="topbar-status">
+              <span className="status-ping" />
+              <span className="status-text">En línea</span>
+            </div>
+            <div className="topbar-date">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span>{new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+            </div>
           </div>
-        </div>
+        </header>
 
         <div
           className="content"

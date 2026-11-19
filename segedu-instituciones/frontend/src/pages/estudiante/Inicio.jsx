@@ -606,16 +606,17 @@ export default function EstudianteInicio() {
       <style>{`
         /* ── Quick links ── */
         .quick-link {
-          display: flex; align-items: center; gap: 1rem; padding: 1.25rem;
-          background: var(--paper-light); border: 1px solid var(--line);
-          border-radius: 3px; transition: all .25s; text-decoration: none; color: inherit;
+          display: flex; align-items: center; gap: 1.1rem; padding: 1.25rem 1.4rem;
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: var(--radius); transition: all .2s cubic-bezier(0.16, 1, 0.3, 1); text-decoration: none; color: inherit;
+          box-shadow: var(--shadow-sm);
         }
-        .quick-link:hover { border-color: var(--ink); transform: translateX(4px); background: var(--paper-dark); }
-        .ql-num  { font-family: var(--mono); font-size: .7rem; color: var(--gold-dark); letter-spacing: .15em; width: 30px; }
-        .ql-title{ font-family: var(--serif); font-size: 1.15rem; flex: 1; }
-        .ql-desc { font-size: .82rem; color: var(--ink-light); margin-top: 2px; }
-        .ql-arrow{ font-family: var(--serif); font-size: 1.5rem; color: var(--ink-light); transition: transform .2s; }
-        .quick-link:hover .ql-arrow { color: var(--crimson); transform: translateX(4px); }
+        .quick-link:hover { border-color: var(--blue-600); transform: translateY(-2px); box-shadow: var(--shadow-md); background: var(--surface); }
+        .ql-num  { font-family: var(--mono); font-size: .78rem; font-weight: 700; color: var(--blue-600); background: var(--blue-50); border: 1px solid var(--blue-100); width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; }
+        .ql-title{ font-family: var(--font); font-size: 1.05rem; font-weight: 750; color: var(--text); flex: 1; }
+        .ql-desc { font-size: .82rem; color: var(--text-muted); margin-top: 3px; font-weight: 500; }
+        .ql-arrow{ font-size: 1.25rem; font-weight: 700; color: var(--text-muted); transition: transform .2s, color .2s; flex-shrink: 0; }
+        .quick-link:hover .ql-arrow { color: var(--blue-600); transform: translateX(4px); }
 
         /* ── Podium wrapper ── */
         .podio-wrap {

@@ -1,16 +1,18 @@
-// "num" se acepta por compatibilidad con las pantallas existentes, pero ya no
-// se muestra: las secciones no son una secuencia numerada.
 export default function PageHeader({ eyebrow, title, lead, actions }) {
   return (
     <header className="page-header">
-      <div className="flex items-center justify-between" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-        <div>
-          {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-          <h1>{title}</h1>
+      <div className="page-header-top">
+        <div className="page-header-content">
+          {eyebrow && (
+            <div className="page-header-badge">
+              <span className="eyebrow">{eyebrow}</span>
+            </div>
+          )}
+          <h1 className="page-header-title">{title}</h1>
+          {lead && <p className="lead">{lead}</p>}
         </div>
-        {actions}
+        {actions && <div className="page-header-actions">{actions}</div>}
       </div>
-      {lead && <p className="lead">{lead}</p>}
       <div className="page-header-divider" />
     </header>
   );

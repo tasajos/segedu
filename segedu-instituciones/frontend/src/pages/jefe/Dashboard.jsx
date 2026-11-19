@@ -5,11 +5,18 @@ import StatCard from '../../components/StatCard';
 import { useInstitucion } from '../../context/InstitucionContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, RadialBarChart, RadialBar
+  PieChart, Pie, Cell, Legend
 } from 'recharts';
 
-// Presente, falta, permiso, tarde y otros: mismos colores que el resto del sistema
-const COLORS = ['#1f6f5c', '#c0392b', '#f2b705', '#5d6b66', '#93a199'];
+const CHART_COLORS = ['#1f6f5c', '#e11d48', '#f59e0b', '#0284c7', '#64748b'];
+
+const PGO_STATES = {
+  borrador:  { label: 'Borrador',  color: '#64748b', bg: '#f1f5f9' },
+  enviado:   { label: 'Enviado',   color: '#0284c7', bg: '#f0f9ff' },
+  revision:  { label: 'En Revisión', color: '#d97706', bg: '#fffbeb' },
+  aprobado:  { label: 'Aprobado',  color: '#059669', bg: '#ecfdf5' },
+  observado: { label: 'Observado', color: '#e11d48', bg: '#fff1f2' }
+};
 
 export default function JefeDashboard() {
   const [data, setData] = useState(null);
@@ -17,67 +24,94 @@ export default function JefeDashboard() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await api.get('/jefe/dashboard');
-      setData(data);
+      try {
+        const { data } = await api.get('/jefe/dashboard');
+        setData(data);
+      } catch (e) {
+        console.error(e);
+      }
     })();
   }, []);
 
-  if (!data) return <div className="loading-dots"><span/><span/><span/></div>;
+  if (!data) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', gap: '1rem' }}>
+        <div className="loading-dots"><span/><span/><span/></div>
+        <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>Cargando métricas institucionales...</span>
+      </div>
+    );
+  }
 
   const { totales, porSemestre, avancePorMateria, asistenciaGlobal, estadoPGO } = data;
 
   return (
-    <>
+    <div className="fade-up">
       <PageHeader
-        num="01"
-        
-        title="Cómo va la institución hoy"
-        lead="Estudiantes, asistencias, avance de clases y planes en una sola vista."
+        eyebrow="Supervisión Académica"
+        title="Monitoreo Institucional Integral"
+        lead="Estudiantes, control de asistencias, avance curricular y planes pedagógicos en tiempo real."
       />
 
-      {/* Totales */}
+      {/* Tarjetas KPI */}
       <div className="grid-4 mb-8">
-        <StatCard num="01" label={t('estudiantes')} value={totales.estudiantes} hint="matriculados" accent="ink" big/>
-        <StatCard num="02" label={t('docentes')} value={totales.docentes} hint="activos" accent="gold"/>
-        <StatCard num="03" label={t('asignaturas')} value={totales.materias} hint="en curso" accent="forest"/>
-        <StatCard num="04" label="Capacitaciones" value={totales.cursos} hint="registradas" accent="crimson"/>
+        <StatCard label={t('estudiantes')} value={totales.estudiantes} hint="alumnos matriculados" accent="ink" big/>
+        <StatCard label={t('docentes')} value={totales.docentes} hint="docentes activos" accent="gold"/>
+        <StatCard label={t('asignaturas')} value={totales.materias} hint="en dictado actual" accent="forest"/>
+        <StatCard label="Capacitaciones" value={totales.cursos} hint="cursos especiales" accent="crimson"/>
       </div>
 
       <div className="grid-2 mb-8">
         {/* Avance por materia */}
-        <div className="card" style={{ padding: '1.5rem' }}>
+        <div className="card">
           <div className="section-head">
-            <h2>Avance de programas</h2>
-            <span className="count">por materia</span>
+            <div>
+              <h2>Avance Curricular por Asignatura</h2>
+              <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: '.15rem' }}>Porcentaje de contenido completado</p>
+            </div>
+            <span className="count">{avancePorMateria.length} materias</span>
           </div>
+
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={avancePorMateria} margin={{ top: 20, right: 20, left: 0, bottom: 40 }}>
-              <CartesianGrid strokeDasharray="2 4" stroke="#1d2b2820"/>
+            <BarChart data={avancePorMateria} margin={{ top: 20, right: 15, left: -15, bottom: 25 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis
                 dataKey="codigo"
-                tick={{ fontFamily: 'Nunito, system-ui, sans-serif', fontSize: 11, fill: '#5d6b66' }}
-                axisLine={{ stroke: '#1d2b28' }}
+                tick={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fill: '#64748b' }}
+                axisLine={{ stroke: '#cbd5e1' }}
+                tickLine={false}
               />
               <YAxis
-                tick={{ fontFamily: 'Nunito, system-ui, sans-serif', fontSize: 11, fill: '#5d6b66' }}
-                axisLine={{ stroke: '#1d2b28' }}
+                tick={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fill: '#64748b' }}
+                axisLine={{ stroke: '#cbd5e1' }}
+                tickLine={false}
                 domain={[0, 100]}
               />
               <Tooltip
-                contentStyle={{ background: '#ffffff', border: '1px solid #1d2b28', borderRadius: '10px', fontFamily: 'Nunito, system-ui, sans-serif' }}
-                formatter={(v) => [`${v}%`, 'Avance']}
+                contentStyle={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.1)',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  fontSize: '0.85rem'
+                }}
+                formatter={(v) => [`${v}%`, 'Avance temático']}
               />
-              <Bar dataKey="avance_actual" fill="#f2b705" radius={[8,8,0,0]}/>
+              <Bar dataKey="avance_actual" fill="var(--blue-600)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Asistencia global */}
-        <div className="card" style={{ padding: '1.5rem' }}>
+        <div className="card">
           <div className="section-head">
-            <h2>Asistencias globales</h2>
-            <span className="count">distribución</span>
+            <div>
+              <h2>Distribución de Asistencias</h2>
+              <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: '.15rem' }}>Proporción general de presentes, faltas y licencias</p>
+            </div>
+            <span className="count">Global</span>
           </div>
+
           <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
@@ -85,18 +119,25 @@ export default function JefeDashboard() {
                 dataKey="total"
                 nameKey="estado"
                 cx="50%" cy="50%"
-                innerRadius={70}
-                outerRadius={110}
-                paddingAngle={2}
+                innerRadius={65}
+                outerRadius={105}
+                paddingAngle={3}
                 label={({ estado, total }) => `${estado} (${total})`}
                 labelLine={false}
               >
                 {asistenciaGlobal.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="#ffffff" strokeWidth={2}/>
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="#ffffff" strokeWidth={2}/>
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{ background: '#ffffff', border: '1px solid #1d2b28', borderRadius: '10px', fontFamily: 'Nunito, system-ui, sans-serif' }}
+                contentStyle={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.1)',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif',
+                  fontSize: '0.85rem'
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -105,54 +146,84 @@ export default function JefeDashboard() {
 
       {/* Estudiantes por periodo + Estado PGO */}
       <div className="grid-2">
-        <div className="card" style={{ padding: '1.5rem' }}>
+        <div className="card">
           <div className="section-head">
-            <h2>Estudiantes por periodo</h2>
-            <span className="count">{porSemestre.length} semestres</span>
+            <div>
+              <h2>Matrícula por Periodo</h2>
+              <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: '.15rem' }}>Distribución de estudiantes por semestre / ciclo</p>
+            </div>
+            <span className="count">{porSemestre.length} periodos</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem', marginTop: '1rem' }}>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', marginTop: '1.2rem' }}>
             {porSemestre.map((s) => {
-              const max = Math.max(...porSemestre.map(x => x.total));
-              const pct = (s.total * 100) / max;
+              const max = Math.max(...porSemestre.map(x => x.total)) || 1;
+              const pct = Math.round((s.total * 100) / max);
               return (
-                <div key={s.semestre} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 40px', gap: '.75rem', alignItems: 'center' }}>
-                  <span className="text-mono" style={{ fontSize: '.75rem', color: 'var(--ink-light)' }}>
+                <div key={s.semestre} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 45px', gap: '.85rem', alignItems: 'center' }}>
+                  <span className="text-mono" style={{ fontSize: '.78rem', fontWeight: 650, color: 'var(--text-muted)' }}>
                     SEM {String(s.semestre).padStart(2, '0')}
                   </span>
-                  <div style={{ height: '24px', background: 'var(--paper-dark)', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ height: '10px', background: 'var(--gray-100)', borderRadius: '9999px', overflow: 'hidden' }}>
                     <div style={{
-                      width: `${pct}%`, height: '100%',
-                      background: 'linear-gradient(90deg, var(--ink), var(--gold))',
-                      transition: 'width .5s'
+                      width: `${pct}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, var(--blue-600), var(--accent))',
+                      borderRadius: '9999px',
+                      transition: 'width .6s cubic-bezier(0.16, 1, 0.3, 1)'
                     }}/>
                   </div>
-                  <span className="text-serif" style={{ fontSize: '1.1rem', textAlign: 'right' }}>{s.total}</span>
+                  <span style={{ fontSize: '.95rem', fontWeight: 750, color: 'var(--text)', textAlign: 'right' }}>
+                    {s.total}
+                  </span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="card" style={{ padding: '1.5rem' }}>
+        <div className="card">
           <div className="section-head">
-            <h2>Estado de los planes</h2>
+            <div>
+              <h2>Estado de Planes de Aula (PGO)</h2>
+              <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: '.15rem' }}>Planificaciones pedagógicas presentadas</p>
+            </div>
             <span className="count">{estadoPGO.reduce((s, x) => s + (+x.total), 0)} documentos</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '.75rem', marginTop: '1rem' }}>
-            {estadoPGO.map((e, i) => (
-              <div key={e.estado} className="pgo-stat" style={{
-                padding: '1rem', border: '1px solid var(--line-strong)', borderRadius: '10px',
-                borderTopWidth: '4px', borderTopColor: COLORS[i % COLORS.length]
-              }}>
-                <div className="text-serif" style={{ fontSize: '2rem', lineHeight: 1 }}>{e.total}</div>
-                <div className="text-mono" style={{ fontSize: '.65rem', color: 'var(--ink-light)', letterSpacing: '.1em', textTransform: 'uppercase', marginTop: '.25rem' }}>
-                  {e.estado}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '.85rem', marginTop: '1.2rem' }}>
+            {estadoPGO.map((e) => {
+              const conf = PGO_STATES[e.estado] || { label: e.estado, color: '#64748b', bg: '#f8fafc' };
+              return (
+                <div key={e.estado} style={{
+                  padding: '1.1rem 1rem',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  background: conf.bg,
+                  borderTop: `4px solid ${conf.color}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '.25rem'
+                }}>
+                  <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>
+                    {e.total}
+                  </div>
+                  <div style={{
+                    fontSize: '.72rem',
+                    fontWeight: 750,
+                    color: conf.color,
+                    letterSpacing: '.04em',
+                    textTransform: 'uppercase',
+                    marginTop: '.2rem'
+                  }}>
+                    {conf.label}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

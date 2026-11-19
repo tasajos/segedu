@@ -1,25 +1,26 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15,32,68,.5);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
   overflow-y: auto;
   padding: 1.5rem;
-  animation: fadeIn .15s ease-out both;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .modal {
   width: 100%;
   color: var(--text);
-  background: var(--white);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  animation: fadeUp .25s ease-out both;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation: modalEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   position: relative;
   overflow: hidden;
   max-height: calc(100vh - 3rem);
@@ -30,37 +31,59 @@
 .modal::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--blue-600), var(--blue-400));
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: linear-gradient(90deg, var(--blue-600), var(--accent));
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 1.75rem 1rem;
+  padding: 1.35rem 1.75rem 1.15rem;
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
 }
 
-.modal-head h3 { font-size: 1.2rem; font-weight: 700; }
+.modal-head h3 {
+  font-size: 1.2rem;
+  font-weight: 750;
+  color: var(--text);
+  letter-spacing: -0.015em;
+}
 
 .modal-close {
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  display: grid; place-items: center;
-  font-size: 1.25rem;
-  line-height: 1;
+  display: grid;
+  place-items: center;
   color: var(--text-muted);
-  transition: all .15s;
+  background: var(--gray-100);
+  transition: all 0.15s ease;
   cursor: pointer;
 }
-.modal-close:hover { background: var(--gray-100); color: var(--text); }
+.modal-close:hover {
+  background: var(--gray-200);
+  color: var(--text);
+  transform: rotate(90deg);
+}
 
 .modal-body {
-  padding: 1.25rem 1.75rem 1.75rem;
+  padding: 1.5rem 1.75rem 1.75rem;
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
