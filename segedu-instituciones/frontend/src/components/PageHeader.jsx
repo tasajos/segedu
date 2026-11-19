@@ -13,7 +13,7 @@ export default function PageHeader({ eyebrow, title, lead, actions }) {
         </div>
         {actions && <div className="page-header-actions">{actions}</div>}
       </div>
-      <div className="page-header-divider" />
+      <div className="page-header-divider" aria-hidden="true" />
     </header>
   );
 }

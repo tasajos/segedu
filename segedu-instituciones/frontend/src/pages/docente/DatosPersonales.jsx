@@ -1,56 +1,59 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 
 export default function DocenteDatosPersonales() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const { user, auditPersona } = useAuth();
   const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const [form, setForm] = useState({ nombre: '', apellido: '', ci: '', telefono: '' });
   const [passwordForm, setPasswordForm] = useState({ actual: '', nueva: '', confirmar: '' });
-  const [msg, setMsg] = useState('');
-  const [passwordMsg, setPasswordMsg] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    pageLoad.run(() => (async () => {
       if (user.rol === 'auditor' && auditPersona) {
         setForm({ nombre: auditPersona.nombre || '', apellido: auditPersona.apellido || '', ci: auditPersona.ci || '', telefono: auditPersona.telefono || '' });
         return;
       }
       const { data } = await api.get('/auth/profile');
       setForm({ nombre: data.nombre || '', apellido: data.apellido || '', ci: data.ci || '', telefono: data.telefono || '' });
-    })();
+    })());
   }, [user.rol, auditPersona]);
 
   const guardar = async (e) => {
     e.preventDefault();
-    setLoading(true); setMsg('');
+    setLoading(true);
     try {
       await api.put('/docente/info-personal', form);
-      setMsg('OK Información actualizada correctamente');
-      setTimeout(() => setMsg(''), 3500);
+      dialog.alert('Información actualizada correctamente', { tipo: 'exito' });
+
     } catch (err) {
-      setMsg(err.response?.data?.error || 'Error al guardar');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al guardar', { tipo: 'error' });
     } finally { setLoading(false); }
   };
 
   const cambiarContrasena = async (e) => {
     e.preventDefault();
-    setPasswordLoading(true); setPasswordMsg('');
+    setPasswordLoading(true);
     try {
       await api.put('/docente/cambiar-contrasena', passwordForm);
       setPasswordForm({ actual: '', nueva: '', confirmar: '' });
-      setPasswordMsg('OK Contraseña actualizada correctamente');
-      setTimeout(() => setPasswordMsg(''), 3500);
+      dialog.alert('Contraseña actualizada correctamente', { tipo: 'exito' });
+
     } catch (err) {
-      setPasswordMsg(err.response?.data?.error || 'Error al cambiar la contraseña');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al cambiar la contraseña', { tipo: 'error' });
     } finally { setPasswordLoading(false); }
   };
 
   return (
-    <>
+    <PageState state={pageLoad}><>
       <PageHeader
         num="10"
         eyebrow="Ficha del docente"
@@ -107,8 +110,6 @@ export default function DocenteDatosPersonales() {
               <input value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} placeholder="7xxxxxxx" />
             </div>
 
-            {msg && <Alerta msg={msg} />}
-
             <button className="btn btn-primary" disabled={loading}>
               {loading ? 'Guardando…' : 'Guardar cambios'}
             </button>
@@ -139,8 +140,6 @@ export default function DocenteDatosPersonales() {
                   autoComplete="new-password" minLength={6} required />
               </div>
             </div>
-
-            {passwordMsg && <Alerta msg={passwordMsg} />}
 
             <button className="btn btn-secondary" disabled={passwordLoading}>
               {passwordLoading ? 'Actualizando…' : 'Actualizar contraseña'}
@@ -210,7 +209,7 @@ export default function DocenteDatosPersonales() {
         .stamp-inner span:first-child { font-size: .95rem; font-weight: 700; }
         .stamp-year { font-family: var(--mono); font-size: .5rem; letter-spacing: .04em; margin-top: 7px; text-transform: uppercase; }
       `}</style>
-    </>
+    </></PageState>
   );
 }
 
@@ -220,17 +219,3 @@ const FichaRow = ({ label, value }) => (
     <div style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: '.95rem' }}>{value}</div>
   </div>
 );
-
-const Alerta = ({ msg }) => {
-  const ok = msg.startsWith('OK');
-  return (
-    <div style={{
-      padding: '.75rem 1rem', marginBottom: '1rem', borderRadius: '10px',
-      background: ok ? 'rgba(58,90,63,0.08)' : 'rgba(139,42,42,0.08)',
-      borderLeft: `3px solid ${ok ? 'var(--forest)' : 'var(--crimson)'}`,
-      fontSize: '.85rem', color: ok ? 'var(--forest)' : 'var(--crimson)'
-    }}>
-      {ok ? `✓ ${msg.replace(/^OK\s*/, '')}` : msg}
-    </div>
-  );
-};

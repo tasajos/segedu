@@ -1,3 +1,4 @@
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -6,10 +7,11 @@ const TIPO_COLOR = { falta: 'var(--crimson)', sancion: '#7b2d8b', permiso: 'var(
 const TIPO_CHIP = { falta: 'chip-crimson', sancion: 'chip-ink', permiso: 'chip-gold' };
 
 export default function DocenteMiDisciplina() {
+  const pageLoad = usePageLoad();
   const [registros, setRegistros] = useState([]);
 
   useEffect(() => {
-    api.get('/docente/mi-disciplina').then(r => setRegistros(r.data));
+    pageLoad.run(() => api.get('/docente/mi-disciplina').then(r => setRegistros(r.data)));
   }, []);
 
   const faltas = registros.filter(r => r.tipo === 'falta').length;
@@ -17,7 +19,7 @@ export default function DocenteMiDisciplina() {
   const permisos = registros.filter(r => r.tipo === 'permiso').length;
 
   return (
-    <>
+    <PageState state={pageLoad}><>
       <PageHeader
         num="06"
         eyebrow="Mi registro personal"
@@ -72,6 +74,6 @@ export default function DocenteMiDisciplina() {
           ))}
         </div>
       )}
-    </>
+    </></PageState>
   );
 }

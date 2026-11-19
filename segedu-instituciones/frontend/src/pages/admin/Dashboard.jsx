@@ -1,3 +1,4 @@
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
@@ -8,30 +9,31 @@ const ROL_CONFIG = {
   estudiante: { label: 'Estudiantes', color: '#d97706', bg: '#fffbeb', bar: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
   docente:    { label: 'Docentes',    color: '#059669', bg: '#ecfdf5', bar: 'linear-gradient(90deg, #10b981, #34d399)' },
   jefe:       { label: 'Jefes / Coord.', color: '#0284c7', bg: '#f0f9ff', bar: 'linear-gradient(90deg, #0ea5e9, #38bdf8)' },
-  admin:      { label: 'Administradores', color: '#1f6f5c', bg: '#edf7f4', bar: 'linear-gradient(90deg, #1f6f5c, #2f8e77)' },
+  admin:      { label: 'Administradores', color: 'var(--brand)', bg: 'var(--blue-50)', bar: 'linear-gradient(90deg, var(--brand), var(--blue-400))' },
   auditor:    { label: 'Auditores',   color: '#6366f1', bg: '#eef2ff', bar: 'linear-gradient(90deg, #6366f1, #818cf8)' }
 };
 
 export default function AdminDashboard() {
+  const pageLoad = usePageLoad();
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    api.get('/admin/dashboard').then(r => setData(r.data));
+    pageLoad.run(() => api.get('/admin/dashboard').then(r => setData(r.data)));
   }, []);
 
   if (!data) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', gap: '1rem' }}>
+      <PageState state={pageLoad}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', gap: '1rem' }}>
         <div className="loading-dots"><span/><span/><span/></div>
         <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>Cargando panel de administración...</span>
-      </div>
+      </div></PageState>
     );
   }
 
   const { totales, porRol, carreras } = data;
 
   return (
-    <div className="fade-up">
+    <PageState state={pageLoad}><div className="fade-up">
       <PageHeader
         eyebrow="Panel de Control General"
         title={<>Administración <span className="display-italic">del Sistema</span></>}
@@ -152,6 +154,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </div></PageState>
   );
 }

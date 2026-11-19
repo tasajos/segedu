@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -21,6 +23,8 @@ const TYPE_LABEL = {
 };
 
 export default function JefeNotificaciones() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
@@ -28,13 +32,16 @@ export default function JefeNotificaciones() {
   const [error, setError] = useState('');
 
   const cargar = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/jefe/notificaciones');
-      setItems(data);
-    } finally {
-      setLoading(false);
-    }
+    return pageLoad.run(async () => {
+      setLoading(true);
+      try {
+        const { data } = await api.get('/jefe/notificaciones');
+        setItems(data);
+      } finally {
+        setLoading(false);
+      }
+
+    });
   };
 
   useEffect(() => {
@@ -54,14 +61,14 @@ export default function JefeNotificaciones() {
       setForm(EMPTY_FORM);
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo crear la notificacion');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo crear la notificacion', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="11"
         eyebrow="Comunicacion oficial"
@@ -141,6 +148,6 @@ export default function JefeNotificaciones() {
           )}
         </div>
       </div>
-    </>
+    </></PageState>
   );
 }

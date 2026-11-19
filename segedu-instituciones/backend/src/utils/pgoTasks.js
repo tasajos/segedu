@@ -1,3 +1,4 @@
+import { candidatosUpload } from '../tenancy/uploads.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -137,9 +138,7 @@ const resolveUploadPath = (archivoUrl) => {
   const fileName = path.basename(archivoUrl);
 
   const candidates = [
-    path.resolve(process.cwd(), 'uploads', fileName),
-    path.resolve(process.cwd(), 'backend', 'uploads', fileName),
-    path.resolve(__dirname, '..', '..', 'uploads', fileName)
+    ...candidatosUpload(fileName),
   ];
 
   return candidates[0];
@@ -173,9 +172,7 @@ export const generarTareasDesdePgo = async (pgoId) => {
   const filePath = resolveUploadPath(pgo.archivo_url);
   const existingPath = await (async () => {
     for (const candidate of [
-      path.resolve(process.cwd(), 'uploads', path.basename(pgo.archivo_url)),
-      path.resolve(process.cwd(), 'backend', 'uploads', path.basename(pgo.archivo_url)),
-      path.resolve(__dirname, '..', '..', 'uploads', path.basename(pgo.archivo_url))
+      ...candidatosUpload(path.basename(pgo.archivo_url)),
     ]) {
       try {
         await fs.access(candidate);

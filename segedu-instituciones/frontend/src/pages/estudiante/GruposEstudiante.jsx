@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -122,6 +123,7 @@ function SeccionGruposDocente({ estudianteId }) {
 }
 
 export default function EstudianteGrupos() {
+  const dialog = useDialog();
   const { user } = useAuth();
   const estudianteId = user?.estudiante_id;
 
@@ -140,23 +142,28 @@ export default function EstudianteGrupos() {
 
   // Load all tasks
   useEffect(() => {
-    api.get('/estudiante/tareas').then(r => setTareas(r.data));
+    api.get('/estudiante/tareas').then(r => setTareas(r.data)).catch(err => dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' }));
   }, []);
 
   // Load groups when task selected
   const cargarGrupos = async (tareaId) => {
-    if (!tareaId) return;
-    setLoading(true);
     try {
-      const [gRes, cRes] = await Promise.all([
-        api.get(`/estudiante/grupos/${tareaId}`),
-        api.get(`/estudiante/grupos/${tareaId}/companeros`)
-      ]);
-      setGrupos(Array.isArray(gRes.data.grupos) ? gRes.data.grupos : []);
-      setMiGrupoId(gRes.data.mi_grupo_id);
-      setCompaneros(cRes.data);
-    } finally {
-      setLoading(false);
+      if (!tareaId) return;
+      setLoading(true);
+      try {
+        const [gRes, cRes] = await Promise.all([
+          api.get(`/estudiante/grupos/${tareaId}`),
+          api.get(`/estudiante/grupos/${tareaId}/companeros`)
+        ]);
+        setGrupos(Array.isArray(gRes.data.grupos) ? gRes.data.grupos : []);
+        setMiGrupoId(gRes.data.mi_grupo_id);
+        setCompaneros(cRes.data);
+      } finally {
+        setLoading(false);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
     }
   };
 
@@ -191,29 +198,29 @@ export default function EstudianteGrupos() {
       setMiembrosSeleccionados([]);
       cargarGrupos(tareaSeleccionada.id);
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al crear el grupo');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al crear el grupo', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   const salirGrupo = async (grupoId) => {
-    if (!window.confirm('¿Seguro que deseas salir de este grupo?')) return;
+    if (!(await dialog.confirm('¿Seguro que deseas salir de este grupo?', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
     try {
       await api.delete(`/estudiante/grupos/${grupoId}/salir`);
       cargarGrupos(tareaSeleccionada.id);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al salir del grupo');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al salir del grupo', { tipo: 'error' });
     }
   };
 
   const eliminarGrupo = async (grupoId) => {
-    if (!window.confirm('¿Eliminar el grupo? Todos los miembros serán removidos.')) return;
+    if (!(await dialog.confirm('¿Eliminar el grupo? Todos los miembros serán removidos.', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
     try {
       await api.delete(`/estudiante/grupos/${grupoId}`);
       cargarGrupos(tareaSeleccionada.id);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al eliminar el grupo');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al eliminar el grupo', { tipo: 'error' });
     }
   };
 

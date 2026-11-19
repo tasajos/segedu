@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -10,6 +12,8 @@ const TIPO_CHIP = { falta: 'chip-crimson', sancion: 'chip-ink', permiso: 'chip-g
 const EMPTY = { tipo: 'falta', estudiante_id: '', materia_id: '', fecha: new Date().toISOString().slice(0, 10), descripcion: '' };
 
 export default function JefeDisciplina() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [registros, setRegistros] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
   const [materias, setMaterias] = useState([]);
@@ -20,43 +24,56 @@ export default function JefeDisciplina() {
   const [filtroEst, setFiltroEst] = useState('');
 
   const cargar = async () => {
-    const params = {};
-    if (filtroTipo) params.tipo = filtroTipo;
-    if (filtroEst) params.estudiante_id = filtroEst;
-    const [r, e, m] = await Promise.all([
-      api.get('/jefe/disciplina-estudiantes', { params }),
-      api.get('/jefe/estudiantes'),
-      api.get('/jefe/materias')
-    ]);
-    setRegistros(r.data);
-    setEstudiantes(e.data);
-    setMaterias(m.data);
+    return pageLoad.run(async () => {
+      const params = {};
+      if (filtroTipo) params.tipo = filtroTipo;
+      if (filtroEst) params.estudiante_id = filtroEst;
+      const [r, e, m] = await Promise.all([
+        api.get('/jefe/disciplina-estudiantes', { params }),
+        api.get('/jefe/estudiantes'),
+        api.get('/jefe/materias')
+      ]);
+      setRegistros(r.data);
+      setEstudiantes(e.data);
+      setMaterias(m.data);
+
+    });
   };
 
   useEffect(() => { cargar(); }, [filtroTipo, filtroEst]);
 
   const guardar = async () => {
-    if (!form.estudiante_id || !form.descripcion) return;
-    setSaving(true);
     try {
-      await api.post('/jefe/disciplina-estudiantes', form);
-      setModal(false);
-      cargar();
-    } finally {
-      setSaving(false);
+      if (!form.estudiante_id || !form.descripcion) return;
+      setSaving(true);
+      try {
+        await api.post('/jefe/disciplina-estudiantes', form);
+        setModal(false);
+        cargar();
+      } finally {
+        setSaving(false);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
     }
   };
 
   const eliminar = async (id) => {
-    if (!confirm('¿Eliminar este registro?')) return;
-    await api.delete(`/jefe/disciplina-estudiantes/${id}`);
-    cargar();
+    try {
+      if (!(await dialog.confirm('¿Eliminar este registro?', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
+      await api.delete(`/jefe/disciplina-estudiantes/${id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="07"
         eyebrow="Registro disciplinario"
@@ -104,7 +121,7 @@ export default function JefeDisciplina() {
         })}
       </div>
 
-      <table className="data-table">
+      <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
         <thead>
           <tr>
             <th>Tipo</th>
@@ -140,7 +157,7 @@ export default function JefeDisciplina() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo registro disciplinario">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -183,6 +200,6 @@ export default function JefeDisciplina() {
           </button>
         </div>
       </Modal>
-    </>
+    </></PageState>
   );
 }

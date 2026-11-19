@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -33,6 +35,8 @@ const EMPTY_FORM = {
 };
 
 export default function EstudianteAsistencias() {
+  const dialog = useDialog();
+  const pageLoad = usePageLoad();
   const [materias,   setMaterias]   = useState([]);
   const [resumen,    setResumen]    = useState([]);
   const [expediente, setExpediente] = useState(null);
@@ -48,16 +52,19 @@ export default function EstudianteAsistencias() {
   const [formError,    setFormError]    = useState('');
 
   const cargar = async () => {
-    const [m, r, e, p] = await Promise.all([
-      api.get('/estudiante/materias'),
-      api.get('/estudiante/asistencias/resumen'),
-      api.get('/estudiante/expediente'),
-      api.get('/estudiante/permisos')
-    ]);
-    setMaterias(m.data);
-    setResumen(r.data);
-    setExpediente(e.data);
-    setPermisos(p.data);
+    return pageLoad.run(async () => {
+      const [m, r, e, p] = await Promise.all([
+        api.get('/estudiante/materias'),
+        api.get('/estudiante/asistencias/resumen'),
+        api.get('/estudiante/expediente'),
+        api.get('/estudiante/permisos')
+      ]);
+      setMaterias(m.data);
+      setResumen(r.data);
+      setExpediente(e.data);
+      setPermisos(p.data);
+
+    });
   };
 
   useEffect(() => { cargar(); }, []);
@@ -99,10 +106,12 @@ export default function EstudianteAsistencias() {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (archivo) fd.append('documento', archivo);
       await api.post('/estudiante/permisos', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setPermisoStep('success');
+      setModalPermiso(false);
+      setTab('permisos');
+      dialog.alert('Su solicitud fue enviada al jefe de carrera. Puede consultar su estado en Mis solicitudes.', { titulo: 'Solicitud enviada', tipo: 'exito' });
       cargar();
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al enviar la solicitud');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al enviar la solicitud', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
@@ -111,7 +120,7 @@ export default function EstudianteAsistencias() {
   const pendientesPermiso = permisos.length;
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="04"
         eyebrow="Mi expediente académico"
@@ -195,7 +204,7 @@ export default function EstudianteAsistencias() {
               {materias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
             </select>
           </div>
-          <table className="data-table">
+          <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
             <thead>
               <tr>
                 <th>№</th><th>Fecha</th><th>Materia</th><th>Estado</th><th>Justificación</th>
@@ -218,7 +227,7 @@ export default function EstudianteAsistencias() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         </>
       )}
 
@@ -349,13 +358,13 @@ export default function EstudianteAsistencias() {
         </>
       )}
 
-      {/* Modal: solicitar permiso (3 pasos: form → confirm → success) */}
+      {/* Modal: solicitar permiso (formulario y revisión) */}
       <Modal
         open={modalPermiso}
         onClose={() => setModalPermiso(false)}
         title={
           permisoStep === 'confirm' ? 'Confirmar solicitud'
-          : permisoStep === 'success' ? 'Solicitud enviada'
+
           : 'Solicitar permiso al jefe de carrera'
         }
         maxWidth="560px"
@@ -533,50 +542,6 @@ export default function EstudianteAsistencias() {
           </div>
         )}
 
-        {/* ── PASO 3: Éxito ── */}
-        {permisoStep === 'success' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '1.5rem 0 .5rem', textAlign: 'center' }}>
-            <div style={{
-              width: '68px', height: '68px', borderRadius: '50%',
-              background: 'linear-gradient(135deg,rgba(22,163,74,.18),rgba(22,163,74,.06))',
-              border: '2.5px solid var(--forest)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem'
-            }}>✓</div>
-
-            <div>
-              <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--ink)', margin: '0 0 .35rem' }}>
-                ¡Solicitud enviada con éxito!
-              </h3>
-              <p style={{ fontSize: '.88rem', color: 'var(--ink-light)', margin: 0, lineHeight: 1.6 }}>
-                Su solicitud fue enviada al jefe de carrera.<br/>
-                Puede consultar el estado en la pestaña <strong>Mis solicitudes</strong>.
-              </p>
-            </div>
-
-            <div style={{
-              width: '100%', background: 'var(--paper-dark)', borderRadius: '8px',
-              border: '1px solid var(--line)', padding: '.75rem 1rem',
-              display: 'flex', gap: '.75rem', alignItems: 'center', marginTop: '.25rem'
-            }}>
-              <span style={{ fontSize: '1.1rem' }}>{form.tipo === 'carta_permiso' ? '📄' : '✍️'}</span>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '.85rem', fontWeight: 600, color: 'var(--ink)' }}>
-                  {materias.find(m => String(m.id) === String(form.materia_id))?.nombre}
-                </div>
-                <div style={{ fontSize: '.75rem', color: 'var(--ink-light)', marginTop: '.1rem' }}>
-                  {SOLICITUD_LABEL[form.tipo]} · {formatFecha(form.fecha_desde)}
-                  {form.fecha_desde !== form.fecha_hasta ? ` — ${formatFecha(form.fecha_hasta)}` : ''}
-                </div>
-              </div>
-              <span className="chip chip-gold" style={{ marginLeft: 'auto', flexShrink: 0 }}>Pendiente</span>
-            </div>
-
-            <button className="btn btn-primary" style={{ marginTop: '.5rem', width: '100%' }}
-              onClick={() => { setModalPermiso(false); setTab('permisos'); }}>
-              Ver mis solicitudes
-            </button>
-          </div>
-        )}
       </Modal>
 
       <style>{`
@@ -671,6 +636,6 @@ export default function EstudianteAsistencias() {
           padding-top: .625rem; border-top: 1.5px solid var(--line);
         }
       `}</style>
-    </>
+    </></PageState>
   );
 }

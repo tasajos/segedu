@@ -1,0 +1,18 @@
+{
+  "codigo": 1,
+  "cambios": [
+    "segedu-instituciones/frontend/src/main.jsx",
+    "segedu-instituciones/frontend/vite.config.js",
+    "orquestador/tareas/20261119-panel-de-plataforma-para-crear-instituci/codex/ronda-1-salida.md",
+    "segedu-instituciones/frontend/src/ContextoApp.jsx",
+    "segedu-instituciones/frontend/src/plataforma/Credenciales.jsx",
+    "segedu-instituciones/frontend/src/plataforma/Login.jsx",
+    "segedu-instituciones/frontend/src/plataforma/NuevaInstitucion.jsx",
+    "segedu-instituciones/frontend/src/plataforma/PlataformaApp.jsx",
+    "segedu-instituciones/frontend/src/plataforma/PlataformaAuthContext.jsx",
+    "segedu-instituciones/frontend/src/plataforma/api.js",
+    "segedu-instituciones/frontend/src/plataforma/useAccionesInstitucion.jsx",
+    "segedu-instituciones/frontend/src/plataforma/utils.js"
+  ],
+  "fueraDeZona": []
+}

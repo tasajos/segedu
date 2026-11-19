@@ -58,7 +58,7 @@ export default function Login() {
       const user = await login(email.trim(), password);
       navigate(user.rol === 'auditor' ? '/jefe' : `/${user.rol}`);
     } catch (err) {
-      setError(err.response?.data?.error || 'El correo o la contraseña no coinciden. Verifique sus datos e intente nuevamente.');
+      setError(err.response?.data?.message || err.response?.data?.error || 'El correo o la contraseña no coinciden. Verifique sus datos e intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function Login() {
     <div className="login-page">
       <aside className="login-hero">
         <div className="login-hero-glow" />
-        
+
         <div className="hero-brand">
           <div className="hero-logo-box">
             <LogoInstitucion size={56} />
@@ -84,7 +84,7 @@ export default function Login() {
             <span className="hero-features-dot" />
             Sistema Integrado de Gestión Académica
           </div>
-          
+
           <div className="hero-features-list">
             {caracteristicas(t).map((item) => (
               <div className="hero-feature-card" key={item.quien}>
@@ -106,11 +106,11 @@ export default function Login() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            <span>Conexión institucional segura y cifrada</span>
+            <span>Su comunidad educativa, conectada</span>
           </div>
           <div className="hero-copy">
             <img src="/chakuy.png" alt="" className="hero-copy-logo" />
-            <span>SEGEDU Instituciones · por Chakuy Software</span>
+            <span>con tecnología de Chakuy Software</span>
           </div>
         </div>
       </aside>
@@ -166,7 +166,7 @@ export default function Login() {
                   className="input-action-btn"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
-                  tabIndex={-1}
+                  aria-pressed={showPassword}
                 >
                   {showPassword ? (
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

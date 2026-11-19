@@ -1,3 +1,4 @@
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -8,7 +9,7 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 
-const CHART_COLORS = ['#1f6f5c', '#e11d48', '#f59e0b', '#0284c7', '#64748b'];
+const CHART_COLORS = ['var(--brand)', 'var(--danger)', 'var(--warning)', 'var(--teal)', 'var(--gray-500)'];
 
 const PGO_STATES = {
   borrador:  { label: 'Borrador',  color: '#64748b', bg: '#f1f5f9' },
@@ -19,33 +20,34 @@ const PGO_STATES = {
 };
 
 export default function JefeDashboard() {
+  const pageLoad = usePageLoad();
   const [data, setData] = useState(null);
   const { t } = useInstitucion();
 
   useEffect(() => {
-    (async () => {
+    pageLoad.run(() => (async () => {
       try {
         const { data } = await api.get('/jefe/dashboard');
         setData(data);
       } catch (e) {
-        console.error(e);
+        throw e;
       }
-    })();
+    })());
   }, []);
 
   if (!data) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', gap: '1rem' }}>
+      <PageState state={pageLoad}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', gap: '1rem' }}>
         <div className="loading-dots"><span/><span/><span/></div>
         <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>Cargando métricas institucionales...</span>
-      </div>
+      </div></PageState>
     );
   }
 
   const { totales, porSemestre, avancePorMateria, asistenciaGlobal, estadoPGO } = data;
 
   return (
-    <div className="fade-up">
+    <PageState state={pageLoad}><div className="fade-up">
       <PageHeader
         eyebrow="Supervisión Académica"
         title="Monitoreo Institucional Integral"
@@ -224,6 +226,6 @@ export default function JefeDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </div></PageState>
   );
 }

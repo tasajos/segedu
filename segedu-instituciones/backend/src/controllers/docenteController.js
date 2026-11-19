@@ -1,3 +1,5 @@
+import { claveInstitucion } from '../tenancy/contexto.js';
+import { candidatosUpload } from '../tenancy/uploads.js';
 import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
 import { ensureGradeReportSchema } from '../utils/gradeReports.js';
@@ -11,7 +13,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let pedagogicalFolderSchemaEnsured = false;
+const pedagogicalFolderSchemaEnsured = new Set(); // subdominios ya revisados
 
 const parseDateParts = (value) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return null;
@@ -61,9 +63,7 @@ const resolveUploadCandidates = (archivoUrl) => {
   if (!archivoUrl) return [];
   const fileName = path.basename(archivoUrl);
   return [
-    path.resolve(process.cwd(), 'uploads', fileName),
-    path.resolve(process.cwd(), 'backend', 'uploads', fileName),
-    path.resolve(__dirname, '..', '..', 'uploads', fileName)
+    ...candidatosUpload(fileName),
   ];
 };
 
@@ -80,7 +80,7 @@ const removeUploadedFile = async (archivoUrl) => {
 };
 
 const ensurePedagogicalFolderSchema = async () => {
-  if (pedagogicalFolderSchemaEnsured) return;
+  if (pedagogicalFolderSchemaEnsured.has(claveInstitucion())) return;
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pedagogical_folders (
@@ -96,7 +96,7 @@ const ensurePedagogicalFolderSchema = async () => {
     )
   `);
 
-  pedagogicalFolderSchemaEnsured = true;
+  pedagogicalFolderSchemaEnsured.add(claveInstitucion());
 };
 
 const getDocenteMateria = async (docenteId, materiaId) => {

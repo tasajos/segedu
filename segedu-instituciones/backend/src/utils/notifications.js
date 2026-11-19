@@ -1,9 +1,10 @@
+import { claveInstitucion } from '../tenancy/contexto.js';
 import pool from '../config/db.js';
 
-let notificationsSchemaEnsured = false;
+const notificationsSchemaEnsured = new Set(); // subdominios ya revisados
 
 export const ensureNotificationSchema = async () => {
-  if (notificationsSchemaEnsured) return;
+  if (notificationsSchemaEnsured.has(claveInstitucion())) return;
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notifications (
@@ -31,5 +32,5 @@ export const ensureNotificationSchema = async () => {
     )
   `);
 
-  notificationsSchemaEnsured = true;
+  notificationsSchemaEnsured.add(claveInstitucion());
 };

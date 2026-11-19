@@ -10,11 +10,13 @@ export default defineConfig(({ mode }) => {
   const proxyConfig = {
     '/api': {
       target: backendUrl,
-      changeOrigin: true
+      changeOrigin: true,
+      xfwd: true
     },
     '/uploads': {
       target: backendUrl,
-      changeOrigin: true
+      changeOrigin: true,
+      xfwd: true
     }
   };
 

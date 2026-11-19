@@ -1,3 +1,5 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -15,6 +17,8 @@ const EMPTY = {
 };
 
 export default function JefeHorarios() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [horarios, setHorarios] = useState([]);
   const [materias, setMaterias] = useState([]);
   const [docentes, setDocentes] = useState([]);
@@ -27,11 +31,11 @@ export default function JefeHorarios() {
   const [filtroGrupo, setFiltroGrupo] = useState('');
   const [editingId, setEditingId] = useState(null);
 
-  const cargar = () => Promise.all([
+  const cargar = () => pageLoad.run(() => Promise.all([
     api.get('/jefe/horarios').then((r) => setHorarios(r.data)),
     api.get('/jefe/materias').then((r) => setMaterias(r.data)),
     api.get('/jefe/docentes').then((r) => setDocentes(r.data))
-  ]);
+  ]));
 
   useEffect(() => {
     cargar();
@@ -50,16 +54,21 @@ export default function JefeHorarios() {
       setEditingId(null);
       cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'No se pudo guardar el horario');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo guardar el horario', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   const eliminar = async (id) => {
-    if (!confirm('Eliminar este horario?')) return;
-    await api.delete(`/jefe/horarios/${id}`);
-    cargar();
+    try {
+      if (!(await dialog.confirm('Eliminar este horario?', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
+      await api.delete(`/jefe/horarios/${id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const asignarDocente = async () => {
@@ -70,7 +79,7 @@ export default function JefeHorarios() {
       setModalAsignar(false);
       cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'No se pudo asignar el docente');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo asignar el docente', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
@@ -102,7 +111,7 @@ export default function JefeHorarios() {
   };
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}>
       <PageHeader
         num="06"
         eyebrow="Planificacion academica"
@@ -413,6 +422,6 @@ export default function JefeHorarios() {
           </button>
         </div>
       </Modal>
-    </>
+    </PageState>
   );
 }

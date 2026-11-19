@@ -14,7 +14,7 @@ const TIPO_COLOR = {
   pdf:          { bg: '#fdf0ee', color: '#c0392b', border: '#f3c4bd' },
   pptx:         { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' },
   link:         { bg: '#f0fdf4', color: '#23784b', border: '#bbf7d0' },
-  drive_folder: { bg: '#eef6f3', color: '#1f6f5c', border: '#cfe5dd' },
+  drive_folder: { bg: 'var(--info-bg)', color: 'var(--teal)', border: 'var(--info-border)' },
 };
 
 // ── Ítem individual de presentación ──────────────────────────
@@ -201,7 +201,7 @@ export default function PresentacionesVista() {
   useEffect(() => {
     api.get('/auth/mis-presentaciones')
       .then(r => setLista(Array.isArray(r.data) ? r.data : []))
-      .catch(err => setErrorCarga(err.response?.data?.error || 'Error al cargar presentaciones'))
+      .catch(err => setErrorCarga(err.response?.data?.message || err.response?.data?.error || 'Error al cargar presentaciones'))
       .finally(() => setLoading(false));
   }, []);
 

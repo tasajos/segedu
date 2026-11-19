@@ -11,7 +11,13 @@ import docenteRoutes from './routes/docente.js';
 import jefeRoutes from './routes/jefe.js';
 import adminRoutes from './routes/admin.js';
 import auditorRoutes from './routes/auditor.js';
+import plataformaRoutes from './routes/plataforma.js';
 import { ensureAuditorSchema } from './utils/auditorAccess.js';
+import { resolverInstitucion } from './tenancy/resolver.js';
+import { multiInstitucionActiva } from './tenancy/contexto.js';
+import { servirUploads } from './tenancy/uploads.js';
+import { asegurarEsquemaPlataforma } from './plataforma/db.js';
+import { contexto } from './plataforma/controlador.js';
 
 dotenv.config();
 
@@ -31,8 +37,12 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Archivos subidos por usuarios
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Institución de la petición según el subdominio (después de express.json: el cuerpo ya está leído
+// cuando arranca el contexto, así no se pierde dentro de los eventos del stream).
+app.use(resolverInstitucion);
+
+// Archivos subidos por usuarios, en la carpeta de cada institución
+app.use('/uploads', servirUploads);
 
 // Frontend build — busca en public/ o public/dist/ según lo que exista
 const publicDir = fs.existsSync(path.join(__dirname, '..', 'public', 'index.html'))
@@ -51,6 +61,8 @@ app.use(express.static(publicDir, {
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'segedu-instituciones-api' }));
 
+app.get('/api/contexto', contexto);
+app.use('/api/plataforma', plataformaRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/estudiante', estudianteRoutes);
 app.use('/api/docente', docenteRoutes);
@@ -73,7 +85,8 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, async () => {
   console.log(`SEGEDU Instituciones API corriendo en http://localhost:${PORT}`);
   const initializers = [
-    ['Auditor', ensureAuditorSchema]
+    ['Auditor', ensureAuditorSchema],
+    ...(multiInstitucionActiva() ? [['Plataforma multi-institución', asegurarEsquemaPlataforma]] : [])
   ];
 
   // En producción el usuario MySQL puede no tener permisos DDL. Una migración

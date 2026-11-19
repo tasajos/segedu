@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { institucionActual } from '../tenancy/contexto.js';
 
 export const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -12,6 +13,12 @@ export const verifyToken = (req, res, next) => {
   if (!token) return res.status(401).json({ error: 'Token no proporcionado' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Los tokens del panel de la plataforma no abren las rutas de una institución.
+    if (decoded.aud === 'plataforma') return res.status(401).json({ error: 'Token inválido o expirado' });
+    // Un token emitido en una institución no vale en otra (los tokens antiguos no traen `inst`).
+    if ((decoded.inst ?? null) !== (institucionActual()?.subdominio ?? null)) {
+      return res.status(401).json({ error: 'La sesión pertenece a otra institución. Inicie sesión nuevamente.' });
+    }
     req.user = decoded;
     next();
   } catch (err) {

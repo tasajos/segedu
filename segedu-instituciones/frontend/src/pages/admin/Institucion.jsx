@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -19,6 +20,7 @@ const ETIQUETAS = [
 ];
 
 export default function AdminInstitucion() {
+  const dialog = useDialog();
   const { institucion, setInstitucion } = useInstitucion();
   const [form, setForm] = useState(null);
   const [logo, setLogo] = useState(null);
@@ -26,7 +28,7 @@ export default function AdminInstitucion() {
   const [aviso, setAviso] = useState(null);
 
   useEffect(() => { setForm({ ...institucion, terminos: { ...institucion.terminos } }); }, [institucion]);
-  if (!form) return null;
+  if (!form) return <div className="loading-state" role="status">Cargando institución…</div>;
 
   const cambiar = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }));
   const cambiarTermino = (clave, valor) => setForm((f) => ({ ...f, terminos: { ...f.terminos, [clave]: valor } }));
@@ -51,9 +53,9 @@ export default function AdminInstitucion() {
       const { data } = await api.put('/admin/institucion', datos, { headers: { 'Content-Type': 'multipart/form-data' } });
       setInstitucion(data);
       setLogo(null);
-      setAviso({ tipo: 'ok', texto: 'Cambios guardados. Ya se ven en todo el sistema.' });
+      dialog.alert('Cambios guardados. Ya se ven en todo el sistema.', { tipo: 'exito' });
     } catch (err) {
-      setAviso({ tipo: 'error', texto: err.response?.data?.error || 'No se pudieron guardar los cambios. Intente otra vez.' });
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudieron guardar los cambios. Intente otra vez.', { tipo: 'error' });
     } finally { setGuardando(false); }
   };
 
@@ -126,8 +128,8 @@ export default function AdminInstitucion() {
         {aviso && (
           <div role="status" style={{
             padding: '.8rem 1rem', borderRadius: 12, fontWeight: 600,
-            background: aviso.tipo === 'error' ? 'var(--danger-bg)' : aviso.tipo === 'ok' ? 'var(--success-bg)' : 'var(--warning-bg)',
-            color: aviso.tipo === 'error' ? 'var(--danger)' : aviso.tipo === 'ok' ? 'var(--success)' : 'var(--gold-dark)'
+            background: 'var(--info-bg)',
+            color: 'var(--text-soft)'
           }}>{aviso.texto}</div>
         )}
 

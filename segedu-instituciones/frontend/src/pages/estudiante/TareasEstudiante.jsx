@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -117,6 +119,7 @@ function VisorMaterial({ tareaId, tipoArchivo }) {
 
 // ── Modal de entrega de tarea (Word o PDF) ───────────────────────────────────
 function ModalEntrega({ tarea, onClose, onSuccess }) {
+  const dialog = useDialog();
   const [archivo, setArchivo] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -158,7 +161,7 @@ function ModalEntrega({ tarea, onClose, onSuccess }) {
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al enviar la entrega');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al enviar la entrega', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
@@ -306,6 +309,7 @@ function ModalEntrega({ tarea, onClose, onSuccess }) {
 }
 
 export default function EstudianteTareas() {
+  const pageLoad = usePageLoad();
   const [tareas, setTareas] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -313,12 +317,15 @@ export default function EstudianteTareas() {
   const [modalEntrega, setModalEntrega] = useState(null);   // tarea completa
 
   const cargar = async () => {
-    try {
-      const r = await api.get('/estudiante/tareas');
-      setTareas(r.data);
-    } finally {
-      setLoading(false);
-    }
+    return pageLoad.run(async () => {
+      try {
+        const r = await api.get('/estudiante/tareas');
+        setTareas(r.data);
+      } finally {
+        setLoading(false);
+      }
+
+    });
   };
 
   useEffect(() => { cargar(); }, []);
@@ -336,7 +343,7 @@ export default function EstudianteTareas() {
   const calificadas = tareas.filter(t => t.calificacion !== null && t.calificacion !== undefined).length;
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="05"
         eyebrow="Módulo académico"
@@ -465,6 +472,6 @@ export default function EstudianteTareas() {
           <ModalEntrega tarea={modalEntrega} onClose={() => setModalEntrega(null)} onSuccess={cargar} />
         )}
       </Modal>
-    </>
+    </></PageState>
   );
 }

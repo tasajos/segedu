@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -59,6 +60,7 @@ const formatDateEs = (value, withWeekday = false) => {
 const today = new Date().toISOString().slice(0, 10);
 
 export default function JefeAsistencias() {
+  const dialog = useDialog();
   const [tab, setTab] = useState('reportes');
   const [materias, setMaterias] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
@@ -110,31 +112,46 @@ export default function JefeAsistencias() {
   }, [filters]);
 
   const cargarBase = async () => {
-    const [materiasResp, estudiantesResp] = await Promise.all([
-      api.get('/jefe/materias'),
-      api.get('/jefe/estudiantes')
-    ]);
-    setMaterias(materiasResp.data);
-    setEstudiantes(estudiantesResp.data);
+    try {
+      const [materiasResp, estudiantesResp] = await Promise.all([
+        api.get('/jefe/materias'),
+        api.get('/jefe/estudiantes')
+      ]);
+      setMaterias(materiasResp.data);
+      setEstudiantes(estudiantesResp.data);
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
+    }
   };
 
   const cargarReportes = async () => {
-    setLoading(true);
     try {
-      const { data } = await api.get('/jefe/asistencias', { params });
-      setReporte(data);
-    } finally {
-      setLoading(false);
+      setLoading(true);
+      try {
+        const { data } = await api.get('/jefe/asistencias', { params });
+        setReporte(data);
+      } finally {
+        setLoading(false);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
     }
   };
 
   const cargarSolicitudes = async () => {
-    setLoadingSolicitudes(true);
     try {
-      const { data } = await api.get('/jefe/solicitudes-permiso');
-      setSolicitudes(data);
-    } finally {
-      setLoadingSolicitudes(false);
+      setLoadingSolicitudes(true);
+      try {
+        const { data } = await api.get('/jefe/solicitudes-permiso');
+        setSolicitudes(data);
+      } finally {
+        setLoadingSolicitudes(false);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
     }
   };
 
@@ -218,7 +235,7 @@ export default function JefeAsistencias() {
       closeEdit();
       await cargarReportes();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo actualizar la asistencia');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo actualizar la asistencia', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
@@ -259,19 +276,19 @@ export default function JefeAsistencias() {
       });
       await cargarSolicitudes();
     } catch (err) {
-      setRequestError(err.response?.data?.error || 'No se pudo registrar la solicitud');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo registrar la solicitud', { tipo: 'error' });
     } finally {
       setSavingRequest(false);
     }
   };
 
   const deleteRequest = async (id) => {
-    if (!confirm('Eliminar esta solicitud de permiso o justificacion?')) return;
+    if (!(await dialog.confirm('Eliminar esta solicitud de permiso o justificacion?', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
     try {
       await api.delete(`/jefe/solicitudes-permiso/${id}`);
       await cargarSolicitudes();
     } catch (err) {
-      alert(err.response?.data?.error || 'No se pudo eliminar la solicitud');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo eliminar la solicitud', { tipo: 'error' });
     }
   };
 
@@ -282,6 +299,7 @@ export default function JefeAsistencias() {
 
   const guardarEstado = async () => {
     if (!modalEstado) return;
+    if (modalEstado.accion === 'rechazado' && !(await dialog.confirm('¿Rechazar esta solicitud? El docente no la verá al registrar asistencia.', { titulo: 'Rechazar solicitud', tipo: 'peligro', textoConfirmar: 'Rechazar' }))) return;
     setSavingEstado(true);
     try {
       await api.put(`/jefe/solicitudes-permiso/${modalEstado.solicitud.id}/estado`, {
@@ -291,7 +309,7 @@ export default function JefeAsistencias() {
       setModalEstado(null);
       await cargarSolicitudes();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al actualizar la solicitud');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al actualizar la solicitud', { tipo: 'error' });
     } finally {
       setSavingEstado(false);
     }

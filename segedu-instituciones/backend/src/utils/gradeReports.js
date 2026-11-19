@@ -1,6 +1,7 @@
+import { claveInstitucion } from '../tenancy/contexto.js';
 import pool from '../config/db.js';
 
-let gradeSchemaEnsured = false;
+const gradeSchemaEnsured = new Set(); // subdominios ya revisados
 
 export const PASSING_GRADE = 51;
 export const GRADE_MODALITIES = {
@@ -27,7 +28,7 @@ export const GRADE_MODALITIES = {
 };
 
 export const ensureGradeReportSchema = async () => {
-  if (gradeSchemaEnsured) return;
+  if (gradeSchemaEnsured.has(claveInstitucion())) return;
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS grade_reports (
@@ -85,5 +86,5 @@ export const ensureGradeReportSchema = async () => {
     await pool.query('ALTER TABLE grade_report_details ADD COLUMN examen_recuperacion DECIMAL(5,2) NULL');
   }
 
-  gradeSchemaEnsured = true;
+  gradeSchemaEnsured.add(claveInstitucion());
 };

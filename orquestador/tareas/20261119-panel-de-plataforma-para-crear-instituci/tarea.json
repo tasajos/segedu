@@ -1,0 +1,86 @@
+{
+  "id": "20261119-panel-de-plataforma-para-crear-instituci",
+  "titulo": "Panel de plataforma para crear instituciones por subdominio",
+  "proyecto": "segedu-instituciones",
+  "base": "697e9a81f9ed9b52ca2b8bcb9005e32d6bac10dc",
+  "rama": "segedu-instituciones",
+  "creada": "2026-11-19 20:19:35",
+  "historial": [
+    {
+      "fecha": "2026-11-19 20:19:35",
+      "evento": "tarea creada",
+      "nota": "proyecto segedu-instituciones, base 697e9a8"
+    },
+    {
+      "fecha": "2026-11-19 20:20:16",
+      "evento": "verificación de contrato",
+      "nota": "1 violaciones",
+      "errores": [
+        "Endpoint del contrato sin implementar en el backend: GET /api/contexto"
+      ]
+    },
+    {
+      "fecha": "2026-11-19 20:20:24",
+      "evento": "verificación de contrato",
+      "nota": "ok",
+      "errores": []
+    },
+    {
+      "fecha": "2026-11-19 20:30:26",
+      "evento": "codex ronda 1 iniciada"
+    },
+    {
+      "fecha": "2026-11-19 20:33:45",
+      "evento": "codex ronda 1 terminada",
+      "nota": "código 1, 12 archivos, 0 fuera de zona, 6 violaciones",
+      "codigo": 1,
+      "cambios": [
+        "segedu-instituciones/frontend/src/main.jsx",
+        "segedu-instituciones/frontend/vite.config.js",
+        "orquestador/tareas/20261119-panel-de-plataforma-para-crear-instituci/codex/ronda-1-salida.md",
+        "segedu-instituciones/frontend/src/ContextoApp.jsx",
+        "segedu-instituciones/frontend/src/plataforma/Credenciales.jsx",
+        "segedu-instituciones/frontend/src/plataforma/Login.jsx",
+        "segedu-instituciones/frontend/src/plataforma/NuevaInstitucion.jsx",
+        "segedu-instituciones/frontend/src/plataforma/PlataformaApp.jsx",
+        "segedu-instituciones/frontend/src/plataforma/PlataformaAuthContext.jsx",
+        "segedu-instituciones/frontend/src/plataforma/api.js",
+        "segedu-instituciones/frontend/src/plataforma/useAccionesInstitucion.jsx",
+        "segedu-instituciones/frontend/src/plataforma/utils.js"
+      ],
+      "fueraDeZona": [],
+      "violaciones": [
+        "La UI llama a un endpoint que no existe: GET /api/subdominio-disponible — frontend\\src\\plataforma\\NuevaInstitucion.jsx:23",
+        "La UI llama a un endpoint que no existe: POST /api/instituciones — frontend\\src\\plataforma\\NuevaInstitucion.jsx:50",
+        "La UI llama a un endpoint que no existe: GET /api/auth/perfil — frontend\\src\\plataforma\\PlataformaAuthContext.jsx:31",
+        "La UI llama a un endpoint que no existe: PATCH /api/instituciones/${…} — frontend\\src\\plataforma\\useAccionesInstitucion.jsx:30",
+        "La UI llama a un endpoint que no existe: POST /api/instituciones/${…}/restablecer-admin — frontend\\src\\plataforma\\useAccionesInstitucion.jsx:36",
+        "La UI llama a un endpoint que no existe: POST /api/instituciones/${…}/reintentar — frontend\\src\\plataforma\\useAccionesInstitucion.jsx:39"
+      ]
+    },
+    {
+      "fecha": "2026-11-19 20:34:16",
+      "evento": "verificación de contrato",
+      "nota": "ok",
+      "errores": []
+    },
+    {
+      "fecha": "2026-11-19 20:35:37",
+      "evento": "verificación de contrato",
+      "nota": "ok",
+      "errores": []
+    },
+    {
+      "fecha": "2026-11-19 20:36:13",
+      "evento": "qa ronda 1 preparada",
+      "nota": "modo claude"
+    },
+    {
+      "fecha": "2026-11-19 20:36:15",
+      "evento": "qa reporte recibido",
+      "nota": "APROBADO",
+      "veredicto": "APROBADO",
+      "reporte": "qa\\reporte-1.md"
+    }
+  ]
+}

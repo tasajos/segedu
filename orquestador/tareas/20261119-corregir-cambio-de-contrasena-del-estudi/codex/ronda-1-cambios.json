@@ -1,0 +1,13 @@
+{
+  "codigo": 0,
+  "cambios": [
+    "orquestador/config.json",
+    "segedu-instituciones/frontend/src/pages/estudiante/InfoPersonal.jsx",
+    "segedu-instituciones/frontend/src/pages/estudiante/Inicio.jsx",
+    "orquestador/tareas/20261119-corregir-cambio-de-contrasena-del-estudi/codex/ronda-1-salida.md"
+  ],
+  "fueraDeZona": [
+    "orquestador/config.json",
+    "orquestador/tareas/20261119-corregir-cambio-de-contrasena-del-estudi/codex/ronda-1-salida.md"
+  ]
+}

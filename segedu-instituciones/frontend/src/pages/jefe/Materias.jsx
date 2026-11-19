@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -26,13 +28,17 @@ const agruparMaterias = (materias) => {
 };
 
 export default function JefeMaterias() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const navigate = useNavigate();
   const [materias, setMaterias] = useState([]);
-  const [confirmDel, setConfirmDel] = useState(null);
 
   const cargar = async () => {
-    const { data } = await api.get('/jefe/materias');
-    setMaterias(data);
+    return pageLoad.run(async () => {
+      const { data } = await api.get('/jefe/materias');
+      setMaterias(data);
+
+    });
   };
 
   useEffect(() => {
@@ -40,19 +46,21 @@ export default function JefeMaterias() {
   }, []);
 
   const eliminar = async (id) => {
+    const materia = materias.find(item => item.id === id);
+    if (!(await dialog.confirm(`¿Eliminar ${materia?.nombre || 'esta materia'} (grupo ${materia?.grupo || ''})? Se borrarán las inscripciones y registros asociados.`, { titulo: 'Eliminar materia', tipo: 'peligro', textoConfirmar: 'Eliminar' }))) return;
     try {
       await api.delete(`/jefe/materias/${id}`);
-      setConfirmDel(null);
+
       cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al eliminar');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al eliminar', { tipo: 'error' });
     }
   };
 
   const materiasAgrupadas = agruparMaterias(materias);
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="09"
         eyebrow="Gestion de carrera"
@@ -118,29 +126,18 @@ export default function JefeMaterias() {
                       >
                         Editar
                       </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(m.id === confirmDel ? null : m.id)}>
+                      <button className="btn btn-danger btn-sm" onClick={() => eliminar(m.id)}>
                         Eliminar
                       </button>
                     </div>
                   </div>
 
-                  {confirmDel === m.id && (
-                    <div style={{ background: '#fdf0ee', border: '1px solid #f3c4bd', borderTop: 'none', borderRadius: '0 0 var(--radius) var(--radius)', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '.9rem', color: '#b91c1c' }}>
-                        Eliminar <strong>{m.nombre} Grupo {m.grupo}</strong>? Se borraran inscripciones y registros asociados.
-                      </span>
-                      <div style={{ display: 'flex', gap: '.5rem' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setConfirmDel(null)}>Cancelar</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => eliminar(m.id)}>Confirmar</button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
           </div>
         ))}
       </div>
-    </>
+    </></PageState>
   );
 }

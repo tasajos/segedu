@@ -1,19 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import App from './App.jsx';
-import { AuthProvider } from './context/AuthContext.jsx';
-import { InstitucionProvider } from './context/InstitucionContext.jsx';
+import ContextoApp from './ContextoApp.jsx';
 import './styles/global.css';
+import { DialogProvider } from './components/dialog/DialogProvider.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <InstitucionProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </InstitucionProvider>
+      <DialogProvider>
+        <ContextoApp />
+      </DialogProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

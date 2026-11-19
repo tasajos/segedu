@@ -1,3 +1,4 @@
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -18,21 +19,22 @@ const TIPO_LABEL = {
 };
 
 export default function JefeComportamiento() {
+  const pageLoad = usePageLoad();
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    (async () => {
+    pageLoad.run(() => (async () => {
       const res = await api.get('/jefe/comportamiento');
       setData(res.data);
-    })();
+    })());
   }, []);
 
-  if (!data) return <div className="loading-dots"><span/><span/><span/></div>;
+  if (!data) return <PageState state={pageLoad}><div className="loading-dots"><span/><span/><span/></div></PageState>;
 
   const { faltas, comentariosTipo, alertas } = data;
 
   return (
-    <>
+    <PageState state={pageLoad}><>
       <PageHeader
         num="04"
         eyebrow="Análisis conductual"
@@ -138,6 +140,6 @@ export default function JefeComportamiento() {
           );
         })}
       </div>
-    </>
+    </></PageState>
   );
 }

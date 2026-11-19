@@ -1,13 +1,14 @@
+import { claveInstitucion } from '../tenancy/contexto.js';
 import pool from '../config/db.js';
 import { sendMail } from './mailer.js';
 
 const PERMISSION_EMAIL_TO = 'cazcarraga@chakuy.com';
 const TIPO_LABELS = { carta_permiso: 'Carta de permiso', justificacion: 'Justificación' };
 
-let schemaEnsured = false;
+const schemaEnsured = new Set(); // subdominios ya revisados
 
 export const ensureStudentPermissionSchema = async () => {
-  if (schemaEnsured) return;
+  if (schemaEnsured.has(claveInstitucion())) return;
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS student_permission_requests (
@@ -38,7 +39,7 @@ export const ensureStudentPermissionSchema = async () => {
     try { await pool.query(alter); } catch { /* column already exists */ }
   }
 
-  schemaEnsured = true;
+  schemaEnsured.add(claveInstitucion());
 };
 
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);

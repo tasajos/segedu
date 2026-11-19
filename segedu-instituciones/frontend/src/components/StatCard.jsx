@@ -31,7 +31,7 @@ const ICONS = {
   )
 };
 
-export default function StatCard({ num, label, value, hint, accent = 'gold', big = false }) {
+export default function StatCard({ num, label, value, hint, accent = 'ink', big = false }) {
   const icon = ICONS[accent] || ICONS.ink;
 
   return (

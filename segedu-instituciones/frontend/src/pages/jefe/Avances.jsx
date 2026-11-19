@@ -1,16 +1,23 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 
 export default function JefeAvances() {
+  const dialog = useDialog();
+  const pageLoad = usePageLoad();
   const [avances, setAvances] = useState([]);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ validado: true, observaciones: '' });
 
   const cargar = async () => {
-    const { data } = await api.get('/jefe/avances');
-    setAvances(data);
+    return pageLoad.run(async () => {
+      const { data } = await api.get('/jefe/avances');
+      setAvances(data);
+
+    });
   };
 
   useEffect(() => { cargar(); }, []);
@@ -21,17 +28,22 @@ export default function JefeAvances() {
   };
 
   const guardar = async (e) => {
-    e.preventDefault();
-    await api.put(`/jefe/avances/${selected.id}`, form);
-    setSelected(null);
-    cargar();
+    try {
+      e.preventDefault();
+      await api.put(`/jefe/avances/${selected.id}`, form);
+      setSelected(null);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const pendientes = avances.filter(a => !a.validado).length;
   const validados = avances.filter(a => a.validado).length;
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="03"
         eyebrow="Supervisión curricular"
@@ -62,7 +74,7 @@ export default function JefeAvances() {
         <span className="count">{avances.length} registros</span>
       </div>
 
-      <table className="data-table">
+      <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
         <thead>
           <tr>
             <th>№</th>
@@ -107,7 +119,7 @@ export default function JefeAvances() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       <Modal open={!!selected} onClose={() => setSelected(null)} title="Validar avance">
         {selected && (
@@ -166,6 +178,6 @@ export default function JefeAvances() {
           </>
         )}
       </Modal>
-    </>
+    </></PageState>
   );
 }

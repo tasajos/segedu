@@ -1,51 +1,63 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 
 export default function EstudianteInfoPersonal() {
+  const dialog = useDialog();
   const { user, auditPersona } = useAuth();
   const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const [form, setForm] = useState({ nombre: '', apellido: '', ci: '', telefono: '' });
   const [passwordForm, setPasswordForm] = useState({ actual: '', nueva: '', confirmar: '' });
-  const [msg, setMsg] = useState('');
-  const [passwordMsg, setPasswordMsg] = useState('');
+
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
   const [loading, setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
-      if (user.rol === 'auditor' && auditPersona) {
-        setForm({ nombre: auditPersona.nombre || '', apellido: auditPersona.apellido || '', ci: auditPersona.ci || '', telefono: auditPersona.telefono || '' });
-        return;
+      setProfileLoading(true);
+      setProfileError('');
+      try {
+        if (user.rol === 'auditor' && auditPersona) {
+          setForm({ nombre: auditPersona.nombre || '', apellido: auditPersona.apellido || '', ci: auditPersona.ci || '', telefono: auditPersona.telefono || '' });
+          return;
+        }
+        const { data } = await api.get('/auth/profile');
+        setForm({ nombre: data.nombre || '', apellido: data.apellido || '', ci: data.ci || '', telefono: data.telefono || '' });
+      } catch (err) {
+        setProfileError(err.response?.data?.message || err.response?.data?.error || 'Error al cargar los datos personales');
+      } finally {
+        setProfileLoading(false);
       }
-      const { data } = await api.get('/auth/profile');
-      setForm({ nombre: data.nombre || '', apellido: data.apellido || '', ci: data.ci || '', telefono: data.telefono || '' });
     })();
   }, [user.rol, auditPersona]);
 
   const guardar = async (e) => {
     e.preventDefault();
-    setLoading(true); setMsg('');
+    setLoading(true);
     try {
       await api.put('/estudiante/info-personal', form);
-      setMsg('✓ Información actualizada correctamente');
-      setTimeout(() => setMsg(''), 3000);
-    } catch { setMsg('Error al guardar'); }
+      dialog.alert('Información actualizada correctamente', { tipo: 'exito' });
+
+    } catch (err) { dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al guardar', { tipo: 'error' }); }
     finally { setLoading(false); }
   };
 
   const cambiarContrasena = async (e) => {
     e.preventDefault();
     setPasswordLoading(true);
-    setPasswordMsg('');
+
     try {
-      await api.put('/estudiante/cambiar-contraseña', passwordForm);
+      await api.put('/estudiante/cambiar-contrasena', passwordForm);
       setPasswordForm({ actual: '', nueva: '', confirmar: '' });
-      setPasswordMsg('OK Contrasena actualizada correctamente');
-      setTimeout(() => setPasswordMsg(''), 3000);
+
+      dialog.alert('Contraseña actualizada correctamente', { tipo: 'exito' });
+
     } catch (err) {
-      setPasswordMsg(err.response?.data?.error || 'Error al cambiar la contraseña');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al cambiar la contraseña', { tipo: 'error' });
     } finally {
       setPasswordLoading(false);
     }
@@ -60,6 +72,11 @@ export default function EstudianteInfoPersonal() {
         lead="Mantenga esta información actualizada para garantizar correcta comunicación institucional."
       />
 
+      {profileLoading ? (
+        <p className="text-muted" role="status">Cargando datos personales…</p>
+      ) : profileError ? (
+        <div className="card" role="alert">{profileError}</div>
+      ) : (
       <div className="grid-2">
         {/* Tarjeta de ficha */}
         <div className="ficha-card">
@@ -110,15 +127,6 @@ export default function EstudianteInfoPersonal() {
               <input value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})} placeholder="7xxxxxxx"/>
             </div>
 
-            {msg && (
-              <div style={{
-                padding: '.75rem 1rem', marginBottom: '1rem', borderRadius: '10px',
-                background: msg.startsWith('✓') ? 'rgba(58,90,63,0.08)' : 'rgba(139,42,42,0.08)',
-                borderLeft: `3px solid ${msg.startsWith('✓') ? 'var(--forest)' : 'var(--crimson)'}`,
-                fontSize: '.85rem', color: msg.startsWith('✓') ? 'var(--forest)' : 'var(--crimson)'
-              }}>{msg}</div>
-            )}
-
             <button className="btn btn-primary" disabled={loading}>
               {loading ? 'Guardando…' : 'Guardar cambios'}
             </button>
@@ -129,7 +137,7 @@ export default function EstudianteInfoPersonal() {
           <h3 style={{ marginBottom: '1.5rem' }}>Cambiar contraseña</h3>
           <form onSubmit={cambiarContrasena}>
             <div className="form-field">
-              <label>Contrasena actual</label>
+              <label>Contraseña actual</label>
               <input
                 type="password"
                 value={passwordForm.actual}
@@ -163,21 +171,13 @@ export default function EstudianteInfoPersonal() {
               </div>
             </div>
 
-            {passwordMsg && (
-              <div style={{
-                padding: '.75rem 1rem', marginBottom: '1rem', borderRadius: '10px',
-                background: passwordMsg.startsWith('OK') ? 'rgba(58,90,63,0.08)' : 'rgba(139,42,42,0.08)',
-                borderLeft: `3px solid ${passwordMsg.startsWith('OK') ? 'var(--forest)' : 'var(--crimson)'}`,
-                fontSize: '.85rem', color: passwordMsg.startsWith('OK') ? 'var(--forest)' : 'var(--crimson)'
-              }}>{passwordMsg.replace(/^OK\s*/, '')}</div>
-            )}
-
             <button className="btn btn-secondary" disabled={passwordLoading}>
               {passwordLoading ? 'Actualizando...' : 'Actualizar contraseña'}
             </button>
           </form>
         </div>
       </div>
+      )}
 
       <style>{`
         .ficha-card {

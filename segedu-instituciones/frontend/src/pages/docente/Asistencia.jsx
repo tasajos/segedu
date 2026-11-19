@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -15,7 +16,7 @@ const ESTADO_COLOR = {
   presente: '#23784b',
   falta: '#c0392b',
   permiso: '#d97706',
-  tarde: '#1f6f5c'
+  tarde: 'var(--teal)'
 };
 const ESTADO_BG = {
   presente: '#f0fdf4',
@@ -73,6 +74,7 @@ const formatDateEs = (value, withWeekday = false) => {
 };
 
 export default function DocenteAsistencia() {
+  const dialog = useDialog();
   const { user, auditPersona } = useAuth();
   const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const today = getTodayLocal();
@@ -86,7 +88,7 @@ export default function DocenteAsistencia() {
   const [sesiones, setSesiones] = useState([]);
   const [reporte, setReporte] = useState({ registros: [], resumen: { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 } });
   const [saving, setSaving] = useState(false);
-  const [guardado, setGuardado] = useState(false);
+
   const [vista, setVista] = useState('llamar');
   const [mensajeError, setMensajeError] = useState('');
   const [listaBloqueada, setListaBloqueada] = useState(false);
@@ -105,7 +107,7 @@ export default function DocenteAsistencia() {
     api.get('/docente/materias').then((r) => {
       setMaterias(r.data);
       if (r.data.length > 0) setMateriaId(String(r.data[0].id));
-    });
+    }).catch(err => dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' }));
   }, []);
 
   useEffect(() => {
@@ -118,7 +120,7 @@ export default function DocenteAsistencia() {
       });
       setEstados(initEstados);
       setJustificaciones({});
-    });
+    }).catch(err => dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' }));
   }, [materiaId]);
 
   useEffect(() => {
@@ -151,7 +153,7 @@ export default function DocenteAsistencia() {
       setJustificaciones(nextJustificaciones);
       setListaBloqueada(true);
       setMensajeError('La asistencia de esta materia ya fue registrada para la fecha seleccionada.');
-    });
+    }).catch(err => dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' }));
   }, [materiaId, fecha, estudiantes]);
 
   useEffect(() => {
@@ -261,7 +263,7 @@ export default function DocenteAsistencia() {
   const guardar = async () => {
     if (!materiaId || !fecha || estudiantes.length === 0 || listaBloqueada) return;
     setSaving(true);
-    setGuardado(false);
+
     setMensajeError('');
 
     try {
@@ -271,9 +273,9 @@ export default function DocenteAsistencia() {
         justificacion: justificaciones[e.id] || null
       }));
       await api.post('/docente/asistencia/lista', { materia_id: materiaId, fecha, registros });
-      setGuardado(true);
+
       setListaBloqueada(true);
-      setMensajeError('La asistencia fue registrada y quedo cerrada para esta fecha.');
+      dialog.alert('La asistencia fue registrada y quedó cerrada para esta fecha.', { tipo: 'exito' });
 
       const historyParams = periodoHistorial === 'rango'
         ? { materia_id: materiaId, periodo: 'rango', desde: desdeHistorial, hasta: hastaHistorial, estado: estadoHistorial || undefined }
@@ -285,9 +287,9 @@ export default function DocenteAsistencia() {
       ]);
       setSesiones(sesionesResp.data?.sesiones || []);
       setReporte(reporteResp.data || { registros: [], resumen: { total: 0, presente: 0, falta: 0, permiso: 0, tarde: 0 } });
-      setTimeout(() => setGuardado(false), 3000);
+
     } catch (error) {
-      setMensajeError(error?.response?.data?.error || 'No se pudo registrar la asistencia');
+      dialog.alert(error?.response?.data?.message || error?.response?.data?.error || 'No se pudo registrar la asistencia', { tipo: 'error' });
       if (error?.response?.status === 409) setListaBloqueada(true);
     } finally {
       setSaving(false);
@@ -643,11 +645,7 @@ export default function DocenteAsistencia() {
                 {materia?.nombre} - Grupo {materia?.grupo} - {fecha} - {presentes} presentes, {faltas} faltas, {permisos} permisos, {tardes} tardes
               </div>
               <div style={{ display: 'flex', gap: '.75rem', alignItems: 'center' }}>
-                {guardado && (
-                  <span style={{ color: '#7ecb87', fontFamily: 'var(--mono)', fontSize: '.8rem' }}>
-                    Lista guardada
-                  </span>
-                )}
+
                 <button
                   onClick={handleExportLlamada}
                   disabled={!!exporting}
@@ -778,7 +776,7 @@ export default function DocenteAsistencia() {
               Sin sesiones registradas para este filtro
             </div>
           ) : (
-            <table className="data-table" style={{ marginBottom: '1.5rem' }}>
+            <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table" style={{ marginBottom: '1.5rem' }}>
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -807,7 +805,7 @@ export default function DocenteAsistencia() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           <div className="section-head" style={{ marginBottom: '1rem' }}>
@@ -820,7 +818,7 @@ export default function DocenteAsistencia() {
               No hay registros para mostrar con el filtro actual
             </div>
           ) : (
-            <table className="data-table">
+            <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -857,7 +855,7 @@ export default function DocenteAsistencia() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </>
       )}

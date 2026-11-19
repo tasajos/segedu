@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -5,17 +7,21 @@ import PageHeader from '../../components/PageHeader';
 import './MateriaEstudiantes.css';
 
 export default function JefeMateriaEstudiantes() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const navigate = useNavigate();
   const { id } = useParams();
   const [detalle, setDetalle] = useState(null);
   const [seleccionados, setSeleccionados] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mensaje, setMensaje] = useState(null);
 
   const cargar = async () => {
-    const { data } = await api.get(`/jefe/materias/${id}/estudiantes`);
-    setDetalle(data);
+    return pageLoad.run(async () => {
+      const { data } = await api.get(`/jefe/materias/${id}/estudiantes`);
+      setDetalle(data);
+
+    });
   };
 
   useEffect(() => {
@@ -26,7 +32,7 @@ export default function JefeMateriaEstudiantes() {
     if (!seleccionados.length) return;
     try {
       setLoading(true);
-      setMensaje(null);
+
       const { data } = await api.post('/jefe/inscripciones', {
         estudiante_ids: seleccionados,
         materia_id: id
@@ -34,9 +40,9 @@ export default function JefeMateriaEstudiantes() {
       setSeleccionados([]);
       setBusqueda('');
       await cargar();
-      setMensaje({ tipo: 'ok', texto: data.message });
+      dialog.alert(data.message, { tipo: 'exito' });
     } catch (err) {
-      setMensaje({ tipo: 'error', texto: err.response?.data?.error || 'Error al agregar estudiantes' });
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al agregar estudiantes', { tipo: 'error' });
     } finally {
       setLoading(false);
     }
@@ -48,13 +54,13 @@ export default function JefeMateriaEstudiantes() {
       await api.delete(`/jefe/inscripciones/${studentId}/${id}`);
       await cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al quitar estudiante');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al quitar estudiante', { tipo: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  if (!detalle) return null;
+  if (!detalle) return <PageState state={pageLoad} onRetry={cargar} />;
 
   const { materia, inscritos, disponibles } = detalle;
   const textoBusqueda = busqueda.trim().toLocaleLowerCase('es');
@@ -78,7 +84,7 @@ export default function JefeMateriaEstudiantes() {
   };
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="09"
         eyebrow="Gestion de carrera"
@@ -150,10 +156,6 @@ export default function JefeMateriaEstudiantes() {
           })}
         </div>
 
-        {mensaje && (
-          <div className={`enrollment-message ${mensaje.tipo}`} role="status">{mensaje.texto}</div>
-        )}
-
         <div className="enrollment-actions">
           <button className="btn btn-secondary" onClick={() => navigate('/jefe/materias')} disabled={loading}>
             Volver
@@ -201,6 +203,6 @@ export default function JefeMateriaEstudiantes() {
           ))}
         </div>
       )}
-    </>
+    </></PageState>
   );
 }

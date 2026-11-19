@@ -1,3 +1,5 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -55,6 +57,8 @@ const groupTasksByMateria = (tasks) => {
 };
 
 export default function DocenteAvance() {
+  const dialog = useDialog();
+  const pageLoad = usePageLoad();
   const [avances, setAvances] = useState([]);
   const [materias, setMaterias] = useState([]);
   const [tareas, setTareas] = useState([]);
@@ -70,16 +74,19 @@ export default function DocenteAvance() {
   });
 
   const cargar = async () => {
-    const params = filter ? { materia_id: filter } : {};
-    const [avanceRes, materiasRes, tareasRes] = await Promise.all([
-      api.get('/docente/avance', { params }),
-      api.get('/docente/materias'),
-      api.get('/docente/pgo-tareas', { params })
-    ]);
+    return pageLoad.run(async () => {
+      const params = filter ? { materia_id: filter } : {};
+      const [avanceRes, materiasRes, tareasRes] = await Promise.all([
+        api.get('/docente/avance', { params }),
+        api.get('/docente/materias'),
+        api.get('/docente/pgo-tareas', { params })
+      ]);
 
-    setAvances(avanceRes.data);
-    setMaterias(materiasRes.data);
-    setTareas(tareasRes.data);
+      setAvances(avanceRes.data);
+      setMaterias(materiasRes.data);
+      setTareas(tareasRes.data);
+
+    });
   };
 
   useEffect(() => {
@@ -87,20 +94,30 @@ export default function DocenteAvance() {
   }, [filter]);
 
   const guardar = async (e) => {
-    e.preventDefault();
-    await api.post('/docente/avance', form);
-    setOpen(false);
-    setForm({ materia_id: '', tema: '', descripcion: '', porcentaje_avance: 0, fecha: getTodayLocal() });
-    cargar();
+    try {
+      e.preventDefault();
+      await api.post('/docente/avance', form);
+      setOpen(false);
+      setForm({ materia_id: '', tema: '', descripcion: '', porcentaje_avance: 0, fecha: getTodayLocal() });
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const toggleTask = async (task) => {
-    setSavingTaskId(task.id);
     try {
-      await api.put(`/docente/pgo-tareas/${task.id}`, { completed: task.estado !== 'completado' });
-      await cargar();
-    } finally {
-      setSavingTaskId(null);
+      setSavingTaskId(task.id);
+      try {
+        await api.put(`/docente/pgo-tareas/${task.id}`, { completed: task.estado !== 'completado' });
+        await cargar();
+      } finally {
+        setSavingTaskId(null);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
     }
   };
 
@@ -136,7 +153,7 @@ export default function DocenteAvance() {
   }, [avances, materias, tareasPorMateria]);
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="03"
         eyebrow="Seguimiento curricular"
@@ -451,6 +468,6 @@ export default function DocenteAvance() {
         }
         .timeline-content { margin-left: 1.5rem; }
       `}</style>
-    </>
+    </></PageState>
   );
 }

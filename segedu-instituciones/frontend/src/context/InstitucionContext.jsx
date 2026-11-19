@@ -7,8 +7,8 @@ const POR_DEFECTO = {
   tipo: 'instituto',
   lema: 'Seguimiento académico simple y ordenado',
   logo_url: null,
-  color_primario: '#1f6f5c',
-  color_acento: '#f2b705',
+  color_primario: '#1E73BE',
+  color_acento: '#FFD60A',
   terminos: {
     programa: 'Carrera', programas: 'Carreras', periodo: 'Semestre', periodos: 'Semestres',
     asignatura: 'Materia', asignaturas: 'Materias', docente: 'Docente', docentes: 'Docentes',
@@ -20,8 +20,8 @@ const InstitucionContext = createContext({ institucion: POR_DEFECTO, t: (k) => k
 
 const aplicarColores = (inst) => {
   const raiz = document.documentElement;
-  if (inst.color_primario) raiz.style.setProperty('--brand', inst.color_primario);
-  if (inst.color_acento) raiz.style.setProperty('--accent', inst.color_acento);
+  raiz.style.setProperty('--brand', inst.color_primario || POR_DEFECTO.color_primario);
+  raiz.style.setProperty('--accent', inst.color_acento || POR_DEFECTO.color_acento);
   window.__SEGEDU_LOGO__ = inst.logo_url || null;
   window.__SEGEDU_NOMBRE__ = inst.nombre;
   document.title = `${inst.sigla || 'SEGEDU'} · ${inst.nombre}`;

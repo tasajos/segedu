@@ -1,0 +1,68 @@
+{
+  "proyectoPorDefecto": "segedu-instituciones",
+
+  "proyectos": {
+    "segedu-instituciones": {
+      "dir": "segedu-instituciones",
+      "frontend": "frontend",
+      "backendEntrada": "backend/src/index.js",
+      "rutasDir": "backend/src/routes",
+      "apiBase": "/api",
+      "clientesApi": ["api"],
+      "clientesBase": { "src/plataforma/api.js": "/api/plataforma" },
+      "comandos": {
+        "backend": "npm run dev --prefix backend",
+        "frontend": "npm run dev --prefix frontend",
+        "build": "npm run build --prefix frontend"
+      },
+      "urlApp": "http://localhost:5173",
+      "urlApi": "http://localhost:5000/api",
+      "credencialesQA": {
+        "admin": "admin@itd.demo / demo1234",
+        "jefe": "jefe@itd.demo / demo1234",
+        "docente": "docente@itd.demo / demo1234",
+        "estudiante": "estudiante@itd.demo / demo1234",
+        "auditor": "auditor@itd.demo / demo1234"
+      }
+    },
+
+    "segedu": {
+      "dir": ".",
+      "frontend": "frontend",
+      "backendEntrada": "backend/src/index.js",
+      "rutasDir": "backend/src/routes",
+      "apiBase": "/api",
+      "clientesApi": ["api"],
+      "comandos": {
+        "backend": "npm run dev --prefix backend",
+        "frontend": "npm run dev --prefix frontend",
+        "build": "npm run build --prefix frontend"
+      },
+      "urlApp": "http://localhost:5173",
+      "urlApi": "http://localhost:5000/api",
+      "credencialesQA": {}
+    }
+  },
+
+  "agentes": {
+    "codex": {
+      "exe": "auto",
+      "modelo": null,
+      "sandbox": "workspace-write",
+      "rondasMax": 3,
+      "argsExtra": []
+    },
+
+    "qa": {
+      "modo": "manual",
+      "rondasMax": 3,
+      "esperarMinutos": 45,
+      "antigravityExe": "auto",
+      "cli": {
+        "cmd": "gemini",
+        "args": ["--approval-mode", "yolo", "-p", "Lee el archivo {promptFile} y sigue sus instrucciones al pie de la letra."],
+        "shell": true
+      }
+    }
+  }
+}

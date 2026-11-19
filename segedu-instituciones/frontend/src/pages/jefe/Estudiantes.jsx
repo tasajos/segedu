@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -7,6 +9,8 @@ import { exportAttendanceExcel, exportAttendancePdf } from '../../services/atten
 const TIPO_COLOR = { falta: 'var(--crimson)', sancion: '#7b2d8b', permiso: 'var(--gold)' };
 
 export default function JefeEstudiantes() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [estudiantes, setEstudiantes] = useState([]);
   const [indicadores, setIndicadores] = useState({ resumen: { falta: 0, permiso: 0, tarde: 0 }, topAsistencia: [], topFaltas: [] });
   const [semestre, setSemestre] = useState('');
@@ -20,15 +24,17 @@ export default function JefeEstudiantes() {
   const [modoPromocion, setModoPromocion] = useState(false);
   const [seleccionados, setSeleccionados] = useState([]);
   const [promoviendo, setPromoviendo] = useState(false);
-  const [mensajePromocion, setMensajePromocion] = useState('');
 
   const cargar = async () => {
-    const [estudiantesResp, indicadoresResp] = await Promise.all([
-      api.get('/jefe/estudiantes', { params: semestre ? { semestre } : {} }),
-      api.get('/jefe/estudiantes-indicadores')
-    ]);
-    setEstudiantes(estudiantesResp.data);
-    setIndicadores(indicadoresResp.data);
+    return pageLoad.run(async () => {
+      const [estudiantesResp, indicadoresResp] = await Promise.all([
+        api.get('/jefe/estudiantes', { params: semestre ? { semestre } : {} }),
+        api.get('/jefe/estudiantes-indicadores')
+      ]);
+      setEstudiantes(estudiantesResp.data);
+      setIndicadores(indicadoresResp.data);
+
+    });
   };
 
   useEffect(() => {
@@ -36,9 +42,14 @@ export default function JefeEstudiantes() {
   }, [semestre]);
 
   const cargarDetalle = async (id) => {
-    const { data } = await api.get(`/jefe/estudiantes/${id}`);
-    setDetalle(data);
-    return data;
+    try {
+      const { data } = await api.get(`/jefe/estudiantes/${id}`);
+      setDetalle(data);
+      return data;
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
+    }
   };
 
   const verDetalle = async (id) => {
@@ -62,7 +73,7 @@ export default function JefeEstudiantes() {
       setMateriaNueva(siguiente ? String(siguiente.id) : '');
       setTab('materias');
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al asignar la materia');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al asignar la materia', { tipo: 'error' });
     } finally {
       setSavingMateria(false);
     }
@@ -78,7 +89,7 @@ export default function JefeEstudiantes() {
       setMateriaNueva(String(materiaId));
       setTab('materias');
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al retirar la materia');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al retirar la materia', { tipo: 'error' });
     } finally {
       setSavingMateria(false);
     }
@@ -101,7 +112,7 @@ export default function JefeEstudiantes() {
     } catch (err) {
       setAttendanceModal((prev) => ({
         ...prev,
-        error: err.response?.data?.error || 'No se pudo cargar el detalle de asistencias'
+        error: err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar el detalle de asistencias'
       }));
     } finally {
       setAttendanceLoading(false);
@@ -168,20 +179,20 @@ export default function JefeEstudiantes() {
   const cambiarModoPromocion = () => {
     setModoPromocion((actual) => !actual);
     setSeleccionados([]);
-    setMensajePromocion('');
+
   };
 
   const promover = async () => {
     if (!seleccionados.length) return;
     try {
       setPromoviendo(true);
-      setMensajePromocion('');
+
       const { data } = await api.put('/jefe/estudiantes/promocion', { estudiante_ids: seleccionados });
       setSeleccionados([]);
       await cargar();
-      setMensajePromocion(data.message);
+      dialog.alert(data.message, { tipo: 'exito' });
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al promover estudiantes');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al promover estudiantes', { tipo: 'error' });
     } finally {
       setPromoviendo(false);
     }
@@ -192,7 +203,7 @@ export default function JefeEstudiantes() {
   const materiaSeleccionada = materiaNueva || (materiasNoInscritas[0] ? String(materiasNoInscritas[0].id) : '');
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="05"
         eyebrow="Directorio academico"
@@ -328,7 +339,7 @@ export default function JefeEstudiantes() {
             <div style={{ color: 'var(--ink-light)', fontSize: '.85rem', marginTop: '.2rem' }}>
               Cada estudiante seleccionado avanzará un semestre: SEM 1 a SEM 2, SEM 2 a SEM 3 y así consecutivamente.
             </div>
-            {mensajePromocion && <div style={{ color: 'var(--forest)', marginTop: '.4rem' }}>{mensajePromocion}</div>}
+
           </div>
           <button type="button" className="btn btn-secondary btn-sm" onClick={alternarTodos} disabled={!idsSeleccionables.length || promoviendo}>
             {todosSeleccionados ? 'Quitar todos' : 'Todos'}
@@ -339,7 +350,7 @@ export default function JefeEstudiantes() {
         </div>
       )}
 
-      <table className="data-table">
+      <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
         <thead>
           <tr>
             {modoPromocion && <th style={{ width: '44px' }}>Sel.</th>}
@@ -407,7 +418,7 @@ export default function JefeEstudiantes() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       <Modal open={!!detalle} onClose={() => setDetalle(null)} title="Expediente del estudiante" maxWidth="820px">
         {detalle && (
@@ -561,7 +572,7 @@ export default function JefeEstudiantes() {
                   </div>
                 ) : (
                   <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
-                    <table className="data-table">
+                    <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                       <thead>
                         <tr>
                           <th>Materia</th>
@@ -603,7 +614,7 @@ export default function JefeEstudiantes() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table></div>
                   </div>
                 )}
               </>
@@ -803,7 +814,7 @@ export default function JefeEstudiantes() {
                 </div>
 
                 <div style={{ maxHeight: '52vh', overflowY: 'auto' }}>
-                  <table className="data-table">
+                  <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                     <thead>
                       <tr>
                         <th>No</th>
@@ -840,13 +851,13 @@ export default function JefeEstudiantes() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               </>
             )}
           </div>
         )}
       </Modal>
-    </>
+    </></PageState>
   );
 }

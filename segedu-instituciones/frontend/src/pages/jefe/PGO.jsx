@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -44,13 +46,18 @@ const DECISIONES = [
 const getEstadoMeta = (estado) => DECISIONES.find((item) => item.val === estado) || DECISIONES[0];
 
 export default function JefePGO() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [pgoList, setPgoList] = useState([]);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ estado: 'aprobado', observaciones: '' });
 
   const cargar = async () => {
-    const { data } = await api.get('/jefe/pgo');
-    setPgoList(data);
+    return pageLoad.run(async () => {
+      const { data } = await api.get('/jefe/pgo');
+      setPgoList(data);
+
+    });
   };
 
   useEffect(() => {
@@ -65,24 +72,35 @@ export default function JefePGO() {
   const cerrarRevision = () => setSelected(null);
 
   const revisar = async (e) => {
-    e.preventDefault();
-    await api.put(`/jefe/pgo/${selected.id}`, form);
-    cerrarRevision();
-    cargar();
+    try {
+      e.preventDefault();
+      if (form.estado === 'rechazado' && !(await dialog.confirm('¿Rechazar este plan? Se marcará como no aprobado.', { titulo: 'Rechazar plan', tipo: 'peligro', textoConfirmar: 'Rechazar' }))) return;
+      await api.put(`/jefe/pgo/${selected.id}`, form);
+      cerrarRevision();
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const eliminar = async (pgo) => {
-    const ok = window.confirm(`¿Desea eliminar el PGO "${pgo.titulo}"?`);
-    if (!ok) return;
-    if (selected?.id === pgo.id) cerrarRevision();
-    await api.delete(`/jefe/pgo/${pgo.id}`);
-    cargar();
+    try {
+      const ok = (await dialog.confirm(`¿Desea eliminar el PGO "${pgo.titulo}"?`, { tipo: 'peligro', textoConfirmar: 'Confirmar' }));
+      if (!ok) return;
+      if (selected?.id === pgo.id) cerrarRevision();
+      await api.delete(`/jefe/pgo/${pgo.id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const decisionActiva = getEstadoMeta(form.estado);
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="02"
         eyebrow="Revision documental"
@@ -95,7 +113,7 @@ export default function JefePGO() {
         <span className="count">{pgoList.length} documentos</span>
       </div>
 
-      <table className="data-table">
+      <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
         <thead>
           <tr>
             <th>No</th>
@@ -152,7 +170,7 @@ export default function JefePGO() {
             );
           })}
         </tbody>
-      </table>
+      </table></div>
 
       <Modal open={!!selected} onClose={cerrarRevision} title="Revisar PGO">
         {selected && (
@@ -305,6 +323,6 @@ export default function JefePGO() {
           </>
         )}
       </Modal>
-    </>
+    </></PageState>
   );
 }

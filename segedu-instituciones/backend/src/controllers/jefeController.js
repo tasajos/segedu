@@ -1,3 +1,5 @@
+import { claveInstitucion } from '../tenancy/contexto.js';
+import { candidatosUpload } from '../tenancy/uploads.js';
 import pool from '../config/db.js';
 import { ensureGradeReportSchema, PASSING_GRADE, GRADE_MODALITIES } from '../utils/gradeReports.js';
 import { generarTareasDesdePgo } from '../utils/pgoTasks.js';
@@ -12,11 +14,11 @@ import { getCareerForManager } from '../utils/auditorAccess.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let attendanceSchemaEnsured = false;
-let pedagogicalFolderSchemaEnsured = false;
+const attendanceSchemaEnsured = new Set(); // subdominios ya revisados
+const pedagogicalFolderSchemaEnsured = new Set(); // subdominios ya revisados
 
 const ensureAttendanceSupportSchema = async () => {
-  if (attendanceSchemaEnsured) return;
+  if (attendanceSchemaEnsured.has(claveInstitucion())) return;
 
   const [columns] = await pool.query(
     `SELECT COLUMN_NAME
@@ -36,11 +38,11 @@ const ensureAttendanceSupportSchema = async () => {
     await pool.query('ALTER TABLE asistencias ADD COLUMN updated_at DATETIME NULL');
   }
 
-  attendanceSchemaEnsured = true;
+  attendanceSchemaEnsured.add(claveInstitucion());
 };
 
 const ensurePedagogicalFolderSchema = async () => {
-  if (pedagogicalFolderSchemaEnsured) return;
+  if (pedagogicalFolderSchemaEnsured.has(claveInstitucion())) return;
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pedagogical_folders (
@@ -56,7 +58,7 @@ const ensurePedagogicalFolderSchema = async () => {
     )
   `);
 
-  pedagogicalFolderSchemaEnsured = true;
+  pedagogicalFolderSchemaEnsured.add(claveInstitucion());
 };
 
 const buildAttendanceDateRange = ({ periodo, fecha, desde, hasta }) => {
@@ -108,9 +110,7 @@ const resolveUploadCandidates = (archivoUrl) => {
   if (!archivoUrl) return [];
   const fileName = path.basename(archivoUrl);
   return [
-    path.resolve(process.cwd(), 'uploads', fileName),
-    path.resolve(process.cwd(), 'backend', 'uploads', fileName),
-    path.resolve(__dirname, '..', '..', 'uploads', fileName)
+    ...candidatosUpload(fileName),
   ];
 };
 

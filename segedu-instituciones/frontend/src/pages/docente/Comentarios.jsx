@@ -1,3 +1,5 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -11,6 +13,8 @@ const TIPOS = [
 ];
 
 export default function DocenteComentarios() {
+  const dialog = useDialog();
+  const pageLoad = usePageLoad();
   const [comentarios, setComentarios] = useState([]);
   const [materias, setMaterias] = useState([]);
   const [estudiantesPorMateria, setEstudiantesPorMateria] = useState({});
@@ -20,33 +24,46 @@ export default function DocenteComentarios() {
   });
 
   const cargar = async () => {
-    const [c, m] = await Promise.all([
-      api.get('/docente/comentarios'),
-      api.get('/docente/materias')
-    ]);
-    setComentarios(c.data); setMaterias(m.data);
+    return pageLoad.run(async () => {
+      const [c, m] = await Promise.all([
+        api.get('/docente/comentarios'),
+        api.get('/docente/materias')
+      ]);
+      setComentarios(c.data); setMaterias(m.data);
+
+    });
   };
 
   useEffect(() => { cargar(); }, []);
 
   const cargarEstudiantes = async (materiaId) => {
-    if (!materiaId || estudiantesPorMateria[materiaId]) return;
-    const { data } = await api.get(`/docente/materias/${materiaId}/estudiantes`);
-    setEstudiantesPorMateria(prev => ({ ...prev, [materiaId]: data }));
+    try {
+      if (!materiaId || estudiantesPorMateria[materiaId]) return;
+      const { data } = await api.get(`/docente/materias/${materiaId}/estudiantes`);
+      setEstudiantesPorMateria(prev => ({ ...prev, [materiaId]: data }));
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
+    }
   };
 
   const guardar = async (e) => {
-    e.preventDefault();
-    await api.post('/docente/comentarios', form);
-    setOpen(false);
-    setForm({ estudiante_id: '', materia_id: '', tipo: 'observacion', comentario: '' });
-    cargar();
+    try {
+      e.preventDefault();
+      await api.post('/docente/comentarios', form);
+      setOpen(false);
+      setForm({ estudiante_id: '', materia_id: '', tipo: 'observacion', comentario: '' });
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const tipoInfo = (v) => TIPOS.find(t => t.val === v) || TIPOS[2];
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="04"
         eyebrow="Observaciones académicas"
@@ -202,6 +219,6 @@ export default function DocenteComentarios() {
           </div>
         </form>
       </Modal>
-    </>
+    </></PageState>
   );
 }

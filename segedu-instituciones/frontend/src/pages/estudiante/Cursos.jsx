@@ -1,9 +1,13 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 
 export default function EstudianteCursos() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [cursos, setCursos] = useState([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -13,28 +17,41 @@ export default function EstudianteCursos() {
   const [archivo, setArchivo] = useState(null);
 
   const cargar = async () => {
-    const { data } = await api.get('/estudiante/cursos');
-    setCursos(data);
+    return pageLoad.run(async () => {
+      const { data } = await api.get('/estudiante/cursos');
+      setCursos(data);
+
+    });
   };
 
   useEffect(() => { cargar(); }, []);
 
   const guardar = async (e) => {
-    e.preventDefault();
-    const fd = new FormData();
-    Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-    if (archivo) fd.append('certificado', archivo);
-    await api.post('/estudiante/cursos', fd, { headers: { 'Content-Type': 'multipart/form-data' }});
-    setOpen(false);
-    setForm({ nombre_curso: '', institucion: '', fecha_inicio: '', fecha_fin: '', horas: '', descripcion: '' });
-    setArchivo(null);
-    cargar();
+    try {
+      e.preventDefault();
+      const fd = new FormData();
+      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      if (archivo) fd.append('certificado', archivo);
+      await api.post('/estudiante/cursos', fd, { headers: { 'Content-Type': 'multipart/form-data' }});
+      setOpen(false);
+      setForm({ nombre_curso: '', institucion: '', fecha_inicio: '', fecha_fin: '', horas: '', descripcion: '' });
+      setArchivo(null);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const eliminar = async (id) => {
-    if (!confirm('¿Eliminar este curso?')) return;
-    await api.delete(`/estudiante/cursos/${id}`);
-    cargar();
+    try {
+      if (!(await dialog.confirm('¿Eliminar este curso?', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
+      await api.delete(`/estudiante/cursos/${id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const estadoChip = {
@@ -44,7 +61,7 @@ export default function EstudianteCursos() {
   };
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="02"
         eyebrow="Formación complementaria"
@@ -169,6 +186,6 @@ export default function EstudianteCursos() {
           margin-top: 2px;
         }
       `}</style>
-    </>
+    </></PageState>
   );
 }

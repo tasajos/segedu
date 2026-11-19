@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
@@ -107,6 +108,7 @@ const computeRow = (row, reglas) => {
 };
 
 export default function JefeActas() {
+  const dialog = useDialog();
   const [tab, setTab] = useState('carga');
   const [materias, setMaterias] = useState([]);
   const [materiaId, setMateriaId] = useState('');
@@ -132,36 +134,51 @@ export default function JefeActas() {
   const [exportingStudent, setExportingStudent] = useState(false);
 
   const cargarMaterias = async () => {
-    const { data } = await api.get('/jefe/materias');
-    setMaterias(data);
-    if (data.length && !materiaId) setMateriaId(String(data[0].id));
+    try {
+      const { data } = await api.get('/jefe/materias');
+      setMaterias(data);
+      if (data.length && !materiaId) setMateriaId(String(data[0].id));
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
+    }
   };
 
   const cargarDetalle = async (id) => {
-    if (!id) return;
-    setLoading(true);
     try {
-      const { data } = await api.get(`/jefe/actas/${id}`);
-      setDetalle(data);
-      setPeriodo(data.acta?.periodo || '2026-I');
-      setObservaciones(data.acta?.observaciones || '');
-      const nextNotas = {};
-      data.inscritos.forEach((student) => {
-        const found = data.detalles.find((item) => Number(item.estudiante_id) === Number(student.id));
-        nextNotas[student.id] = createRow(found);
-      });
-      setNotas(nextNotas);
-      setEtapasDesbloqueadas({});
-      setPasswordEdicion('');
-      setArchivo(null);
-    } finally {
-      setLoading(false);
+      if (!id) return;
+      setLoading(true);
+      try {
+        const { data } = await api.get(`/jefe/actas/${id}`);
+        setDetalle(data);
+        setPeriodo(data.acta?.periodo || '2026-I');
+        setObservaciones(data.acta?.observaciones || '');
+        const nextNotas = {};
+        data.inscritos.forEach((student) => {
+          const found = data.detalles.find((item) => Number(item.estudiante_id) === Number(student.id));
+          nextNotas[student.id] = createRow(found);
+        });
+        setNotas(nextNotas);
+        setEtapasDesbloqueadas({});
+        setPasswordEdicion('');
+        setArchivo(null);
+      } finally {
+        setLoading(false);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
     }
   };
 
   const cargarIndicadores = async () => {
-    const { data } = await api.get('/jefe/actas/indicadores');
-    setIndicadores(data);
+    try {
+      const { data } = await api.get('/jefe/actas/indicadores');
+      setIndicadores(data);
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
+    }
   };
 
   useEffect(() => {
@@ -241,7 +258,7 @@ export default function JefeActas() {
 
       await Promise.all([cargarDetalle(materiaId), cargarIndicadores()]);
     } catch (err) {
-      alert(err.response?.data?.error || 'No se pudo guardar el acta');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo guardar el acta', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
@@ -267,7 +284,7 @@ export default function JefeActas() {
       setPasswordModal(false);
       setPassword('');
     } catch (err) {
-      setPasswordError(err.response?.data?.error || 'No se pudo validar la contraseña');
+      setPasswordError(err.response?.data?.message || err.response?.data?.error || 'No se pudo validar la contraseña');
     } finally {
       setValidatingPassword(false);
     }
@@ -280,7 +297,7 @@ export default function JefeActas() {
       const { data } = await api.get(`/jefe/estudiantes/${student.id}`);
       setEstudianteModal(data);
     } catch (err) {
-      alert(err.response?.data?.error || 'No se pudo cargar la información del estudiante');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información del estudiante', { tipo: 'error' });
       setEstudianteModal(null);
     } finally {
       setLoadingEstudiante(false);
@@ -293,7 +310,7 @@ export default function JefeActas() {
     try {
       await exportStudentRecordPdf(estudianteModal);
     } catch {
-      alert('No se pudo generar el PDF del estudiante');
+      dialog.alert('No se pudo generar el PDF del estudiante', { tipo: 'error' });
     } finally {
       setExportingStudent(false);
     }
@@ -540,7 +557,7 @@ export default function JefeActas() {
                 )}
               </div>
 
-              <table className="data-table">
+              <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                 <thead>
                   <tr>
                     <th>No</th>
@@ -635,7 +652,7 @@ export default function JefeActas() {
                     );
                   })}
                 </tbody>
-              </table>
+              </table></div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button className="btn btn-primary" onClick={guardar} disabled={saving || etapaBloqueada}>
@@ -670,7 +687,7 @@ export default function JefeActas() {
                 <h3 style={{ margin: 0 }}>Semestre {grupo.semestre} · Grupo {grupo.grupo}</h3>
                 <span className="count">{grupo.materias.length} materias</span>
               </div>
-              <table className="data-table">
+              <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                 <thead>
                   <tr>
                     <th>Materia</th>
@@ -703,7 +720,7 @@ export default function JefeActas() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           ))}
 
@@ -762,7 +779,7 @@ export default function JefeActas() {
                     <h3 style={{ margin: 0 }}>Grupo {grupo.grupo} · Semestre {grupo.semestre || '-'}</h3>
                     <span className="count">{grupo.conRiesgo.length} estudiantes</span>
                   </div>
-                  <table className="data-table">
+                  <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                     <thead>
                       <tr>
                         <th>Estudiante</th>
@@ -783,7 +800,7 @@ export default function JefeActas() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               ))}
             </div>
@@ -805,7 +822,7 @@ export default function JefeActas() {
                     <h3 style={{ margin: 0 }}>Grupo {grupo.grupo} · Semestre {grupo.semestre || '-'}</h3>
                     <span className="count">{grupo.sinNota.length} estudiantes</span>
                   </div>
-                  <table className="data-table">
+                  <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                     <thead>
                       <tr>
                         <th>Estudiante</th>
@@ -826,7 +843,7 @@ export default function JefeActas() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               ))}
             </div>
@@ -1055,18 +1072,18 @@ export default function JefeActas() {
 
             <section className="student-record-section">
               <h4>Notas de todas las materias</h4>
-              <div className="student-record-table-wrap"><table className="data-table"><thead><tr><th>Materia</th><th>Periodo</th><th>1P</th><th>2P</th><th>Final</th><th>Total</th><th>Estado</th></tr></thead><tbody>
+              <div className="student-record-table-wrap"><div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table"><thead><tr><th>Materia</th><th>Periodo</th><th>1P</th><th>2P</th><th>Final</th><th>Total</th><th>Estado</th></tr></thead><tbody>
                 {(estudianteModal.notas || []).map((nota) => <tr key={`${nota.materia_id}-${nota.periodo}`}><td>{nota.materia_nombre}<small className="record-subline">{nota.materia_codigo} · Grupo {nota.materia_grupo}</small></td><td>{nota.periodo || '-'}</td><td>{nota.primer_parcial ?? '-'}</td><td>{nota.segundo_parcial ?? '-'}</td><td>{nota.examen_final ?? '-'}</td><td className="text-mono">{nota.nota_final ?? '-'}</td><td><span className={`chip ${nota.estado === 'aprobado' ? 'chip-forest' : 'chip-crimson'}`}>{nota.estado}</span></td></tr>)}
                 {!estudianteModal.notas?.length && <tr><td colSpan="7">No hay notas registradas.</td></tr>}
-              </tbody></table></div>
+              </tbody></table></div></div>
             </section>
 
             <section className="student-record-section">
               <h4>Asistencia y faltas por materia</h4>
-              <div className="student-record-table-wrap"><table className="data-table"><thead><tr><th>Materia</th><th>Presentes</th><th>Faltas</th><th>Permisos</th><th>Tardanzas</th></tr></thead><tbody>
+              <div className="student-record-table-wrap"><div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table"><thead><tr><th>Materia</th><th>Presentes</th><th>Faltas</th><th>Permisos</th><th>Tardanzas</th></tr></thead><tbody>
                 {(estudianteModal.asistenciasPorMateria || []).map((item) => <tr key={item.materia_id}><td>{item.materia_nombre}<small className="record-subline">{item.materia_codigo}</small></td><td>{item.presentes}</td><td><span className="chip chip-crimson">{item.faltas}</span></td><td>{item.permisos}</td><td>{item.tardanzas}</td></tr>)}
                 {!estudianteModal.asistenciasPorMateria?.length && <tr><td colSpan="5">No hay asistencias registradas.</td></tr>}
-              </tbody></table></div>
+              </tbody></table></div></div>
             </section>
 
             <section className="student-record-section">
@@ -1095,7 +1112,7 @@ export default function JefeActas() {
         maxWidth="860px"
       >
         {detalleReprobados && detalleReprobados.estudiantes.length > 0 ? (
-          <table className="data-table">
+          <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
             <thead>
               <tr>
                 <th>Estudiante</th>
@@ -1126,7 +1143,7 @@ export default function JefeActas() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : (
           <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--ink-light)' }}>
             No hay estudiantes reprobados en este indicador.

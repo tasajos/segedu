@@ -1,3 +1,4 @@
+import PageState, { usePageLoad } from '../../components/PageState';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
@@ -6,6 +7,7 @@ import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 
 export default function DocenteInicio() {
+  const pageLoad = usePageLoad();
   const { user, auditPersona } = useAuth();
   const displayUser = user.rol === 'auditor' ? (auditPersona || user) : user;
   const [materias, setMaterias] = useState([]);
@@ -13,7 +15,7 @@ export default function DocenteInicio() {
   const [avance, setAvance] = useState([]);
 
   useEffect(() => {
-    (async () => {
+    pageLoad.run(() => (async () => {
       try {
         const [m, p, a] = await Promise.all([
           api.get('/docente/materias'),
@@ -24,9 +26,9 @@ export default function DocenteInicio() {
         setPgo(p.data || []);
         setAvance(a.data || []);
       } catch (err) {
-        console.error(err);
+        throw err;
       }
-    })();
+    })());
   }, []);
 
   const totalEstudiantes = materias.reduce((s, m) => s + (+m.total_estudiantes || 0), 0);
@@ -35,7 +37,7 @@ export default function DocenteInicio() {
   const docenteNombreCompleto = [displayUser.nombre, displayUser.apellido].filter(Boolean).join(' ');
 
   return (
-    <div className="fade-up">
+    <PageState state={pageLoad}><div className="fade-up">
       <PageHeader
         eyebrow="Panel Docente"
         title={<>Bienvenido, <span className="display-italic">Prof. {docenteNombreCompleto}</span></>}
@@ -162,6 +164,6 @@ export default function DocenteInicio() {
           </div>
         </div>
       </div>
-    </div>
+    </div></PageState>
   );
 }

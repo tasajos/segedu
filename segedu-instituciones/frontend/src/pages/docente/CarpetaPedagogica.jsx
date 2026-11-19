@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useMemo, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -6,7 +7,6 @@ import { saveAs } from 'file-saver';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
-import Modal from '../../components/Modal';
 import './CarpetaPedagogica.css';
 
 const TABS = [
@@ -346,6 +346,7 @@ const buildAttendanceMatrix = (estudiantes, asistenciaRecords) => {
 };
 
 export default function CarpetaPedagogica() {
+  const dialog = useDialog();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('caratula');
   const [schedulePicker, setSchedulePicker] = useState({ index: 0, inicio: '', fin: '' });
@@ -355,7 +356,7 @@ export default function CarpetaPedagogica() {
   const [asistencia, setAsistencia] = useState([]);
   const [evaluationActa, setEvaluationActa] = useState({ acta: null, detalles: [] });
   const [newAttendanceDate, setNewAttendanceDate] = useState(today());
-  const [messageModal, setMessageModal] = useState(null);
+
   const [folder, setFolder] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -370,9 +371,10 @@ export default function CarpetaPedagogica() {
         setMaterias(data);
         if (data.length) setMateriaId(String(data[0].id));
         else setLoading(false);
-      } catch {
+      } catch (err) {
         setMaterias([]);
         setLoading(false);
+        dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudieron cargar las materias.', { tipo: 'error' });
       }
     })();
   }, []);
@@ -410,6 +412,8 @@ export default function CarpetaPedagogica() {
           acta: evaluationRes.data.acta || null,
           detalles: makeActaEvaluationRows(evaluationRes.data.detalles || [])
         });
+      } catch (err) {
+        dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la carpeta pedagógica.', { tipo: 'error' });
       } finally {
         setLoading(false);
       }
@@ -620,17 +624,9 @@ export default function CarpetaPedagogica() {
       });
       await api.put(`/docente/carpeta-pedagogica/${materiaId}`, { data: folder });
       setUpdatedAt(new Date().toISOString());
-      setMessageModal({
-        type: 'success',
-        title: 'Carpeta guardada',
-        message: 'La carpeta pedagogica y los cambios de asistencia se guardaron correctamente.'
-      });
+      dialog.alert('La carpeta pedagogica y los cambios de asistencia se guardaron correctamente.', { tipo: 'exito', titulo: 'Carpeta guardada' });
     } catch (err) {
-      setMessageModal({
-        type: 'error',
-        title: 'No se pudo guardar',
-        message: err.response?.data?.error || 'No se pudo guardar la carpeta pedagogica.'
-      });
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo guardar la carpeta pedagogica.', { tipo: 'error', titulo: 'No se pudo guardar' });
     } finally {
       setSaving(false);
     }
@@ -1256,25 +1252,6 @@ export default function CarpetaPedagogica() {
         </section>
       </div>
 
-      <Modal
-        open={Boolean(messageModal)}
-        onClose={() => setMessageModal(null)}
-        title={messageModal?.title || 'Mensaje'}
-        maxWidth="520px"
-      >
-        {messageModal && (
-          <div className={`ped-save-modal ${messageModal.type === 'success' ? 'success' : 'error'}`}>
-            <div className="ped-save-icon">{messageModal.type === 'success' ? '✓' : '!'}</div>
-            <div>
-              <h3>{messageModal.title}</h3>
-              <p>{messageModal.message}</p>
-              <button className="btn btn-primary" type="button" onClick={() => setMessageModal(null)}>
-                Entendido
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </>
   );
 }

@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -41,6 +43,8 @@ const rolLabel = { estudiante: 'Estudiante', docente: 'Docente', jefe: 'Jefe de 
 const rolChip = { estudiante: 'chip-gold', docente: 'chip-forest', jefe: 'chip-ink', auditor: 'chip-blue', admin: 'chip-crimson' };
 
 export default function AdminUsuarios() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [usuarios, setUsuarios] = useState([]);
   const [carreras, setCarreras] = useState([]);
   const [materias, setMaterias] = useState([]);
@@ -60,7 +64,7 @@ export default function AdminUsuarios() {
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(null);
+
   const [newPass, setNewPass] = useState('password123');
   const [bulkLoading, setBulkLoading] = useState(false);
   const [seleccionados, setSeleccionados] = useState(new Set());
@@ -70,21 +74,24 @@ export default function AdminUsuarios() {
   const [csvLoading, setCsvLoading] = useState(false);
 
   const cargar = async () => {
-    const params = {};
-    if (filtroRol) params.rol = filtroRol;
-    if (filtroEmail) params.email = filtroEmail;
-    if (filtroCi) params.ci = filtroCi;
-    if (filtroCodigo) params.codigo = filtroCodigo;
-    if (filtroActivo !== '') params.activo = filtroActivo;
-    const [u, c, m] = await Promise.all([
-      api.get('/admin/usuarios', { params }),
-      api.get('/admin/carreras'),
-      api.get('/admin/materias')
-    ]);
-    setUsuarios(u.data);
-    setCarreras(c.data);
-    setMaterias(m.data);
-    setSeleccionados(new Set());
+    return pageLoad.run(async () => {
+      const params = {};
+      if (filtroRol) params.rol = filtroRol;
+      if (filtroEmail) params.email = filtroEmail;
+      if (filtroCi) params.ci = filtroCi;
+      if (filtroCodigo) params.codigo = filtroCodigo;
+      if (filtroActivo !== '') params.activo = filtroActivo;
+      const [u, c, m] = await Promise.all([
+        api.get('/admin/usuarios', { params }),
+        api.get('/admin/carreras'),
+        api.get('/admin/materias')
+      ]);
+      setUsuarios(u.data);
+      setCarreras(c.data);
+      setMaterias(m.data);
+      setSeleccionados(new Set());
+
+    });
   };
 
   useEffect(() => {
@@ -135,7 +142,7 @@ export default function AdminUsuarios() {
       setModal(false);
       cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al guardar');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al guardar', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
@@ -162,7 +169,7 @@ export default function AdminUsuarios() {
       setImportResult(data);
       await cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al importar el Excel');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al importar el Excel', { tipo: 'error' });
     } finally {
       setImporting(false);
       setModalProceso(false);
@@ -170,20 +177,37 @@ export default function AdminUsuarios() {
   };
 
   const eliminar = async (id) => {
-    await api.delete(`/admin/usuarios/${id}`);
-    setConfirmDel(null);
-    cargar();
+    try {
+      const usuario = usuarios.find(item => item.id === id);
+      if (!(await dialog.confirm(`¿Eliminar a ${usuario?.nombre || 'este usuario'} ${usuario?.apellido || ''}? Se eliminarán todos sus datos asociados.`, { titulo: 'Eliminar usuario', tipo: 'peligro', textoConfirmar: 'Eliminar' }))) return;
+      await api.delete(`/admin/usuarios/${id}`);
+
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const resetPass = async () => {
-    await api.put(`/admin/usuarios/${modalReset.id}/reset-password`, { password: newPass });
-    setModalReset(null);
-    setNewPass('password123');
+    try {
+      await api.put(`/admin/usuarios/${modalReset.id}/reset-password`, { password: newPass });
+      setModalReset(null);
+      setNewPass('password123');
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const toggleActivo = async (u) => {
-    await api.put(`/admin/usuarios/${u.id}/toggle-activo`);
-    cargar();
+    try {
+      await api.put(`/admin/usuarios/${u.id}/toggle-activo`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const bulkActivo = async (activo, ids) => {
@@ -193,7 +217,7 @@ export default function AdminUsuarios() {
       await api.put('/admin/usuarios/bulk-activo', { ids, activo });
       cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al actualizar');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al actualizar', { tipo: 'error' });
     } finally {
       setBulkLoading(false);
     }
@@ -235,7 +259,7 @@ export default function AdminUsuarios() {
       setCsvResult(data);
       cargar();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al importar el CSV');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al importar el CSV', { tipo: 'error' });
     } finally {
       setCsvLoading(false);
     }
@@ -270,7 +294,7 @@ export default function AdminUsuarios() {
   };
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="03"
         eyebrow="Gestion de usuarios"
@@ -408,7 +432,7 @@ export default function AdminUsuarios() {
         const todosSeleccionados = seleccionableIds.length > 0 && seleccionableIds.every((id) => seleccionados.has(id));
         const algunoSeleccionado = seleccionableIds.some((id) => seleccionados.has(id));
         return (
-          <table className="data-table">
+          <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
             <thead>
               <tr>
                 <th style={{ width: '36px' }}>
@@ -498,14 +522,14 @@ export default function AdminUsuarios() {
                             {u.activo ? 'Deshabilitar' : 'Habilitar'}
                           </button>
                         )}
-                        <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(u)}>Eliminar</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => eliminar(u.id)}>Eliminar</button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         );
       })()}
 
@@ -879,15 +903,6 @@ export default function AdminUsuarios() {
         </div>
       </Modal>
 
-      <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="Confirmar eliminacion">
-        <p style={{ marginBottom: '1.5rem' }}>
-          Eliminar al usuario <strong>{confirmDel?.nombre} {confirmDel?.apellido}</strong>? Se eliminaran todos sus datos asociados.
-        </p>
-        <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
-          <button className="btn btn-secondary" onClick={() => setConfirmDel(null)}>Cancelar</button>
-          <button className="btn btn-danger" onClick={() => eliminar(confirmDel.id)}>Eliminar</button>
-        </div>
-      </Modal>
-    </>
+    </></PageState>
   );
 }

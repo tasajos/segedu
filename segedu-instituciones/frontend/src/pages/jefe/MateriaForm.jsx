@@ -1,9 +1,11 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
 
 export default function MateriaForm({ role = 'admin' }) {
+  const dialog = useDialog();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -79,7 +81,7 @@ export default function MateriaForm({ role = 'admin' }) {
           });
         }
       } catch (err) {
-        alert('Error al cargar datos del formulario');
+        dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al cargar datos del formulario', { tipo: 'error' });
       } finally {
         setLoading(false);
       }
@@ -102,7 +104,7 @@ export default function MateriaForm({ role = 'admin' }) {
 
       navigate(role === 'admin' ? '/admin/materias' : '/jefe/materias');
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al guardar la materia');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al guardar la materia', { tipo: 'error' });
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../config/db.js';
+import { institucionActual } from '../tenancy/contexto.js';
 
 export const login = async (req, res) => {
   try {
@@ -38,7 +39,8 @@ export const login = async (req, res) => {
       if (doc[0]) extra = { docente_id: doc[0].id, especialidad: doc[0].especialidad };
     }
 
-    const payload = { id: user.id, email: user.email, rol: user.rol, ...extra };
+    // `inst` ata el token a la institución: no sirve en el subdominio de otra.
+    const payload = { id: user.id, email: user.email, rol: user.rol, ...extra, inst: institucionActual()?.subdominio ?? null };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES || '7d' });
 
     res.json({

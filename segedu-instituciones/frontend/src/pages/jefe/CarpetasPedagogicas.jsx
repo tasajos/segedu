@@ -161,7 +161,7 @@ export default function JefeCarpetasPedagogicas() {
       setItems(data);
     } catch (err) {
       setItems([]);
-      setError(err.response?.data?.error || 'No se pudieron cargar las carpetas pedagogicas. Verifique que el backend este actualizado.');
+      setError(err.response?.data?.message || err.response?.data?.error || 'No se pudieron cargar las carpetas pedagogicas. Verifique que el backend este actualizado.');
     } finally {
       setLoading(false);
     }
@@ -196,7 +196,7 @@ export default function JefeCarpetasPedagogicas() {
       if (shouldDownload) await exportFolderPdf(data);
     } catch (err) {
       setDetail(null);
-      setError(err.response?.data?.error || 'No se pudo cargar el detalle de la carpeta pedagogica.');
+      setError(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar el detalle de la carpeta pedagogica.');
     } finally {
       setDetailLoading(false);
     }
@@ -297,26 +297,26 @@ export default function JefeCarpetasPedagogicas() {
 
             <div className="jefe-preview-section">
               <h3>Datos generales</h3>
-              <table className="data-table">
+              <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                 <tbody>
                   <tr><td>Docente</td><td>{detail.materia.docente_nombre} {detail.materia.docente_apellido}</td></tr>
                   <tr><td>Materia</td><td>{detail.materia.nombre} ({detail.materia.codigo}) - Grupo {detail.materia.grupo}</td></tr>
                   <tr><td>Carrera</td><td>{detail.materia.carrera_nombre}</td></tr>
                   <tr><td>Ultima actualizacion</td><td>{detail.carpeta?.updated_at ? new Date(detail.carpeta.updated_at).toLocaleString('es-ES') : 'Sin carpeta guardada'}</td></tr>
                 </tbody>
-              </table>
+              </table></div>
             </div>
 
             <div className="jefe-preview-section">
               <h3>Horarios registrados</h3>
-              <table className="data-table">
+              <div className="table-scroll" role="region" aria-label="Tabla de datos" tabIndex={0}><table className="data-table">
                 <thead><tr><th>Dia</th><th>Horario</th></tr></thead>
                 <tbody>
                   {(parseFolderData(detail).datos?.horario || []).map((row) => (
                     <tr key={row.dia}><td>{row.dia}</td><td>{row.horas || '-'}</td></tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

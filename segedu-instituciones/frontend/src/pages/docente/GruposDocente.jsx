@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -10,6 +11,7 @@ const formatFecha = (val) => {
 };
 
 export default function DocenteGruposTrabajo() {
+  const dialog = useDialog();
   const [materias, setMaterias] = useState([]);
   const [tareasPorMateria, setTareasPorMateria] = useState([]);
   const [grupos, setGrupos] = useState([]);
@@ -36,15 +38,16 @@ export default function DocenteGruposTrabajo() {
       const params = materia_id ? { materia_id } : {};
       const r = await api.get('/docente/grupos-trabajo', { params });
       setGrupos(Array.isArray(r.data) ? r.data : []);
-    } catch {
+    } catch (err) {
       setGrupos([]);
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    api.get('/docente/materias').then(r => setMaterias(Array.isArray(r.data) ? r.data : []));
+    api.get('/docente/materias').then(r => setMaterias(Array.isArray(r.data) ? r.data : [])).catch(err => dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' }));
     cargar('');
   }, []);
 
@@ -76,19 +79,19 @@ export default function DocenteGruposTrabajo() {
       setModalCrear(false);
       cargar(filtroMateria);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al crear el grupo');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al crear el grupo', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   const eliminarGrupo = async (id) => {
-    if (!window.confirm('¿Eliminar este grupo? Se perderán los miembros y tareas asignadas.')) return;
+    if (!(await dialog.confirm('¿Eliminar este grupo? Se perderán los miembros y tareas asignadas.', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
     try {
       await api.delete(`/docente/grupos-trabajo/${id}`);
       cargar(filtroMateria);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al eliminar');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al eliminar', { tipo: 'error' });
     }
   };
 
@@ -126,7 +129,7 @@ export default function DocenteGruposTrabajo() {
       setGrupos(lista);
       setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al agregar miembros');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al agregar miembros', { tipo: 'error' });
     } finally {
       setSavingGestion(false);
     }
@@ -140,7 +143,7 @@ export default function DocenteGruposTrabajo() {
       setGrupos(lista);
       setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al remover miembro');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al remover miembro', { tipo: 'error' });
     }
   };
 
@@ -155,7 +158,7 @@ export default function DocenteGruposTrabajo() {
       setGrupos(lista);
       setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al asignar tarea');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al asignar tarea', { tipo: 'error' });
     } finally {
       setSavingGestion(false);
     }
@@ -169,7 +172,7 @@ export default function DocenteGruposTrabajo() {
       setGrupos(lista);
       setGrupoActivo(lista.find(g => g.id === grupoActivo.id) || null);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al remover tarea');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al remover tarea', { tipo: 'error' });
     }
   };
 

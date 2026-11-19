@@ -13,3 +13,10 @@ uploads/*
 
 # SEGEDU Instituciones
 segedu-instituciones/backend/public/
+
+# Orquestador: logs y capturas de cada tarea
+orquestador/tareas/*/codex/*.log
+orquestador/tareas/*/codex/dry-run-*
+orquestador/tareas/*/qa/*.log
+orquestador/tareas/*/qa/dry-run-*
+orquestador/tareas/*/qa/capturas-*/

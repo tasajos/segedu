@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -12,6 +14,8 @@ const ESTADOS = {
 };
 
 export default function DocentePGO() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [pgoList, setPgoList] = useState([]);
   const [materias, setMaterias] = useState([]);
   const [open, setOpen] = useState(false);
@@ -19,12 +23,15 @@ export default function DocentePGO() {
   const [archivo, setArchivo] = useState(null);
 
   const cargar = async () => {
-    const [p, m] = await Promise.all([
-      api.get('/docente/pgo'),
-      api.get('/docente/materias')
-    ]);
-    setPgoList(p.data);
-    setMaterias(m.data);
+    return pageLoad.run(async () => {
+      const [p, m] = await Promise.all([
+        api.get('/docente/pgo'),
+        api.get('/docente/materias')
+      ]);
+      setPgoList(p.data);
+      setMaterias(m.data);
+
+    });
   };
 
   useEffect(() => {
@@ -32,26 +39,36 @@ export default function DocentePGO() {
   }, []);
 
   const guardar = async (e) => {
-    e.preventDefault();
-    const fd = new FormData();
-    Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-    if (archivo) fd.append('archivo', archivo);
-    await api.post('/docente/pgo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-    setOpen(false);
-    setForm({ materia_id: '', titulo: '', descripcion: '', periodo: '2026-I' });
-    setArchivo(null);
-    cargar();
+    try {
+      e.preventDefault();
+      const fd = new FormData();
+      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      if (archivo) fd.append('archivo', archivo);
+      await api.post('/docente/pgo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setOpen(false);
+      setForm({ materia_id: '', titulo: '', descripcion: '', periodo: '2026-I' });
+      setArchivo(null);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const eliminar = async (pgo) => {
-    const ok = window.confirm(`¿Desea eliminar el PGO "${pgo.titulo}"?`);
-    if (!ok) return;
-    await api.delete(`/docente/pgo/${pgo.id}`);
-    cargar();
+    try {
+      const ok = (await dialog.confirm(`¿Desea eliminar el PGO "${pgo.titulo}"?`, { tipo: 'peligro', textoConfirmar: 'Confirmar' }));
+      if (!ok) return;
+      await api.delete(`/docente/pgo/${pgo.id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   return (
-    <>
+    <PageState state={pageLoad} onRetry={cargar}><>
       <PageHeader
         num="02"
         eyebrow="Plan global operativo"
@@ -162,6 +179,6 @@ export default function DocentePGO() {
           line-height: 1;
         }
       `}</style>
-    </>
+    </></PageState>
   );
 }

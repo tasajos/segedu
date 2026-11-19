@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed": "node src/utils/seed.js",
-    "crear-admin": "node src/utils/crearAdmin.js"
+    "crear-admin": "node src/utils/crearAdmin.js",
+    "crear-superadmin": "node src/utils/crearSuperadmin.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.17",

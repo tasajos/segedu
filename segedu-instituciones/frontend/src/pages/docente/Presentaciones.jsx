@@ -1,3 +1,5 @@
+import PageState, { usePageLoad } from '../../components/PageState';
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
@@ -227,6 +229,8 @@ function PresentacionRow({ p, carpetas, carpetaActual, onVer, onMover, onElimina
 
 // ── Página principal ──────────────────────────────────────────
 export default function PresentacionesDocente() {
+  const pageLoad = usePageLoad();
+  const dialog = useDialog();
   const [lista, setLista]       = useState([]);
   const [carpetas, setCarpetas] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -242,14 +246,19 @@ export default function PresentacionesDocente() {
   const fileRef = useRef();
 
   async function cargar() {
-    setLoading(true);
-    const [resP, resC] = await Promise.allSettled([
-      api.get('/docente/mis-presentaciones'),
-      api.get('/docente/carpetas'),
-    ]);
-    if (resP.status === 'fulfilled') setLista(Array.isArray(resP.value.data) ? resP.value.data : []);
-    if (resC.status === 'fulfilled') setCarpetas(Array.isArray(resC.value.data) ? resC.value.data : []);
-    setLoading(false);
+    return pageLoad.run(async () => {
+      setLoading(true);
+      const [resP, resC] = await Promise.allSettled([
+        api.get('/docente/mis-presentaciones'),
+        api.get('/docente/carpetas'),
+      ]);
+      if (resP.status === 'fulfilled') setLista(Array.isArray(resP.value.data) ? resP.value.data : []);
+      if (resC.status === 'fulfilled') setCarpetas(Array.isArray(resC.value.data) ? resC.value.data : []);
+      setLoading(false);
+      const failed = [resP, resC].find(result => result.status === 'rejected');
+      if (failed) throw failed.reason;
+
+    });
   }
 
   useEffect(() => { cargar(); }, []);
@@ -277,7 +286,7 @@ export default function PresentacionesDocente() {
       setShowForm(false); setForm(EMPTY_FORM); setFile(null);
       cargar();
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al subir');
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'Error al subir', { tipo: 'error' });
     } finally {
       setSaving(false);
     }
@@ -285,42 +294,67 @@ export default function PresentacionesDocente() {
 
   // ── Crear carpeta ─────────────────────────────────────────
   async function handleCrearCarpeta(e) {
-    e.preventDefault();
-    if (!nuevaCarpeta.trim()) return;
-    setSavingCarpeta(true);
     try {
-      await api.post('/docente/carpetas', { nombre: nuevaCarpeta.trim() });
-      setNuevaCarpeta(''); setShowCarpetaForm(false);
-      cargar();
-    } finally {
-      setSavingCarpeta(false);
+      e.preventDefault();
+      if (!nuevaCarpeta.trim()) return;
+      setSavingCarpeta(true);
+      try {
+        await api.post('/docente/carpetas', { nombre: nuevaCarpeta.trim() });
+        setNuevaCarpeta(''); setShowCarpetaForm(false);
+        cargar();
+      } finally {
+        setSavingCarpeta(false);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
     }
   }
 
   // ── Renombrar carpeta ─────────────────────────────────────
   async function handleRenombrar(id, nombre) {
-    await api.put(`/docente/carpetas/${id}`, { nombre });
-    cargar();
+    try {
+      await api.put(`/docente/carpetas/${id}`, { nombre });
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   }
 
   // ── Eliminar carpeta ──────────────────────────────────────
   async function handleEliminarCarpeta(c) {
-    if (!confirm(`Eliminar carpeta "${c.nombre}"? Las presentaciones dentro quedarán sin carpeta.`)) return;
-    await api.delete(`/docente/carpetas/${c.id}`);
-    cargar();
+    try {
+      if (!(await dialog.confirm(`Eliminar carpeta "${c.nombre}"? Las presentaciones dentro quedarán sin carpeta.`, { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
+      await api.delete(`/docente/carpetas/${c.id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   }
 
   // ── Mover presentación ────────────────────────────────────
   async function handleMover(id, carpetaId) {
-    await api.put(`/docente/presentaciones/${id}/mover`, { carpeta_id: carpetaId });
-    cargar();
+    try {
+      await api.put(`/docente/presentaciones/${id}/mover`, { carpeta_id: carpetaId });
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   }
 
   // ── Eliminar presentación ─────────────────────────────────
   async function handleEliminar(p) {
-    if (!confirm(`Eliminar "${p.titulo}"?`)) return;
-    await api.delete(`/docente/presentaciones/${p.id}`);
-    cargar();
+    try {
+      if (!(await dialog.confirm(`Eliminar "${p.titulo}"?`, { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
+      await api.delete(`/docente/presentaciones/${p.id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   }
 
   // ── Agrupar por carpeta ───────────────────────────────────
@@ -342,7 +376,7 @@ export default function PresentacionesDocente() {
   const total = lista.length;
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto' }}>
+    <PageState state={pageLoad} onRetry={cargar}><div style={{ maxWidth: 1080, margin: '0 auto' }}>
       <PageHeader
         num="09"
         eyebrow="Material de clase"
@@ -558,6 +592,6 @@ export default function PresentacionesDocente() {
       <Modal open={!!visor} onClose={() => setVisor(null)} title={visor?.titulo || 'Presentación'} maxWidth="1120px">
         {visor && <PresentationViewer presentation={visor} />}
       </Modal>
-    </div>
+    </div></PageState>
   );
 }

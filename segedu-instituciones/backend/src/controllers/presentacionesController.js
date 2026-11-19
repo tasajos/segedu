@@ -1,3 +1,4 @@
+import { candidatosUpload } from '../tenancy/uploads.js';
 import pool from '../config/db.js';
 import fs from 'fs';
 import path from 'path';
@@ -10,9 +11,7 @@ function resolveFile(archivoPath) {
   if (!archivoPath) return null;
   const name = path.basename(archivoPath);
   const candidates = [
-    path.resolve(process.cwd(), 'uploads', name),
-    path.resolve(process.cwd(), 'backend', 'uploads', name),
-    path.resolve(__dirname, '..', '..', 'uploads', name)
+    ...candidatosUpload(name),
   ];
   return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 }

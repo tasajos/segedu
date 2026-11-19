@@ -140,6 +140,12 @@ export default function Layout() {
       : (menus[user.rol] || []);
   const items = aplanar(grupos);
   useEffect(() => { setMenuAbierto(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const closeMenu = (event) => { if (event.key === 'Escape') setMenuAbierto(false); };
+    document.addEventListener('keydown', closeMenu);
+    return () => document.removeEventListener('keydown', closeMenu);
+  }, [menuAbierto]);
   const [auditorCareers, setAuditorCareers] = useState([]);
   const [activeCareer, setActiveCareer] = useState('');
   const [changingCareer, setChangingCareer] = useState(false);
@@ -214,7 +220,7 @@ export default function Layout() {
   return (
     <>
     <div className={`app-shell ${user.rol === 'auditor' ? 'auditor-mode' : ''}`}>
-      <aside className={`sidebar ${menuAbierto ? 'abierto' : ''}`}>
+      <aside id="menu-principal" className={`sidebar ${menuAbierto ? 'abierto' : ''}`}>
         <div className="brand">
           <LogoInstitucion size={42} />
           <div className="brand-text">
@@ -224,6 +230,7 @@ export default function Layout() {
             </div>
             <div className="brand-sub" title={institucion.nombre}>{institucion.nombre}</div>
           </div>
+          <button className="menu-close" type="button" aria-label="Cerrar menú" onClick={() => setMenuAbierto(false)}>✕</button>
         </div>
 
         <nav className="nav" aria-label="Menú principal">
@@ -264,16 +271,18 @@ export default function Layout() {
             </svg>
             <span>Cerrar sesión</span>
           </button>
+          <div className="chakuy-credit"><img src="/chakuy.png" alt="" width="28" height="28" /><span>con tecnología de <strong>Chakuy Software</strong></span></div>
         </div>
       </aside>
       {menuAbierto && <button className="sidebar-velo" aria-label="Cerrar menú" onClick={() => setMenuAbierto(false)} />}
 
       <main className="main">
         <header className="topbar">
-          <button className="menu-toggle" aria-label="Abrir menú" onClick={() => setMenuAbierto(true)}>
+          <button className="menu-toggle" aria-label={menuAbierto ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuAbierto} aria-controls="menu-principal" onClick={() => setMenuAbierto(!menuAbierto)}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           </button>
           
+          <div className="topbar-institution"><LogoInstitucion size={32} /><span title={institucion.nombre}>{institucion.nombre}</span></div>
           <div className="breadcrumb">
             <span className="breadcrumb-rol">{roleLabel[user.rol]}</span>
             {pageName && (

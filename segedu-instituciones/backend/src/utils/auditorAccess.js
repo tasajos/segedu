@@ -1,9 +1,10 @@
+import { claveInstitucion } from '../tenancy/contexto.js';
 import pool from '../config/db.js';
 
-let schemaReady = false;
+const schemaReady = new Set(); // subdominios ya revisados
 
 export const ensureAuditorSchema = async () => {
-  if (schemaReady) return;
+  if (schemaReady.has(claveInstitucion())) return;
   const [[column]] = await pool.query(
     `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'rol'`
@@ -33,7 +34,7 @@ export const ensureAuditorSchema = async () => {
   if (!selectionSet.has('estudiante_id')) {
     await pool.query('ALTER TABLE auditor_career_selections ADD COLUMN estudiante_id INT NULL AFTER docente_id');
   }
-  schemaReady = true;
+  schemaReady.add(claveInstitucion());
 };
 
 export const impersonateAuditorAs = (type) => async (req, res, next) => {

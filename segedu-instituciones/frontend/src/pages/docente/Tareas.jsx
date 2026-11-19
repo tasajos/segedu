@@ -1,3 +1,4 @@
+import { useDialog } from '../../components/dialog/DialogProvider';
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PageHeader from '../../components/PageHeader';
@@ -146,6 +147,7 @@ function VisorEntrega({ entregaId }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function DocenteTareas() {
+  const dialog = useDialog();
   const [materias, setMaterias] = useState([]);
   const [tareas, setTareas] = useState([]);
   const [filtroMateria, setFiltroMateria] = useState('');
@@ -173,7 +175,7 @@ export default function DocenteTareas() {
     if (resT.status === 'fulfilled') setTareas(resT.value.data);
     const errores = [resM, resT]
       .filter(r => r.status === 'rejected')
-      .map(r => r.reason?.response?.data?.error || r.reason?.message)
+      .map(r => r.reason?.response?.data?.message || r.reason?.response?.data?.error || r.reason?.message)
       .filter(Boolean);
     if (errores.length) setErrorCarga(errores.join(' · '));
   };
@@ -181,40 +183,60 @@ export default function DocenteTareas() {
   useEffect(() => { cargar(); }, [filtroMateria]);
 
   const guardarTarea = async (e) => {
-    e.preventDefault();
-    if (!form.materia_id || !form.titulo) return;
-    setSaving(true);
     try {
-      const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      if (archivo) fd.append('archivo', archivo);
-      await api.post('/docente/tareas', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setModalNueva(false);
-      setForm({ materia_id: '', titulo: '', descripcion: '', fecha_entrega: '' });
-      setArchivo(null);
-      cargar();
-    } finally { setSaving(false); }
+      e.preventDefault();
+      if (!form.materia_id || !form.titulo) return;
+      setSaving(true);
+      try {
+        const fd = new FormData();
+        Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+        if (archivo) fd.append('archivo', archivo);
+        await api.post('/docente/tareas', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        setModalNueva(false);
+        setForm({ materia_id: '', titulo: '', descripcion: '', fecha_entrega: '' });
+        setArchivo(null);
+        cargar();
+      } finally { setSaving(false); }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const eliminarTarea = async (id) => {
-    if (!window.confirm('¿Eliminar esta tarea?')) return;
-    await api.delete(`/docente/tareas/${id}`);
-    cargar();
+    try {
+      if (!(await dialog.confirm('¿Eliminar esta tarea?', { tipo: 'peligro', textoConfirmar: 'Confirmar' }))) return;
+      await api.delete(`/docente/tareas/${id}`);
+      cargar();
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
+    }
   };
 
   const abrirEntregas = async (tarea) => {
-    setModalEntregas(tarea);
-    const r = await api.get(`/docente/tareas/${tarea.id}/entregas`);
-    setEntregas(r.data);
+    try {
+      setModalEntregas(tarea);
+      const r = await api.get(`/docente/tareas/${tarea.id}/entregas`);
+      setEntregas(r.data);
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
+    }
   };
 
   const guardarCalificacion = async (e) => {
-    e.preventDefault();
-    await api.put(`/docente/entregas/${modalCalificar.id}/calificar`, calForm);
-    setModalCalificar(null);
-    if (modalEntregas) {
-      const r = await api.get(`/docente/tareas/${modalEntregas.id}/entregas`);
-      setEntregas(r.data);
+    try {
+      e.preventDefault();
+      await api.put(`/docente/entregas/${modalCalificar.id}/calificar`, calForm);
+      setModalCalificar(null);
+      if (modalEntregas) {
+        const r = await api.get(`/docente/tareas/${modalEntregas.id}/entregas`);
+        setEntregas(r.data);
+      }
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo completar la acción. Intente nuevamente.', { tipo: 'error' });
     }
   };
 
@@ -554,12 +576,17 @@ export default function DocenteTareas() {
                     </button>
                     <button className="btn btn-secondary btn-sm"
                       onClick={async () => {
+    try {
                         const r = await api.get(`/docente/entregas/${e.id}/descargar`, { responseType: 'blob' });
                         const url = URL.createObjectURL(r.data);
                         const a = document.createElement('a');
                         a.href = url; a.download = e.archivo_nombre || 'entrega.docx';
                         a.click(); URL.revokeObjectURL(url);
-                      }}
+
+    } catch (err) {
+      dialog.alert(err.response?.data?.message || err.response?.data?.error || 'No se pudo cargar la información.', { tipo: 'error' });
+    }
+  }}
                       title="Descargar documento Word"
                     >
                       ↓ Descargar
